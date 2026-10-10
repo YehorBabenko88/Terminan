@@ -6,19 +6,21 @@ from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
 from .levels import merge_levels
+from .monitor import fleet_snapshot
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path == "/":
-            body = files("terminan").joinpath("index.html").read_bytes()
+        if url.path in ("/", "/monitor"):
+            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             q = parse_qs(url.query)
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == "/api/instruments": result = data.instruments()
+                if url.path == "/api/monitor": result = fleet_snapshot()
+                elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
                 elif url.path == "/api/research": result = data.research(symbol)
                 elif url.path == "/api/levels":
