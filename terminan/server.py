@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
+from .gateway_client import fetch_source
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -19,10 +20,25 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == "/api/monitor": result = fleet_snapshot()
-                elif url.path == "/api/instruments": result = data.instruments()
+                if url.path == "/api/monitor":
+                    remote=fetch_source("grid","/v1/nodes")
+                    if remote.get("state")=="NOT_CONFIGURED": result=fleet_snapshot()
+                    else:
+                        from datetime import datetime,timezone
+                        now=datetime.now(timezone.utc)
+                        nodes=[]
+                        for n in remote["nodes"]:
+                            last=datetime.fromisoformat(n["last_seen"]) if n.get("last_seen") else None
+                            age=max(0,(now-last).total_seconds()) if last else None
+                            nodes.append({**n,"age_seconds":age,"online":age is not None and age<=120})
+                        result={"source":"cluster-grid.gateway","nodes":nodes,"online":sum(n["online"] for n in nodes),"total":len(nodes),"database_sizes":{"state":"NOT_EXPOSED_BY_SOURCE"},"auxiliary_services":{"state":"NOT_EXPOSED_BY_SOURCE"}}
+                elif url.path == "/api/instruments":
+                    remote=fetch_source("grid","/v1/instruments")
+                    result=data.instruments() if remote.get("state")=="NOT_CONFIGURED" else remote["symbols"]
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
-                elif url.path == "/api/research": result = data.research(symbol)
+                elif url.path == "/api/research":
+                    remote=fetch_source("strattester","/v1/runs",{"symbol":symbol})
+                    result=data.research(symbol) if remote.get("state")=="NOT_CONFIGURED" else remote["runs"]
                 elif url.path == "/api/levels":
                     data.validate(symbol)
                     from datetime import datetime, timezone
@@ -34,8 +50,12 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
-                elif url.path == "/api/grid/candles": result = data.grid_candles(symbol)
-                elif url.path == "/api/grid/footprint": result = data.footprint(symbol)
+                elif url.path == "/api/grid/candles":
+                    remote=fetch_source("grid","/v1/candles",{"symbol":symbol})
+                    result=data.grid_candles(symbol) if remote.get("state")=="NOT_CONFIGURED" else remote["rows"]
+                elif url.path == "/api/grid/footprint":
+                    remote=fetch_source("grid","/v1/footprint",{"symbol":symbol})
+                    result=data.footprint(symbol) if remote.get("state")=="NOT_CONFIGURED" else remote["rows"]
                 elif url.path == "/api/status": result = {"mode":"READ_ONLY","strattester":bool(os.environ.get("TERMINAN_STRATTESTER_DB")),"grid":bool(os.environ.get("TERMINAN_GRID_DSN")),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
                 else: return self.send_error(404)
                 body = json.dumps(result,allow_nan=False,default=str).encode()
