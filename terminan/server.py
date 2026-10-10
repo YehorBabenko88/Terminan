@@ -47,6 +47,11 @@ class Handler(BaseHTTPRequestHandler):
                     for tf in ("1h","4h","1d"):
                         series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"]} for r in data.candles(symbol,tf,1000)]
                     result=merge_levels(series,now)
+                elif url.path == "/api/trades":
+                    data.validate(symbol)
+                    run_id=q.get("run_id",[""])[0]
+                    if not run_id or len(run_id)>160: raise ValueError("invalid run ID")
+                    result=fetch_source("strattester","/v1/trades",{"symbol":symbol,"run_id":run_id})
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
