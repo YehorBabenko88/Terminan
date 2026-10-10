@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
+from .levels import merge_levels
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -20,6 +21,17 @@ class Handler(BaseHTTPRequestHandler):
                 if url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
                 elif url.path == "/api/research": result = data.research(symbol)
+                elif url.path == "/api/levels":
+                    data.validate(symbol)
+                    from datetime import datetime, timezone
+                    now=int(datetime.now(timezone.utc).timestamp()*1000)
+                    series={}
+                    for tf in ("1h","4h","1d"):
+                        series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"]} for r in data.candles(symbol,tf,1000)]
+                    result=merge_levels(series,now)
+                elif url.path == "/api/logs":
+                    data.validate(symbol)
+                    result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
                 elif url.path == "/api/grid/candles": result = data.grid_candles(symbol)
                 elif url.path == "/api/grid/footprint": result = data.footprint(symbol)
                 elif url.path == "/api/status": result = {"mode":"READ_ONLY","strattester":bool(os.environ.get("TERMINAN_STRATTESTER_DB")),"grid":bool(os.environ.get("TERMINAN_GRID_DSN")),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
