@@ -11,8 +11,8 @@ from .monitor import fleet_snapshot
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor"):
-            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/dom-preview"):
+            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             q = parse_qs(url.query)
