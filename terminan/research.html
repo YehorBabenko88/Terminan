@@ -11,7 +11,7 @@ table{width:100%;border-collapse:collapse;overflow-wrap:anywhere}td,th{padding:1
 <p><a href="/">Терминал</a> · <a href="/sources">Источники</a> · <a href="/monitor">Мониторинг</a></p>
 <p class="warning">Исторические результаты не подтверждают пригодность стратегии для live-торговли. Публикационная полномочность (fencing) в этом представлении не проверяется.</p>
 <label>Инструмент <input id="symbol" value="BTCUSDT" maxlength="30"></label> <button id="refresh">Загрузить</button>
-<p id="state" class="muted">Ожидание</p>
+<p id="state" class="muted">Ожидание</p><section class="panel"><h2>Сравнить два запуска</h2><label>Левый run_id <input id="left-run" maxlength="128"></label> <label>Правый run_id <input id="right-run" maxlength="128"></label> <button id="compare">Сравнить</button><p id="compare-result" class="warning">Сравнение не выполнялось</p></section>
 <section class="panel"><table><thead><tr><th>Запуск</th><th>Стратегия</th><th>Версия</th><th>Время (UTC)</th><th>Сделки</th><th>Net PnL</th><th>Profit factor</th><th>Drawdown</th><th>Fencing</th><th>Live</th><th>Simulation</th><th>Dataset</th><th>Coverage</th></tr></thead><tbody id="runs"></tbody></table></section>
 <script>
 'use strict';
@@ -37,5 +37,21 @@ async function refresh(){
   $('runs').replaceChildren(fragment)
  }catch(error){$('state').textContent='Ошибка чтения: '+error.message}
 }
+async function compare(){
+ const symbol=$('symbol').value.trim().toUpperCase();
+ const left=$('left-run').value.trim(),right=$('right-run').value.trim();
+ const output=$('compare-result');
+ if(!/^[A-Z0-9]{2,30}$/.test(symbol)||!left||!right||left===right){output.textContent='Укажите корректный символ и два разных run_id';return}
+ output.textContent='Проверка сопоставимости…';
+ try{
+  const url='/api/source/compare?symbol='+encodeURIComponent(symbol)+'&left='+encodeURIComponent(left)+'&right='+encodeURIComponent(right);
+  const response=await fetch(url,{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const result=await response.json();
+  const comparison=result.comparison;
+  output.textContent=comparison?'Результат: '+comparison.state+' · '+comparison.reason+' · dataset совпадает: '+comparison.same_dataset+' · версии совпадают: '+comparison.same_strategy_version+' · торговые полномочия: '+comparison.trading_authority:'Сравнение недоступно: '+result.state;
+ }catch(error){output.textContent='Ошибка сравнения: '+error.message}
+}
+$('compare').onclick=compare;
 $('refresh').onclick=refresh;refresh();
 </script></html>
