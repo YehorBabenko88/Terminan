@@ -45,7 +45,7 @@ def strattester_research_view(symbol: str, limit=50):
     if not data.results_available():
         return {"version": 1, "source": "strattester", "symbol": symbol,
                 "state": "NOT_CONFIGURED", "runs": []}
-    rows = data.research(symbol, limit)
+    rows = [dict(row) for row in data.research(symbol, limit)]
     for row in rows:
         # Publication authority requires a source-owned lease validator. No
         # historical metric, fencing token or status field can replace it.
