@@ -36,7 +36,7 @@ class ResearchFencingTests(unittest.TestCase):
         rows = research("BTCUSDT")
         self.assertEqual(rows[0]["fencing"]["state"], "PRESENT_UNVERIFIED")
         self.assertTrue(rows[0]["fencing"]["lease_token_present"])
-            self.assertNotIn("lease_token", rows[0]["fencing"])
+        self.assertNotIn("lease_token", rows[0]["fencing"])
         self.assertEqual(rows[0]["publication_authority"], "UNVERIFIED")
         self.assertEqual(rows[1]["fencing"]["state"], "LEGACY_UNFENCED")
 
