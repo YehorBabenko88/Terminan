@@ -26,19 +26,47 @@ h1{font-size:21px}a{color:#7fc9fa}button,select{background:#1b3045;border:1px so
 <span id="state" class="muted"></span>
 </div>
 <div class="panel"><table class="book"><thead><tr><th>BID · lots</th><th>PRICE · ticks</th><th>ASK · lots</th></tr></thead><tbody id="book"></tbody></table></div>
-<p class="muted">Независимый Canvas/DOM-прототип интерфейса. Синтетический генератор находится только на этой странице и не подключается к биржам.</p>
+<p class="muted">Независимый Canvas/DOM-прототип интерфейса. Данные создаёт серверный Python BookEngine из фиксированного синтетического snapshot. Биржевых соединений нет.</p>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let bids=new Map(),asks=new Map(),seq=0,paused=false,lastDraw=0,dirty=true,frames=0;
-const center=100000;
-function reset(){bids=new Map();asks=new Map();seq=0;for(let i=0;i<90;i++){bids.set(center-1-i,20+(i*37)%190);asks.set(center+1+i,20+(i*29)%190)}dirty=true}
-function update(){if(paused)return;seq++;const side=seq%2?bids:asks;const price=center+(seq%2? -1:1)*(1+(seq*17)%90);const qty=(seq*23)%230;if(qty===0)side.delete(price);else side.set(price,qty);dirty=true}
-function aggregate(source,width){const result=new Map();for(const [price,qty] of source){const bucket=Math.floor(price/width)*width;result.set(bucket,(result.get(bucket)||0)+qty)}return result}
-function draw(now){const fps=Number($('fps').value);if(dirty&&now-lastDraw>=1000/fps){const width=Number($('group').value),rows=Number($('rows').value);const b=aggregate(bids,width),a=aggregate(asks,width);const anchor=Math.floor(center/width)*width;const top=anchor+Math.floor(rows/2)*width;const data=[];let max=1;
-for(let i=0;i<rows;i++){const p=top-i*width,bq=b.get(p)||0,aq=a.get(p)||0;max=Math.max(max,bq,aq);data.push([p,bq,aq])}
-const fragment=document.createDocumentFragment();for(const [price,bq,aq] of data){const tr=document.createElement('tr');for(const [q,side] of [[bq,'bid'],[price,'price'],[aq,'ask']]){const td=document.createElement('td');if(side!=='price'&&q){const bar=document.createElement('div');bar.className='bar '+side;bar.style.width=(100*q/max)+'%';td.append(bar)}const span=document.createElement('span');span.className='cell '+(side==='bid'?'bidtxt':side==='ask'?'asktxt':'price');span.textContent=side==='price'?String(q):q?String(q):'—';td.append(span);tr.append(td)}fragment.append(tr)}$('book').replaceChildren(fragment);frames++;lastDraw=now;dirty=false;$('state').textContent='SYNTHETIC · sequence '+seq+' · frames '+frames+' · '+fps+' FPS cap'}requestAnimationFrame(draw)}
-$('group').onchange=$('rows').onchange=$('fps').onchange=()=>{dirty=true};
-$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Продолжить':'Пауза';dirty=true};
-$('reset').onclick=reset;reset();setInterval(update,25);requestAnimationFrame(draw);
+let paused=false,dirty=true,lastDraw=-Infinity,frames=0,latest=null,requestInFlight=false;
+async function load(){
+ if(requestInFlight||paused)return;
+ requestInFlight=true;
+ try{
+  const params=new URLSearchParams({rows:$('rows').value,group:$('group').value});
+  const response=await fetch('/api/dom-preview?'+params,{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const result=await response.json();
+  if(result.source!=='SYNTHETIC_FIXTURE'||result.tradable!==false)throw Error('Unexpected data source');
+  latest=result;dirty=true;
+ }catch(error){$('state').textContent='Preview unavailable: '+error.message;latest=null}
+ finally{requestInFlight=false}
+}
+function paint(now){
+ const fps=Number($('fps').value);
+ if(dirty&&latest&&now-lastDraw>=1000/fps){
+  const data=latest.rows,max=Math.max(1,...data.flatMap(r=>[r.bid_lots,r.ask_lots]));
+  const fragment=document.createDocumentFragment();
+  for(const row of data){
+   const tr=document.createElement('tr');
+   for(const [q,side] of [[row.bid_lots,'bid'],[row.price_ticks,'price'],[row.ask_lots,'ask']]){
+    const td=document.createElement('td');
+    if(side!=='price'&&q){const bar=document.createElement('div');bar.className='bar '+side;bar.style.width=(100*q/max)+'%';td.append(bar)}
+    const span=document.createElement('span');span.className='cell '+(side==='bid'?'bidtxt':side==='ask'?'asktxt':'price');span.textContent=side==='price'?String(q):q?String(q):'—';td.append(span);tr.append(td)
+   }
+   fragment.append(tr)
+  }
+  $('book').replaceChildren(fragment);
+  frames++;lastDraw=now;dirty=false;
+  $('state').textContent='SYNTHETIC_FIXTURE · BookEngine v'+latest.version+' · seq '+latest.sequence+' · frames '+frames+' · '+fps+' FPS cap'
+ }
+ requestAnimationFrame(paint)
+}
+$('group').onchange=$('rows').onchange=()=>{dirty=true;load()};
+$('fps').onchange=()=>{dirty=true};
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Продолжить':'Пауза';if(!paused)load()};
+$('reset').onclick=()=>{paused=false;$('pause').textContent='Пауза';load()};
+load();requestAnimationFrame(paint);
 </script></html>
