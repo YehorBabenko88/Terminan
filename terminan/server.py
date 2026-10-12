@@ -8,7 +8,7 @@ from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
-from .source_views import grid_market_view, strattester_research_view
+from .source_views import grid_market_view, strattester_research_view, strattester_comparison_view
 from .source_health import source_health
 
 class Handler(BaseHTTPRequestHandler):
@@ -27,6 +27,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/source/health": result = source_health()
                 elif url.path == "/api/source/grid": result = grid_market_view(symbol)
                 elif url.path == "/api/source/strattester": result = strattester_research_view(symbol)
+                elif url.path == "/api/source/compare": result = strattester_comparison_view(symbol, q.get("left", [""])[0], q.get("right", [""])[0])
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
