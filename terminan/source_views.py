@@ -47,6 +47,14 @@ def strattester_research_view(symbol: str, limit=50):
                 "state": "NOT_CONFIGURED", "runs": []}
     rows = [dict(row) for row in data.research(symbol, limit)]
     for row in rows:
+        metrics = row.get("metrics")
+        fingerprint = metrics.get("fingerprint") if isinstance(metrics, dict) else None
+        coverage = metrics.get("coverage") if isinstance(metrics, dict) else None
+        row["dataset"] = {
+            "fingerprint": fingerprint if isinstance(fingerprint, str) and fingerprint else None,
+            "coverage": coverage if isinstance(coverage, str) and coverage else "UNSPECIFIED",
+            "comparability": "IDENTIFIED" if isinstance(fingerprint, str) and fingerprint else "UNVERIFIED",
+        }
         # Publication authority requires a source-owned lease validator. No
         # historical metric, fencing token or status field can replace it.
         row["validation"] = {
