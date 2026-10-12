@@ -29,7 +29,7 @@ class ResearchAdapterSafetyTests(unittest.TestCase):
             self.assertEqual(rows[0]["metrics_state"], "INVALID_METRICS")
             self.assertEqual(rows[0]["metrics"], {})
             self.assertEqual(rows[1]["metrics_state"], "PARSED")
-            self.assertNotIn(\'"lease_token":\', json.dumps(rows))
+            self.assertNotIn(chr(34) + "lease_token" + chr(34) + ":", json.dumps(rows))
             self.assertNotIn("123456789", json.dumps(rows))
             self.assertNotIn("987654321", json.dumps(rows))
             self.assertEqual(rows[0]["publication_authority"], "UNVERIFIED")
