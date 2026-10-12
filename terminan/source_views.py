@@ -67,3 +67,28 @@ def strattester_research_view(symbol: str, limit=50):
     return {"version": 1, "source": "strattester", "symbol": symbol,
             "state": "HISTORICAL_RESEARCH" if rows else "EMPTY",
             "runs": rows}
+
+
+def strattester_comparison_view(symbol: str, left_run: str, right_run: str):
+    """Compare two identified runs from the same symbol, never authorize trading."""
+    from .research_compare import compare_runs
+    data.validate(symbol)
+    if not isinstance(left_run, str) or not isinstance(right_run, str):
+        raise ValueError("invalid run identifiers")
+    if not (1 <= len(left_run) <= 128 and 1 <= len(right_run) <= 128):
+        raise ValueError("invalid run identifiers")
+    if left_run == right_run:
+        raise ValueError("choose two distinct runs")
+    if not data.results_available():
+        return {"version": 1, "source": "strattester", "state": "NOT_CONFIGURED",
+                "symbol": symbol, "comparison": None}
+    # The adapter intentionally only exposes its bounded recent research window.
+    runs = strattester_research_view(symbol, limit=100)["runs"]
+    left = next((r for r in runs if r.get("run_id") == left_run), None)
+    right = next((r for r in runs if r.get("run_id") == right_run), None)
+    if left is None or right is None:
+        return {"version": 1, "source": "strattester", "state": "RUN_NOT_FOUND",
+                "symbol": symbol, "comparison": None}
+    return {"version": 1, "source": "strattester", "state": "COMPARISON",
+            "symbol": symbol, "left_run": left_run, "right_run": right_run,
+            "comparison": compare_runs(left, right)}
