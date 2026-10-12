@@ -73,7 +73,7 @@ def grid_query(sql, params):
 def grid_candles(symbol, limit=300):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), (float(v) if v is not None else None for v in r))) for r in reversed(rows)]
 
 def footprint(symbol, limit=500):
     validate(symbol)
