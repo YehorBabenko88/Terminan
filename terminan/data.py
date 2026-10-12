@@ -40,13 +40,37 @@ def instruments():
         con.close()
 
 def research(symbol, limit=50):
+    """Read published results only; fencing authority is not verified locally."""
     validate(symbol)
+    if type(limit) is not int or not 1 <= limit <= 100:
+        raise ValueError("invalid research limit")
     con = sqlite_ro("TERMINAN_RESULTS_DB")
     if con is None:
         return []
     try:
-        rows = con.execute("SELECT run_id,strategy_id,strategy_version,created_at,metrics FROM research_results WHERE symbol=? ORDER BY created_at DESC LIMIT ?", (symbol,max(1,min(int(limit),100)))).fetchall()
-        return [dict(run_id=r[0], strategy=r[1], version=r[2], created_at=r[3], metrics=json.loads(r[4])) for r in rows]
+        columns = {r[1] for r in con.execute("PRAGMA table_info(research_results)")}
+        has_fencing = {"job_id", "lease_token", "node_generation"}.issubset(columns)
+        extra = ",job_id,lease_token,node_generation" if has_fencing else ""
+        rows = con.execute(
+            "SELECT run_id,strategy_id,strategy_version,created_at,metrics" + extra +
+            " FROM research_results WHERE symbol=? ORDER BY created_at DESC LIMIT ?",
+            (symbol, limit),
+        ).fetchall()
+        results = []
+        for row in rows:
+            result = dict(run_id=row[0], strategy=row[1], version=row[2],
+                          created_at=row[3], metrics=json.loads(row[4]),
+                          publication_authority="UNVERIFIED")
+            if has_fencing:
+                result["fencing"] = {
+                    "state": "PRESENT_UNVERIFIED" if row[5] is not None else "LEGACY_UNFENCED",
+                    "job_id": row[5], "lease_token": row[6],
+                    "node_generation": row[7],
+                }
+            else:
+                result["fencing"] = {"state": "SCHEMA_UNAVAILABLE"}
+            results.append(result)
+        return results
     finally:
         con.close()
 
