@@ -8,6 +8,7 @@ from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
+from .source_views import grid_market_view, strattester_research_view
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -22,6 +23,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if url.path == "/api/dom-preview":
                     result = preview_book.read(int(q.get("rows", ["25"])[0]), int(q.get("group", ["1"])[0]))
+                elif url.path == "/api/source/grid": result = grid_market_view(symbol)
+                elif url.path == "/api/source/strattester": result = strattester_research_view(symbol)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
