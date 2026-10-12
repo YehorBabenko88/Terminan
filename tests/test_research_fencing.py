@@ -35,7 +35,8 @@ class ResearchFencingTests(unittest.TestCase):
     def test_fencing_presence_is_not_authority(self):
         rows = research("BTCUSDT")
         self.assertEqual(rows[0]["fencing"]["state"], "PRESENT_UNVERIFIED")
-        self.assertEqual(rows[0]["fencing"]["lease_token"], 7)
+        self.assertTrue(rows[0]["fencing"]["lease_token_present"])
+            self.assertNotIn("lease_token", rows[0]["fencing"])
         self.assertEqual(rows[0]["publication_authority"], "UNVERIFIED")
         self.assertEqual(rows[1]["fencing"]["state"], "LEGACY_UNFENCED")
 
