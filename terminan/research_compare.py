@@ -33,11 +33,23 @@ def compare_runs(left, right):
             assumptions[field] = "MISMATCH"
         else:
             assumptions[field] = "RECORDED_MATCH"
+    # Coverage windows must be equal when both are explicitly provided.
+    # A dataset fingerprint does not independently prove equal test windows.
+    coverage_a = a.get("coverage")
+    coverage_b = b.get("coverage")
+    if (isinstance(coverage_a, str) and coverage_a != "UNSPECIFIED"
+            and isinstance(coverage_b, str) and coverage_b != "UNSPECIFIED"):
+        coverage_state = "RECORDED_MATCH" if coverage_a == coverage_b else "MISMATCH"
+    else:
+        coverage_state = "UNVERIFIED"
+    if state != "BLOCKED" and coverage_state == "MISMATCH":
+        state, reason = "BLOCKED", "COVERAGE_MISMATCH"
     if state != "BLOCKED" and "MISMATCH" in assumptions.values():
         state, reason = "BLOCKED", "EXECUTION_ASSUMPTIONS_MISMATCH"
     return {
         "state": state,
         "assumption_details": assumptions,
+        "coverage_comparison": coverage_state,
         "reason": reason,
         "same_strategy": left.get("strategy") == right.get("strategy") and bool(left.get("strategy")),
         "same_strategy_version": left.get("version") == right.get("version") and bool(left.get("version")),
