@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
+from .dom_preview_data import preview_book
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -19,7 +20,9 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == "/api/monitor": result = fleet_snapshot()
+                if url.path == "/api/dom-preview":
+                    result = preview_book.read(int(q.get("rows", ["25"])[0]), int(q.get("group", ["1"])[0]))
+                elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
                 elif url.path == "/api/research": result = data.research(symbol)
