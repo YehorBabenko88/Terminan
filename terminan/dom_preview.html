@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terminan · DOM Preview</title>
+<style>
+:root{color-scheme:dark;font:14px Segoe UI,Arial,sans-serif;background:#0b121c;color:#d8e7f3}
+*{box-sizing:border-box}body{margin:0;padding:16px;max-width:1050px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:21px}a{color:#7fc9fa}button,select{background:#1b3045;border:1px solid #42607a;border-radius:5px;color:inherit;padding:7px}
+.panel{background:#111f2e;border:1px solid #2d4459;border-radius:8px;padding:14px;margin-top:12px}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.muted{color:#98acbf}
+.warning{color:#ffcf80;font-weight:bold}.book{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.book th,.book td{padding:7px 9px;text-align:right;border-bottom:1px solid #27394a}
+.book th:nth-child(2),.book td:nth-child(2){text-align:center}
+.book td{position:relative}.bar{position:absolute;top:2px;bottom:2px;opacity:.28;right:0;z-index:0}
+.bar.bid{background:#35c6a3}.bar.ask{background:#e66d80}.cell{position:relative;z-index:1}
+.bidtxt{color:#5ce0bc}.asktxt{color:#f28fa0}.price{color:#e7eef6;font-weight:600}
+#state{font-size:12px}canvas{width:100%;height:30px}
+</style>
+<header><h1>TERMINAN · DOM Preview</h1><a href="/">← Терминал</a></header>
+<p class="warning">ДЕМОНСТРАЦИЯ: только синтетические данные. Не реальные котировки и не торговый сигнал.</p>
+<div class="panel controls">
+<label>Группировка <select id="group"><option value="1">1 тик</option><option value="5">5 тиков</option><option value="10">10 тиков</option></select></label>
+<label>Строк <select id="rows"><option>15</option><option selected>25</option><option>35</option></select></label>
+<label>FPS <select id="fps"><option>10</option><option selected>30</option><option>60</option></select></label>
+<button id="pause">Пауза</button><button id="reset">Сброс</button>
+<span id="state" class="muted"></span>
+</div>
+<div class="panel"><table class="book"><thead><tr><th>BID · lots</th><th>PRICE · ticks</th><th>ASK · lots</th></tr></thead><tbody id="book"></tbody></table></div>
+<p class="muted">Независимый Canvas/DOM-прототип интерфейса. Синтетический генератор находится только на этой странице и не подключается к биржам.</p>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let bids=new Map(),asks=new Map(),seq=0,paused=false,lastDraw=0,dirty=true,frames=0;
+const center=100000;
+function reset(){bids=new Map();asks=new Map();seq=0;for(let i=0;i<90;i++){bids.set(center-1-i,20+(i*37)%190);asks.set(center+1+i,20+(i*29)%190)}dirty=true}
+function update(){if(paused)return;seq++;const side=seq%2?bids:asks;const price=center+(seq%2? -1:1)*(1+(seq*17)%90);const qty=(seq*23)%230;if(qty===0)side.delete(price);else side.set(price,qty);dirty=true}
+function aggregate(source,width){const result=new Map();for(const [price,qty] of source){const bucket=Math.floor(price/width)*width;result.set(bucket,(result.get(bucket)||0)+qty)}return result}
+function draw(now){const fps=Number($('fps').value);if(dirty&&now-lastDraw>=1000/fps){const width=Number($('group').value),rows=Number($('rows').value);const b=aggregate(bids,width),a=aggregate(asks,width);const anchor=Math.floor(center/width)*width;const top=anchor+Math.floor(rows/2)*width;const data=[];let max=1;
+for(let i=0;i<rows;i++){const p=top-i*width,bq=b.get(p)||0,aq=a.get(p)||0;max=Math.max(max,bq,aq);data.push([p,bq,aq])}
+const fragment=document.createDocumentFragment();for(const [price,bq,aq] of data){const tr=document.createElement('tr');for(const [q,side] of [[bq,'bid'],[price,'price'],[aq,'ask']]){const td=document.createElement('td');if(side!=='price'&&q){const bar=document.createElement('div');bar.className='bar '+side;bar.style.width=(100*q/max)+'%';td.append(bar)}const span=document.createElement('span');span.className='cell '+(side==='bid'?'bidtxt':side==='ask'?'asktxt':'price');span.textContent=side==='price'?String(q):q?String(q):'—';td.append(span);tr.append(td)}fragment.append(tr)}$('book').replaceChildren(fragment);frames++;lastDraw=now;dirty=false;$('state').textContent='SYNTHETIC · sequence '+seq+' · frames '+frames+' · '+fps+' FPS cap'}requestAnimationFrame(draw)}
+$('group').onchange=$('rows').onchange=$('fps').onchange=()=>{dirty=true};
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Продолжить':'Пауза';dirty=true};
+$('reset').onclick=reset;reset();setInterval(update,25);requestAnimationFrame(draw);
+</script></html>
