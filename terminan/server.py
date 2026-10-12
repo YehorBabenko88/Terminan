@@ -14,8 +14,8 @@ from .source_health import source_health
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor", "/dom-preview", "/sources"):
-            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "sources.html" if url.path == "/sources" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/dom-preview", "/sources", "/research"):
+            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "sources.html" if url.path == "/sources" else "research.html" if url.path == "/research" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             q = parse_qs(url.query)
