@@ -50,6 +50,16 @@ def research(symbol, limit=50):
     finally:
         con.close()
 
+def grid_available():
+    return bool(os.environ.get("TERMINAN_GRID_DSN"))
+
+def results_available():
+    con = sqlite_ro("TERMINAN_RESULTS_DB")
+    if con is None:
+        return False
+    con.close()
+    return True
+
 def grid_query(sql, params):
     dsn = os.environ.get("TERMINAN_GRID_DSN")
     if not dsn:
