@@ -16,7 +16,7 @@ class PreviewTests(unittest.TestCase):
                 body = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
                 self.assertIn("ДЕМОНСТРАЦИЯ", body)
-                self.assertIn("СИНТЕТИЧЕСК", body)
+                self.assertIn("SYNTHETIC", body)
                 self.assertIn("no-store", response.headers["Cache-Control"])
         finally:
             server.shutdown()
