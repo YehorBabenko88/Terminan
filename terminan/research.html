@@ -12,7 +12,7 @@ table{width:100%;border-collapse:collapse;overflow-wrap:anywhere}td,th{padding:1
 <p class="warning">Исторические результаты не подтверждают пригодность стратегии для live-торговли. Публикационная полномочность (fencing) в этом представлении не проверяется.</p>
 <label>Инструмент <input id="symbol" value="BTCUSDT" maxlength="30"></label> <button id="refresh">Загрузить</button>
 <p id="state" class="muted">Ожидание</p>
-<section class="panel"><table><thead><tr><th>Запуск</th><th>Стратегия</th><th>Версия</th><th>Время (UTC)</th><th>Сделки</th><th>Net PnL</th><th>Profit factor</th><th>Drawdown</th><th>Fencing</th><th>Live</th><th>Simulation</th></tr></thead><tbody id="runs"></tbody></table></section>
+<section class="panel"><table><thead><tr><th>Запуск</th><th>Стратегия</th><th>Версия</th><th>Время (UTC)</th><th>Сделки</th><th>Net PnL</th><th>Profit factor</th><th>Drawdown</th><th>Fencing</th><th>Live</th><th>Simulation</th><th>Dataset</th><th>Coverage</th></tr></thead><tbody id="runs"></tbody></table></section>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -30,7 +30,7 @@ async function refresh(){
   for(const run of data.runs){
    const tr=document.createElement('tr');
    const timestamp=typeof run.created_at==='number'&&Number.isFinite(run.created_at)?new Date(run.created_at*1000).toISOString():'—';
-   const cells=[run.run_id,run.strategy,run.version,timestamp,metric(run.metrics,'trades'),metric(run.metrics,'net_pnl'),metric(run.metrics,'profit_factor'),metric(run.metrics,'max_drawdown'),run.fencing?.state||'UNVERIFIED',run.validation?.live_validation||'NOT_VERIFIED',run.validation?.simulation_pass||'NOT_VERIFIED'];
+   const cells=[run.run_id,run.strategy,run.version,timestamp,metric(run.metrics,'trades'),metric(run.metrics,'net_pnl'),metric(run.metrics,'profit_factor'),metric(run.metrics,'max_drawdown'),run.fencing?.state||'UNVERIFIED',run.validation?.live_validation||'NOT_VERIFIED',run.validation?.simulation_pass||'NOT_VERIFIED',run.dataset?.fingerprint||'UNVERIFIED',run.dataset?.coverage||'UNSPECIFIED'];
    for(const value of cells){const td=document.createElement('td');td.textContent=value===null||value===undefined?'—':String(value);tr.append(td)}
    fragment.append(tr)
   }
