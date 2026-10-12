@@ -40,7 +40,7 @@ def instruments():
         con.close()
 
 def research(symbol, limit=50):
-    """Read published results only; fencing authority is not verified locally."""
+    """Read stored results; do not infer current fencing or trading authority."""
     validate(symbol)
     if type(limit) is not int or not 1 <= limit <= 100:
         raise ValueError("invalid research limit")
@@ -58,13 +58,22 @@ def research(symbol, limit=50):
         ).fetchall()
         results = []
         for row in rows:
+            try:
+                metrics = json.loads(row[4])
+                if not isinstance(metrics, dict):
+                    raise ValueError("metrics must be a JSON object")
+                metrics_state = "PARSED"
+            except (TypeError, ValueError, json.JSONDecodeError):
+                metrics = {}
+                metrics_state = "INVALID_METRICS"
             result = dict(run_id=row[0], strategy=row[1], version=row[2],
-                          created_at=row[3], metrics=json.loads(row[4]),
+                          created_at=row[3], metrics=metrics,
+                          metrics_state=metrics_state,
                           publication_authority="UNVERIFIED")
             if has_fencing:
                 result["fencing"] = {
                     "state": "PRESENT_UNVERIFIED" if row[5] is not None else "LEGACY_UNFENCED",
-                    "job_id": row[5], "lease_token": row[6],
+                    "job_id": row[5], "lease_token_present": row[6] is not None,
                     "node_generation": row[7],
                 }
             else:
