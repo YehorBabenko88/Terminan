@@ -9,12 +9,13 @@ from .levels import merge_levels
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
 from .source_views import grid_market_view, strattester_research_view
+from .source_health import source_health
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor", "/dom-preview"):
-            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/dom-preview", "/sources"):
+            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "sources.html" if url.path == "/sources" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             q = parse_qs(url.query)
@@ -23,6 +24,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if url.path == "/api/dom-preview":
                     result = preview_book.read(int(q.get("rows", ["25"])[0]), int(q.get("group", ["1"])[0]))
+                elif url.path == "/api/source/health": result = source_health()
                 elif url.path == "/api/source/grid": result = grid_market_view(symbol)
                 elif url.path == "/api/source/strattester": result = strattester_research_view(symbol)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
