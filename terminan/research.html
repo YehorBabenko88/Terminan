@@ -49,7 +49,7 @@ async function compare(){
   if(!response.ok)throw Error('HTTP '+response.status);
   const result=await response.json();
   const comparison=result.comparison;
-  output.textContent=comparison?'Результат: '+comparison.state+' · '+comparison.reason+' · dataset совпадает: '+comparison.same_dataset+' · версии совпадают: '+comparison.same_strategy_version+' · параметры: '+Object.entries(comparison.assumption_details||{}).map(([key,value])=>key+'='+value).join(', ')+' · торговые полномочия: '+comparison.trading_authority:'Сравнение недоступно: '+result.state;
+  output.textContent=comparison?'Результат: '+comparison.state+' · '+comparison.reason+' · dataset совпадает: '+comparison.same_dataset+' · версии совпадают: '+comparison.same_strategy_version +' · интервалы: '+(comparison.coverage_comparison||'UNVERIFIED')+' · параметры: '+Object.entries(comparison.assumption_details||{}).map(([key,value])=>key+'='+value).join(', ')+' · торговые полномочия: '+comparison.trading_authority:'Сравнение недоступно: '+result.state;
  }catch(error){output.textContent='Ошибка сравнения: '+error.message}
 }
 $('compare').onclick=compare;
