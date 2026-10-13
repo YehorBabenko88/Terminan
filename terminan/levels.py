@@ -93,6 +93,8 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
 
 def level_history_quality(series, as_of_ms):
     """Shared read-only quality contract for chart and DOM consumers."""
+    if not hasattr(series, "items"):
+        raise ValueError("invalid timeframe series")
     if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
         raise ValueError("invalid observation timestamp")
     for tf in series:
