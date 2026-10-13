@@ -1,4 +1,5 @@
 """Historical untouched high/low levels, using only closed candles."""
+from math import isfinite
 PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
@@ -7,7 +8,7 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     active=[]
     for c in sorted(candles,key=lambda v:int(v['t'])):
         t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if high<low: raise ValueError('invalid candle')
+        if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
         active=[v for v in active if high<v['price']-tick_size if v['side']=='high'] + [v for v in active if low>v['price']+tick_size if v['side']=='low']
         active.extend([dict(timeframe=timeframe,side='high',price=high,origin_ms=t,confirmed_ms=t+PERIODS[timeframe]),dict(timeframe=timeframe,side='low',price=low,origin_ms=t,confirmed_ms=t+PERIODS[timeframe])])
