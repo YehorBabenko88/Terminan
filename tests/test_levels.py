@@ -271,6 +271,14 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_missing_timestamps_fail_closed_in_direct_level_functions(self):
+        from terminan.levels import missing_candle_intervals
+        rows=[dict(h=10,l=9,complete=True)]
+        with self.assertRaisesRegex(ValueError,'invalid candle timestamp'):
+            untouched_levels(rows,'1h',3600000)
+        with self.assertRaisesRegex(ValueError,'invalid candle timestamp'):
+            missing_candle_intervals(rows,'1h',3600000)
+
     def test_ambiguous_completion_flags_are_rejected(self):
         h=3600000
         from terminan.levels import missing_candle_intervals
