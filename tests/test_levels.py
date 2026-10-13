@@ -269,6 +269,10 @@ class LevelTests(unittest.TestCase):
                 payload=json.loads(handler.wfile.getvalue())
                 self.assertEqual(payload,{'error':'invalid candle'})
 
+    def test_oversized_integer_tick_size_is_rejected_without_overflow(self):
+        with self.assertRaisesRegex(ValueError,'invalid parameters'):
+            untouched_levels([], '1h', 3600000, tick_size=10**400)
+
     def test_boolean_closed_candle_prices_are_rejected(self):
         h=3600000
         for field in ('h','l'):
