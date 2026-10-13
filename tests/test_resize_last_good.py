@@ -15,6 +15,21 @@ def make_model(epoch, generation, version=1):
 
 
 class ResizeLastGoodTests(unittest.TestCase):
+    def test_dpi_175_and_200_clip_bottom_row(self):
+        from terminan.canvas_backend import rasterize
+        book = BookEngine()
+        book.snapshot(Snapshot("A", 1, (Level("bid", 100, 3), Level("bid", 99, 3))))
+        bid = bytes((28, 135, 105, 255))
+        for scale in (1.75, 2.0):
+            with self.subTest(scale=scale):
+                m = build_render_model(book.view, top_tick=100, row_count=2,
+                                       row_height_dip=2, width_dip=4, height_dip=3,
+                                       scale_y=scale)
+                frame = rasterize(m)
+                self.assertEqual(frame.height, __import__("math").ceil(3 * scale))
+                for y in range(frame.height):
+                    self.assertEqual(frame.rgba[(y * frame.width) * 4:(y * frame.width + 1) * 4], bid)
+
     def test_fractional_dpi_adjacent_rows_have_no_pixel_gap(self):
         from terminan.canvas_backend import rasterize
         book = BookEngine()
