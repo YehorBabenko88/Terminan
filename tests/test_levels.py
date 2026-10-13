@@ -184,6 +184,22 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['stale_timeframes'],[])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
+    def test_levels_api_rejects_invalid_raw_timestamp_without_coercion(self):
+        from terminan.server import Handler
+        for bad in ('0', True, 1.5):
+            with self.subTest(bad=bad):
+                handler=object.__new__(Handler)
+                handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+                handler.wfile=io.BytesIO()
+                statuses=[]
+                handler.send_response=lambda code:statuses.append(code)
+                handler.send_header=lambda *args:None
+                handler.end_headers=lambda:None
+                with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[dict(t=bad,h=10,l=9,complete=True)]):
+                    handler.do_GET()
+                self.assertEqual(statuses,[400])
+                self.assertIn('invalid candle timestamp',handler.wfile.getvalue().decode())
+
     def test_levels_api_exposes_irregular_spacing_as_unverified(self):
         from terminan.server import Handler
         h=3600000
