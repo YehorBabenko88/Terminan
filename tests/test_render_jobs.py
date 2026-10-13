@@ -53,6 +53,14 @@ class RenderJobLifecycleTests(unittest.TestCase):
         self.assertTrue(job.cleaned)
         self.assertEqual(job.state, JobState.FINISHED)
 
+    def test_rejected_late_submission_releases_resources(self):
+        gate = RenderJobGate()
+        events = []
+        gate.close()
+        self.assertIsNone(gate.submit(lambda: events.append("run"),
+                                      lambda: events.append("cleanup")))
+        self.assertEqual(events, ["cleanup"])
+
     def test_cleanup_even_if_action_raises(self):
         gate = RenderJobGate()
         events = []
