@@ -1,5 +1,6 @@
 """Bounded latest-frame scheduling. Pure Python, deterministic, no UI callbacks."""
 from dataclasses import dataclass
+from math import isfinite
 from .render_model import RenderModel
 
 
@@ -55,7 +56,7 @@ class LatestFrameMailbox:
     def take(self, now, visible=True):
         if self.disposed:
             return FrameDecision(None, "DISPOSED")
-        if type(now) not in (int, float) or now < 0 or now != now:
+        if type(now) not in (int, float) or not isfinite(now) or now < 0:
             raise ValueError("invalid monotonic time")
         if not visible:
             return FrameDecision(None, "HIDDEN")
