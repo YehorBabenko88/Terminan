@@ -3,7 +3,7 @@ from math import isfinite
 PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
-    if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
+    if type(timeframe) is not str or timeframe not in PERIODS: raise ValueError('unsupported timeframe')
     if type(tick_size) not in (int, float) or type(max_levels) is not int or not 1<=max_levels<=2000:
         raise ValueError('invalid parameters')
     try:
@@ -61,7 +61,7 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
     Gaps preceding the first available candle or following the last observed
     closed candle cannot be inferred from this bounded history.
     """
-    if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
+    if type(timeframe) is not str or timeframe not in PERIODS: raise ValueError('unsupported timeframe')
     if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
         raise ValueError('invalid observation timestamp')
     period = PERIODS[timeframe]
