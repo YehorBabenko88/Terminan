@@ -62,10 +62,21 @@ def level_history_quality(series, as_of_ms):
         for tf, rows in series.items()
     )
     has_gaps = any(gaps.values())
+    timeframe_states = {
+        tf: ('GAPS_DETECTED' if gaps[tf] else 'CLOSED_CANDLES_PRESENT'
+             if any(c.get('complete') is not False and int(c['t']) >= 0
+                    and int(c['t']) + PERIODS[tf] <= as_of_ms for c in rows)
+             else 'NO_CLOSED_CANDLES')
+        for tf, rows in series.items()
+    }
+    missing_timeframes = [tf for tf, state in timeframe_states.items()
+                          if state == 'NO_CLOSED_CANDLES']
     return {
         'state': 'GAPS_DETECTED' if has_gaps else 'NO_INTERNAL_GAPS_DETECTED',
         'coverage': 'BOUNDED_WINDOW_ONLY',
         'gaps': gaps,
+        'timeframe_states': timeframe_states,
+        'missing_timeframes': missing_timeframes,
         'level_validation': 'UNVERIFIED_DUE_TO_GAPS' if has_gaps else 'UNVERIFIED_BOUNDED_HISTORY',
         'data_state': 'CLOSED_CANDLES_PRESENT' if has_closed else 'NO_CLOSED_CANDLES',
         'trading_authority': 'NONE',
