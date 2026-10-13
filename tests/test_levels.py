@@ -183,6 +183,12 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['stale_timeframes'],[])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
+    def test_level_builder_rejects_invalid_timestamp_types(self):
+        for bad in (True, 1.5, '0', -1, 2**63):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError, 'invalid candle timestamp'):
+                    untouched_levels([dict(t=bad,h=10,l=9)], '1h', 3600000)
+
     def test_gap_diagnostics_rejects_invalid_timestamp_types(self):
         for bad in (True, 1.5, '0', -1, 2**63):
             with self.subTest(bad=bad):
