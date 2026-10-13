@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
-from .levels import merge_levels
+from .levels import merge_levels, missing_candle_intervals
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
 from .source_views import grid_market_view, strattester_research_view, strattester_comparison_view
@@ -39,7 +39,14 @@ class Handler(BaseHTTPRequestHandler):
                     series={}
                     for tf in ("1h","4h","1d"):
                         series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"],"complete":r["complete"]} for r in data.candles(symbol,tf,1000)]
-                    result=merge_levels(series,now)
+                    levels=merge_levels(series,now)
+                    if q.get('diagnostics',['0'])[0]=='1':
+                        gaps={tf:missing_candle_intervals(rows,tf,now) for tf,rows in series.items()}
+                        result={'version':1,'symbol':symbol,'levels':levels,
+                                'history':{'state':'GAPS_DETECTED' if any(gaps.values()) else 'NO_INTERNAL_GAPS_DETECTED',
+                                           'coverage':'BOUNDED_WINDOW_ONLY','gaps':gaps}}
+                    else:
+                        result=levels
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
