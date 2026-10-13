@@ -271,6 +271,43 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_levels_api_handles_missing_candle_fields_without_server_error(self):
+        from terminan.server import Handler
+        cases=[
+            ({'h':10,'l':9,'complete':True}, 'invalid candle timestamp'),
+            ({'t':0,'l':9,'complete':True}, 'invalid candle'),
+            ({'t':0,'h':10,'complete':True}, 'invalid candle'),
+        ]
+        for row, expected in cases:
+            with self.subTest(row=row):
+                handler=object.__new__(Handler)
+                handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+                handler.wfile=io.BytesIO()
+                statuses=[]
+                handler.send_response=lambda code:statuses.append(code)
+                handler.send_header=lambda *args:None
+                handler.end_headers=lambda:None
+                with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[row]):
+                    handler.do_GET()
+                self.assertEqual(statuses,[400])
+                self.assertEqual(json.loads(handler.wfile.getvalue()),{'error':expected})
+
+    def test_levels_api_accepts_incomplete_candle_without_prices(self):
+        from terminan.server import Handler
+        handler=object.__new__(Handler)
+        handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+        handler.wfile=io.BytesIO()
+        statuses=[]
+        handler.send_response=lambda code:statuses.append(code)
+        handler.send_header=lambda *args:None
+        handler.end_headers=lambda:None
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[{'t':0,'complete':False}]):
+            handler.do_GET()
+        self.assertEqual(statuses,[200])
+        result=json.loads(handler.wfile.getvalue())
+        self.assertEqual(result['levels'],[])
+        self.assertEqual(result['history']['data_state'],'NO_CLOSED_CANDLES')
+
     def test_levels_api_rejects_conflicting_duplicate_closed_candles(self):
         from terminan.server import Handler
         h=3600000
