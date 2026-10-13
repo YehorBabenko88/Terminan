@@ -17,6 +17,16 @@ class LevelTests(unittest.TestCase):
     def test_merge(self):
         h=3600000
         self.assertEqual(len(merge_levels({'1h':[dict(t=0,h=2,l=1)]},h)),2)
+    def test_nonfinite_prices_rejected(self):
+        h = 3600000
+        for bad in (float('nan'), float('inf'), -float('inf')):
+            for field in ('h', 'l'):
+                with self.subTest(bad=bad, field=field):
+                    candle = dict(t=0, h=5, l=1)
+                    candle[field] = bad
+                    with self.assertRaisesRegex(ValueError, 'invalid candle'):
+                        untouched_levels([candle], '1h', h)
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
