@@ -41,6 +41,15 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     return active[-max_levels:]
 
 def merge_levels(series,as_of_ms,*,tick_size=0):
+    if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
+        raise ValueError('invalid observation timestamp')
+    if type(tick_size) not in (int, float):
+        raise ValueError('invalid parameters')
+    try:
+        if not isfinite(tick_size) or tick_size < 0:
+            raise ValueError('invalid parameters')
+    except OverflowError:
+        raise ValueError('invalid parameters') from None
     levels=[]
     for tf,rows in series.items():levels.extend(untouched_levels(rows,tf,as_of_ms,tick_size=tick_size))
     return sorted(levels,key=lambda v:(v['price'],v['timeframe'],v['side']))
