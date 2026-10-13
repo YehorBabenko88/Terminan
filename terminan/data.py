@@ -30,7 +30,13 @@ def candles(symbol, timeframe="1m", limit=300):
         columns = {r[1] for r in con.execute('PRAGMA table_info(candles)')}
         completion = 'complete' if 'complete' in columns else '1'
         rows = con.execute(f"SELECT open_time,open,high,low,close,volume,{completion} FROM candles WHERE symbol=? AND timeframe=? ORDER BY open_time DESC LIMIT ?", (symbol, timeframe, limit)).fetchall()
-        return [dict(zip(("t","o","h","l","c","v"), row[:6]), complete=bool(row[6])) for row in reversed(rows)]
+        result = []
+        for row in reversed(rows):
+            flag = row[6]
+            if type(flag) not in (int, bool) or flag not in (0, 1):
+                raise ValueError("invalid candle completion flag")
+            result.append(dict(zip(("t","o","h","l","c","v"), row[:6]), complete=bool(flag)))
+        return result
     finally:
         con.close()
 
