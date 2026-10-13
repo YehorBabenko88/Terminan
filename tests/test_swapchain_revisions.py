@@ -15,6 +15,20 @@ class SwapchainRevisionTests(unittest.TestCase):
                                    dpi_version=dpi, surface_generation=generation)
         return rasterize(replace(model, key=replace(model.key, book_version=book_version)))
 
+    def test_switch_epoch_rejects_old_frame_even_with_matching_generation(self):
+        chain = FrameSwapchain()
+        chain.reset("old", 3)
+        previous = self.make_frame(50, epoch="old", generation=3)
+        self.assertTrue(chain.publish(previous))
+        chain.reset("new", 3, retain_front=True)
+        self.assertIsNone(chain.snapshot())
+        self.assertFalse(chain.publish(self.make_frame(999, epoch="old", generation=3)))
+        current = self.make_frame(1, epoch="new", generation=3)
+        self.assertTrue(chain.publish(current))
+        self.assertIs(chain.snapshot(), current)
+        self.assertFalse(chain.publish(previous))
+        self.assertIs(chain.snapshot(), current)
+
     def test_concurrent_same_epoch_reset_cannot_roll_back_generation(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Barrier
