@@ -27,6 +27,32 @@ class SwapchainRevisionTests(unittest.TestCase):
             self.assertIs(chain.snapshot(), newest)
         self.assertEqual(chain.dropped, 3)
 
+    def test_retained_front_cannot_be_overwritten_by_old_generation(self):
+        chain = FrameSwapchain()
+        chain.reset("a", 0)
+        previous = self.make_frame(100, generation=0)
+        self.assertTrue(chain.publish(previous))
+        chain.reset("a", 1, retain_front=True)
+        self.assertIs(chain.snapshot(), previous)
+        self.assertFalse(chain.publish(self.make_frame(101, generation=0)))
+        self.assertIs(chain.snapshot(), previous)
+        fresh = self.make_frame(1, generation=1)
+        self.assertTrue(chain.publish(fresh))
+        self.assertIs(chain.snapshot(), fresh)
+        self.assertFalse(chain.publish(self.make_frame(999, generation=0)))
+        self.assertIs(chain.snapshot(), fresh)
+
+    def test_old_instrument_cannot_publish_after_epoch_switch(self):
+        chain = FrameSwapchain()
+        chain.reset("a", 0)
+        self.assertTrue(chain.publish(self.make_frame(10, epoch="a")))
+        chain.reset("b", 0, retain_front=True)
+        self.assertIsNone(chain.snapshot())
+        self.assertFalse(chain.publish(self.make_frame(11, epoch="a")))
+        new_frame = self.make_frame(1, epoch="b")
+        self.assertTrue(chain.publish(new_frame))
+        self.assertIs(chain.snapshot(), new_frame)
+
     def test_equal_book_new_style_publishes(self):
         chain = FrameSwapchain()
         chain.reset("a", 0)
