@@ -41,6 +41,8 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     return active[-max_levels:]
 
 def merge_levels(series,as_of_ms,*,tick_size=0):
+    if not hasattr(series, 'items'):
+        raise ValueError('invalid timeframe series')
     if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
         raise ValueError('invalid observation timestamp')
     if type(tick_size) not in (int, float):
