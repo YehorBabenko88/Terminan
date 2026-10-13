@@ -67,11 +67,16 @@ class DomFramePipeline:
         revision = self._revision(model)
         if self.last_revision is not None and revision < self.last_revision:
             return PumpResult("STALE_RENDER_REVISION", False)
+        generation = self.jobs.generation
         try:
             frame = rasterize(model)
         except (ValueError, OverflowError, MemoryError):
             self.failed_renders += 1
             return PumpResult("RASTER_FAILED", False)
+        if (self.closed or generation != self.jobs.generation or
+                model.key.epoch != self.swapchain.epoch or
+                model.key.surface_generation != self.swapchain.generation):
+            return PumpResult("STALE_AFTER_RASTER", False)
         if not self.swapchain.publish(frame):
             return PumpResult("STALE_SURFACE", False)
         self.last_version = model.key.book_version
