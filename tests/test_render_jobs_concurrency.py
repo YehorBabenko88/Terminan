@@ -28,6 +28,30 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_repeated_close_and_invalidate_release_once(self):
+        gate = RenderJobGate()
+        cleaned = []
+        pending = gate.submit(lambda: self.fail("must not execute"),
+                              lambda: cleaned.append("once"))
+        gate.invalidate()
+        gate.invalidate()
+        gate.close()
+        gate.close()
+        self.assertFalse(gate.execute(pending))
+        self.assertEqual(cleaned, ["once"])
+
+    def test_action_exception_still_cleans_once(self):
+        gate = RenderJobGate()
+        cleaned = []
+        def fail():
+            raise RuntimeError("raster failure")
+        job = gate.submit(fail, lambda: cleaned.append("once"))
+        with self.assertRaisesRegex(RuntimeError, "raster failure"):
+            gate.execute(job)
+        gate.close()
+        self.assertFalse(gate.execute(job))
+        self.assertEqual(cleaned, ["once"])
+
     def test_invalidate_during_running_action_rejects_result(self):
         gate = RenderJobGate()
         started = threading.Event()
