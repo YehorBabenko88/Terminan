@@ -183,6 +183,16 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['stale_timeframes'],[])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
+    def test_irregular_candle_spacing_does_not_invent_missing_count(self):
+        h=3600000
+        gaps=missing_candle_intervals([dict(t=0),dict(t=2*h+1)],'1h',4*h)
+        self.assertEqual(len(gaps),1)
+        self.assertTrue(gaps[0]['irregular_spacing'])
+        self.assertIsNone(gaps[0]['missing_intervals'])
+        regular=missing_candle_intervals([dict(t=0),dict(t=3*h)],'1h',4*h)
+        self.assertEqual(regular[0]['missing_intervals'],2)
+        self.assertFalse(regular[0]['irregular_spacing'])
+
     def test_level_builder_rejects_invalid_timestamp_types(self):
         for bad in (True, 1.5, '0', -1, 2**63):
             with self.subTest(bad=bad):
