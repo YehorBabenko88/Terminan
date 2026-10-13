@@ -15,6 +15,28 @@ class SwapchainRevisionTests(unittest.TestCase):
                                    dpi_version=dpi, surface_generation=generation)
         return rasterize(replace(model, key=replace(model.key, book_version=book_version)))
 
+    def test_concurrent_same_epoch_reset_cannot_roll_back_generation(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        for attempt in range(20):
+            with self.subTest(attempt=attempt):
+                chain = FrameSwapchain()
+                chain.reset("a", 0)
+                barrier = Barrier(2)
+                def reset_to(generation):
+                    barrier.wait(timeout=10)
+                    try:
+                        chain.reset("a", generation)
+                    except ValueError:
+                        pass  # Older generation must be rejected if newer won.
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    futures = [pool.submit(reset_to, n) for n in (1, 2)]
+                    for future in futures:
+                        future.result(timeout=10)
+                self.assertEqual(chain.generation, 2)
+                self.assertTrue(chain.publish(self.make_frame(1, generation=2)))
+                self.assertFalse(chain.publish(self.make_frame(99, generation=1)))
+
     def test_same_epoch_generation_rollback_is_rejected_without_mutation(self):
         chain = FrameSwapchain()
         chain.reset("a", 2)
