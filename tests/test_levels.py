@@ -2,7 +2,7 @@ import unittest
 import io
 import json
 from unittest.mock import patch
-from terminan.levels import untouched_levels,merge_levels,missing_candle_intervals
+from terminan.levels import untouched_levels,merge_levels,missing_candle_intervals,level_history_quality
 
 class LevelTests(unittest.TestCase):
     def test_high_low_touch_invalidation(self):
@@ -142,6 +142,17 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['levels'],[])
         self.assertEqual(result['history']['data_state'],'NO_CLOSED_CANDLES')
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
+
+    def test_shared_quality_contract(self):
+        h=3600000
+        series={'1h':[dict(t=0,h=5,l=1),dict(t=3*h,h=6,l=2)],
+                '4h':[]}
+        quality=level_history_quality(series,4*h)
+        self.assertEqual(quality['state'],'GAPS_DETECTED')
+        self.assertEqual(quality['data_state'],'CLOSED_CANDLES_PRESENT')
+        self.assertEqual(quality['gaps']['1h'][0]['missing_intervals'],2)
+        self.assertEqual(quality['gaps']['4h'],[])
+        self.assertEqual(quality['trading_authority'],'NONE')
 
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
