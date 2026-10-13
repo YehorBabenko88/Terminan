@@ -269,6 +269,16 @@ class LevelTests(unittest.TestCase):
                 payload=json.loads(handler.wfile.getvalue())
                 self.assertEqual(payload,{'error':'invalid candle'})
 
+    def test_boolean_closed_candle_prices_are_rejected(self):
+        h=3600000
+        for field in ('h','l'):
+            for bad in (True,False):
+                with self.subTest(field=field,bad=bad):
+                    row=dict(t=0,h=10,l=9,complete=True)
+                    row[field]=bad
+                    with self.assertRaisesRegex(ValueError,'invalid candle'):
+                        untouched_levels([row],'1h',h)
+
     def test_closed_candle_price_conversion_overflow_is_controlled(self):
         h=3600000
         for bad in (10**400, {}, object()):
