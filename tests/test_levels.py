@@ -240,6 +240,16 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(regular[0]['missing_intervals'],2)
         self.assertNotIn('irregular_spacing',regular[0])
 
+    def test_level_builder_rejects_boolean_and_fractional_limits(self):
+        for bad in (True, 1.5, '20'):
+            with self.subTest(max_levels=bad):
+                with self.assertRaisesRegex(ValueError, 'invalid parameters'):
+                    untouched_levels([], '1h', 3600000, max_levels=bad)
+        for bad in (True, '0.1'):
+            with self.subTest(tick_size=bad):
+                with self.assertRaisesRegex(ValueError, 'invalid parameters'):
+                    untouched_levels([], '1h', 3600000, tick_size=bad)
+
     def test_level_builder_rejects_invalid_timestamp_types(self):
         for bad in (True, 1.5, '0', -1, 2**63):
             with self.subTest(bad=bad):
