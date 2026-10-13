@@ -78,9 +78,9 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
 
 def level_history_quality(series, as_of_ms):
     """Shared read-only quality contract for chart and DOM consumers."""
-    series = {tf: list(rows) for tf, rows in series.items()}
     if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
         raise ValueError("invalid observation timestamp")
+    series = {tf: list(rows) for tf, rows in series.items()}
     gaps = {tf: missing_candle_intervals(rows, tf, as_of_ms)
             for tf, rows in series.items()}
     has_closed = any(
