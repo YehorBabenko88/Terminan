@@ -15,6 +15,33 @@ class SwapchainRevisionTests(unittest.TestCase):
                                    dpi_version=dpi, surface_generation=generation)
         return rasterize(replace(model, key=replace(model.key, book_version=book_version)))
 
+    def test_concurrent_epoch_switch_and_stale_publication(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        old = self.make_frame(100, epoch="old", generation=0)
+        current = self.make_frame(1, epoch="new", generation=0)
+        for attempt in range(20):
+            with self.subTest(attempt=attempt):
+                chain = FrameSwapchain()
+                chain.reset("old", 0)
+                self.assertTrue(chain.publish(old))
+                switched = Event()
+                def switch():
+                    chain.reset("new", 0, retain_front=True)
+                    switched.set()
+                def late_old_publications():
+                    self.assertTrue(switched.wait(timeout=10))
+                    return [chain.publish(old) for _ in range(20)]
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    switch_future = pool.submit(switch)
+                    late_future = pool.submit(late_old_publications)
+                    switch_future.result(timeout=10)
+                    results = late_future.result(timeout=10)
+                self.assertFalse(any(results))
+                self.assertIsNone(chain.snapshot())
+                self.assertTrue(chain.publish(current))
+                self.assertIs(chain.snapshot(), current)
+
     def test_repeated_epoch_switch_discards_previous_front(self):
         chain = FrameSwapchain()
         for index in range(20):
