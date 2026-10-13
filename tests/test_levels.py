@@ -47,6 +47,22 @@ class LevelTests(unittest.TestCase):
         w=604800000
         self.assertEqual(len(untouched_levels([dict(t=4*86400000, h=5, l=1)], '1w', w+4*86400000)), 2)
 
+    def test_identical_closed_candles_are_deduplicated(self):
+        h=3600000
+        candle=dict(t=0,h=100,l=90)
+        self.assertEqual(untouched_levels([candle,candle], '1h', h),
+                         untouched_levels([candle], '1h', h))
+
+    def test_conflicting_closed_candles_are_rejected(self):
+        h=3600000
+        with self.assertRaisesRegex(ValueError, 'conflicting duplicate candle'):
+            untouched_levels([dict(t=0,h=100,l=90),dict(t=0,h=101,l=90)],'1h',h)
+
+    def test_incomplete_duplicate_does_not_replace_closed(self):
+        h=3600000
+        rows=[dict(t=0,h=101,l=90,complete=False),dict(t=0,h=100,l=90,complete=True)]
+        self.assertEqual(len(untouched_levels(rows,'1h',h)),2)
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
