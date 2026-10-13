@@ -58,6 +58,8 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
     period = PERIODS[timeframe]
     times = set()
     for candle in candles:
+        if not isinstance(candle, dict):
+            raise ValueError('invalid candle')
         t = candle.get('t')
         if type(t) is not int or not 0 <= t <= 2**63-1:
             raise ValueError('invalid candle timestamp')
