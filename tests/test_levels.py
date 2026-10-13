@@ -141,6 +141,7 @@ class LevelTests(unittest.TestCase):
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['levels'],[])
         self.assertEqual(result['history']['data_state'],'NO_CLOSED_CANDLES')
+        self.assertEqual(result['history']['missing_timeframes'],['1h','4h','1d'])
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
     def test_shared_quality_contract(self):
@@ -152,6 +153,9 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['data_state'],'CLOSED_CANDLES_PRESENT')
         self.assertEqual(quality['gaps']['1h'][0]['missing_intervals'],2)
         self.assertEqual(quality['gaps']['4h'],[])
+        self.assertEqual(quality['timeframe_states']['1h'],'GAPS_DETECTED')
+        self.assertEqual(quality['timeframe_states']['4h'],'NO_CLOSED_CANDLES')
+        self.assertEqual(quality['missing_timeframes'],['4h'])
         self.assertEqual(quality['trading_authority'],'NONE')
 
     def test_invalid(self):
