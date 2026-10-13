@@ -15,6 +15,22 @@ def make_model(epoch, generation, version=1):
 
 
 class ResizeLastGoodTests(unittest.TestCase):
+    def test_nonuniform_dpi_scales_horizontal_bar_and_vertical_row(self):
+        from terminan.canvas_backend import rasterize
+        book = BookEngine()
+        book.snapshot(Snapshot("A", 1, (Level("bid", 100, 3),)))
+        m = build_render_model(book.view, top_tick=100, row_count=1,
+                               row_height_dip=2, width_dip=4, height_dip=4,
+                               scale_x=1.5, scale_y=2.0)
+        frame = rasterize(m)
+        self.assertEqual((frame.width, frame.height), (6, 8))
+        bid = bytes((28, 135, 105, 255))
+        background = bytes((15, 20, 29, 255))
+        for y in range(8):
+            for x in range(6):
+                pixel = frame.rgba[(y * 6 + x) * 4:(y * 6 + x + 1) * 4]
+                self.assertEqual(pixel, bid if y < 4 and x < 3 else background)
+
     def test_dpi_175_and_200_clip_bottom_row(self):
         from terminan.canvas_backend import rasterize
         book = BookEngine()
