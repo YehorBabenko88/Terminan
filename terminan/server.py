@@ -38,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
                     now=int(datetime.now(timezone.utc).timestamp()*1000)
                     series={}
                     for tf in ("1h","4h","1d"):
-                        series[tf]=[{"t":r["t"],"h":r["h"],"l":r["l"],"complete":r["complete"]} for r in data.candles(symbol,tf,1000)]
+                        series[tf]=[{"t":r.get("t"),"h":r.get("h"),"l":r.get("l"),"complete":r.get("complete", True)} for r in data.candles(symbol,tf,1000)]
                     levels=merge_levels(series,now)
                     if q.get('diagnostics',['0'])[0]=='1':
                         result={'version':1,'symbol':symbol,'levels':levels,
