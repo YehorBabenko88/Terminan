@@ -271,6 +271,15 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_history_quality_single_pass_iterables_match_lists(self):
+        h=3600000
+        rows=[dict(t=0,h=10,l=9),dict(t=2*h,h=11,l=10)]
+        expected=level_history_quality({'1h':rows},4*h)
+        actual=level_history_quality({'1h':(row for row in rows)},4*h)
+        self.assertEqual(actual,expected)
+        self.assertEqual(actual['state'],'GAPS_DETECTED')
+        self.assertEqual(actual['gaps']['1h'][0]['missing_intervals'],1)
+
     def test_single_pass_candle_iterable_is_not_silently_dropped(self):
         h=3600000
         rows=(dict(t=t,h=high,l=low) for t,high,low in [(0,10,9),(h,11,10)])
