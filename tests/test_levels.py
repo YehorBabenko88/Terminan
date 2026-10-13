@@ -167,6 +167,21 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['missing_timeframes'],['4h'])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_MISSING_TIMEFRAMES')
 
+    def test_stale_tail_is_not_an_internal_gap(self):
+        h=3600000
+        quality=level_history_quality({'1h':[dict(t=0,h=10,l=9),
+                                               dict(t=h,h=11,l=10)]},10*h)
+        self.assertEqual(quality['state'],'NO_INTERNAL_GAPS_DETECTED')
+        self.assertEqual(quality['latest_closed_ms']['1h'],2*h)
+        self.assertEqual(quality['stale_timeframes'],['1h'])
+        self.assertEqual(quality['level_validation'],'UNVERIFIED_STALE_TIMEFRAMES')
+
+    def test_fresh_closed_candle_is_not_stale(self):
+        h=3600000
+        quality=level_history_quality({'1h':[dict(t=8*h,h=10,l=9)]},10*h)
+        self.assertEqual(quality['stale_timeframes'],[])
+        self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
