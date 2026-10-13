@@ -28,6 +28,21 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_cleanup_can_wait_for_other_thread_to_access_gate(self):
+        gate = RenderJobGate()
+        observed = []
+        def cleanup():
+            def reader():
+                gate.dequeue()
+                observed.append("reader")
+            worker = threading.Thread(target=reader)
+            worker.start()
+            worker.join(2)
+            self.assertFalse(worker.is_alive(), "cleanup ran under gate lock")
+        gate.submit(lambda: None, cleanup)
+        gate.close()
+        self.assertEqual(observed, ["reader"])
+
     def test_cleanup_can_reenter_gate_on_invalidation(self):
         gate = RenderJobGate()
         observed = []
