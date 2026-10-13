@@ -28,6 +28,25 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_cleanup_can_reenter_gate_on_invalidation(self):
+        gate = RenderJobGate()
+        observed = []
+        gate.submit(lambda: None, lambda: (observed.append("cleanup"), gate.close()))
+        gate.invalidate()
+        self.assertEqual(observed, ["cleanup"])
+        self.assertTrue(gate.closed)
+        self.assertIsNone(gate.pending)
+
+    def test_cleanup_exception_during_close_leaves_tombstone(self):
+        gate = RenderJobGate()
+        def broken_cleanup():
+            raise RuntimeError("cleanup failed")
+        gate.submit(lambda: None, broken_cleanup)
+        with self.assertRaisesRegex(RuntimeError, "cleanup failed"):
+            gate.close()
+        self.assertTrue(gate.closed)
+        self.assertIsNone(gate.submit(lambda: None))
+
     def test_repeated_close_and_invalidate_release_once(self):
         gate = RenderJobGate()
         cleaned = []
