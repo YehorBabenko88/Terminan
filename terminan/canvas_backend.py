@@ -91,6 +91,13 @@ class FrameSwapchain:
         if frame.key.epoch != self.epoch or frame.key.surface_generation != self.generation:
             self.dropped += 1
             return False
+        if self.front is not None:
+            old = self.front.key
+            new = frame.key
+            if ((new.book_version, new.view_version, new.style_version, new.dpi_version)
+                    < (old.book_version, old.view_version, old.style_version, old.dpi_version)):
+                self.dropped += 1
+                return False
         self.front = frame
         return True
 
