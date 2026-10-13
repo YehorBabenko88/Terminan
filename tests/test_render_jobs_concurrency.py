@@ -28,6 +28,34 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_two_threads_cannot_execute_same_job_twice(self):
+        gate = RenderJobGate()
+        started = threading.Event()
+        release = threading.Event()
+        executions = []
+        results = []
+        cleaned = []
+        def action():
+            executions.append("started")
+            started.set()
+            self.assertTrue(release.wait(3))
+        job = gate.submit(action, lambda: cleaned.append("once"))
+        first = threading.Thread(target=lambda: results.append(gate.execute(job)))
+        second = threading.Thread(target=lambda: results.append(gate.execute(job)))
+        first.start()
+        try:
+            self.assertTrue(started.wait(3))
+            second.start()
+            second.join(3)
+            self.assertFalse(second.is_alive())
+        finally:
+            release.set()
+            first.join(3)
+        self.assertFalse(first.is_alive())
+        self.assertEqual(executions, ["started"])
+        self.assertEqual(sorted(results), [False, True])
+        self.assertEqual(cleaned, ["once"])
+
     def test_completed_action_cleanup_does_not_hold_gate_lock(self):
         gate = RenderJobGate()
         seen = []
