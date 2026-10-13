@@ -48,3 +48,25 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
             gaps.append({'after_ms': left, 'before_ms': right,
                          'missing_intervals': (right - left) // period - 1})
     return gaps
+
+
+def level_history_quality(series, as_of_ms):
+    """Shared read-only quality contract for chart and DOM consumers."""
+    gaps = {tf: missing_candle_intervals(rows, tf, as_of_ms)
+            for tf, rows in series.items()}
+    has_closed = any(
+        any(c.get('complete') is not False
+            and int(c['t']) >= 0
+            and int(c['t']) + PERIODS[tf] <= as_of_ms
+            for c in rows)
+        for tf, rows in series.items()
+    )
+    has_gaps = any(gaps.values())
+    return {
+        'state': 'GAPS_DETECTED' if has_gaps else 'NO_INTERNAL_GAPS_DETECTED',
+        'coverage': 'BOUNDED_WINDOW_ONLY',
+        'gaps': gaps,
+        'level_validation': 'UNVERIFIED_DUE_TO_GAPS' if has_gaps else 'UNVERIFIED_BOUNDED_HISTORY',
+        'data_state': 'CLOSED_CANDLES_PRESENT' if has_closed else 'NO_CLOSED_CANDLES',
+        'trading_authority': 'NONE',
+    }
