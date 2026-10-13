@@ -15,6 +15,18 @@ class SwapchainRevisionTests(unittest.TestCase):
                                    dpi_version=dpi, surface_generation=generation)
         return rasterize(replace(model, key=replace(model.key, book_version=book_version)))
 
+    def test_repeated_epoch_switch_discards_previous_front(self):
+        chain = FrameSwapchain()
+        for index in range(20):
+            epoch = "a" if index % 2 == 0 else "b"
+            previous_epoch = "b" if epoch == "a" else "a"
+            chain.reset(epoch, 0, retain_front=True)
+            self.assertIsNone(chain.snapshot())
+            self.assertFalse(chain.publish(self.make_frame(999, epoch=previous_epoch)))
+            current = self.make_frame(index + 1, epoch=epoch)
+            self.assertTrue(chain.publish(current))
+            self.assertIs(chain.snapshot(), current)
+
     def test_switch_epoch_rejects_old_frame_even_with_matching_generation(self):
         chain = FrameSwapchain()
         chain.reset("old", 3)
