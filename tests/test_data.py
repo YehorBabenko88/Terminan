@@ -24,6 +24,19 @@ class AdapterTests(unittest.TestCase):
             finally:
                 if old is None:os.environ.pop('TERMINAN_STRATTESTER_DB',None)
                 else:os.environ['TERMINAN_STRATTESTER_DB']=old
+    def test_current_schema_rejects_noncanonical_completion_flags(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as d:
+            p=os.path.join(d,'market.db')
+            c=sqlite3.connect(p)
+            c.execute('CREATE TABLE candles(symbol TEXT,timeframe TEXT,open_time INTEGER,open REAL,high REAL,low REAL,close REAL,volume REAL,complete)')
+            c.execute('INSERT INTO candles VALUES(?,?,?,?,?,?,?,?,?)',
+                      ('BTCUSDT','1h',0,10,12,8,11,20,'false'))
+            c.commit();c.close()
+            with patch.dict(os.environ,{'TERMINAN_STRATTESTER_DB':p}):
+                with self.assertRaisesRegex(ValueError,'invalid candle completion flag'):
+                    data.candles('BTCUSDT','1h')
+
     def test_current_schema_preserves_completion_for_levels(self):
         from unittest.mock import patch
         from terminan.levels import merge_levels
