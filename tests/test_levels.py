@@ -27,6 +27,12 @@ class LevelTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, 'invalid candle'):
                         untouched_levels([candle], '1h', h)
 
+    def test_nonfinite_tick_size_rejected(self):
+        for bad in (float('nan'), float('inf'), -float('inf')):
+            with self.subTest(tick_size=bad):
+                with self.assertRaisesRegex(ValueError, 'invalid parameters'):
+                    untouched_levels([], '1h', 0, tick_size=bad)
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
