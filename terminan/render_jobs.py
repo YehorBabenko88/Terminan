@@ -64,6 +64,8 @@ class RenderJobGate:
 
     def submit(self, action, cleanup=None):
         if self.closed:
+            if cleanup is not None:
+                cleanup()
             return None
         job = RenderJob(self.generation, action, cleanup)
         if self.pending is not None:
