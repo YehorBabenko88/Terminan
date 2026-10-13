@@ -159,6 +159,14 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(quality['trading_authority'],'NONE')
 
+    def test_partial_timeframe_coverage_without_gaps(self):
+        h=3600000
+        quality=level_history_quality(
+            {'1h':[dict(t=0,h=5,l=1)], '4h':[]}, h)
+        self.assertEqual(quality['state'],'NO_INTERNAL_GAPS_DETECTED')
+        self.assertEqual(quality['missing_timeframes'],['4h'])
+        self.assertEqual(quality['level_validation'],'UNVERIFIED_MISSING_TIMEFRAMES')
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
