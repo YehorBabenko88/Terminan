@@ -271,6 +271,15 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_invalid_observation_does_not_consume_history_generator(self):
+        observed=[]
+        def candles():
+            observed.append('consumed')
+            yield dict(t=0,h=10,l=9)
+        with self.assertRaisesRegex(ValueError,'invalid observation timestamp'):
+            level_history_quality({'1h':candles()},None)
+        self.assertEqual(observed,[])
+
     def test_history_quality_single_pass_iterables_match_lists(self):
         h=3600000
         rows=[dict(t=0,h=10,l=9),dict(t=2*h,h=11,l=10)]
