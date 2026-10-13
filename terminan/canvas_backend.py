@@ -50,8 +50,8 @@ def rasterize(model: RenderModel, *, background=(15, 20, 29, 255),
     if max_volume > 0:
         half = width // 2
         for index, row in enumerate(model.rows):
-            y0 = int(row.y_dip)
-            y1 = int(row.y_dip + model.row_height_dip)
+            y0 = int(row.y_dip * model.scale_y)
+            y1 = int((row.y_dip + model.row_height_dip) * model.scale_y)
             if y1 <= 0 or y0 >= height:
                 continue
             for y in range(max(0, y0), min(height, y1)):
