@@ -16,6 +16,8 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     active=[]
     seen={}
     for c in candles:
+        if not isinstance(c, dict):
+            raise ValueError('invalid candle')
         t=c.get('t')
         if type(t) is not int or not 0<=t<=2**63-1: raise ValueError('invalid candle timestamp')
         if type(c.get('complete', True)) is not bool: raise ValueError('invalid candle completion flag')
