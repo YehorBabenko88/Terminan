@@ -30,8 +30,11 @@ class AdapterTests(unittest.TestCase):
             p=os.path.join(d,'market.db')
             c=sqlite3.connect(p)
             c.execute('CREATE TABLE candles(symbol TEXT,timeframe TEXT,open_time INTEGER,open REAL,high REAL,low REAL,close REAL,volume REAL,complete)')
-            c.execute('INSERT INTO candles VALUES(?,?,?,?,?,?,?,?,?)',
-                      ('BTCUSDT','1h',0,10,12,8,11,20,'false'))
+            c.executemany('INSERT INTO candles VALUES(?,?,?,?,?,?,?,?,?)', [
+                ('BTCUSDT','1h',0,10,12,8,11,20,'false'),
+                ('BTCUSDT','1h',3600000,10,12,8,11,20,None),
+                ('BTCUSDT','1h',7200000,10,12,8,11,20,2),
+            ])
             c.commit();c.close()
             with patch.dict(os.environ,{'TERMINAN_STRATTESTER_DB':p}):
                 with self.assertRaisesRegex(ValueError,'invalid candle completion flag'):
