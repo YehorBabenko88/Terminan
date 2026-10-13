@@ -82,6 +82,8 @@ class DomFramePipeline:
                 model.key.epoch != self.swapchain.epoch or
                 model.key.surface_generation != self.swapchain.generation):
             return PumpResult("STALE_AFTER_RASTER", False)
+        if self.last_revision is not None and revision < self.last_revision:
+            return PumpResult("STALE_AFTER_RASTER", False)
         if not self.swapchain.publish(frame):
             return PumpResult("STALE_SURFACE", False)
         self.last_version = model.key.book_version
