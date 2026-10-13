@@ -28,6 +28,32 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_completed_action_cleanup_does_not_hold_gate_lock(self):
+        gate = RenderJobGate()
+        seen = []
+        def cleanup():
+            thread = threading.Thread(target=lambda: (gate.dequeue(), seen.append("unblocked")))
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "completed cleanup held gate lock")
+        job = gate.submit(lambda: None, cleanup)
+        self.assertTrue(gate.execute(job))
+        self.assertEqual(seen, ["unblocked"])
+
+    def test_rejected_execution_cleanup_does_not_hold_gate_lock(self):
+        gate = RenderJobGate()
+        seen = []
+        def cleanup():
+            thread = threading.Thread(target=lambda: (gate.dequeue(), seen.append("unblocked")))
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "rejected cleanup held gate lock")
+        job = gate.submit(lambda: None, cleanup)
+        gate.dequeue()
+        gate.invalidate()
+        self.assertFalse(gate.execute(job))
+        self.assertEqual(seen, ["unblocked"])
+
     def test_replacement_cleanup_does_not_hold_gate_lock(self):
         gate = RenderJobGate()
         seen = []
