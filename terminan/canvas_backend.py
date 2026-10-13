@@ -75,13 +75,20 @@ class FrameSwapchain:
         self.front = None
         self.closed = False
         self.dropped = 0
+        self.retained_on_resize = 0
 
-    def reset(self, epoch, generation):
+    def reset(self, epoch, generation, *, retain_front=False):
         if self.closed:
             raise RuntimeError("swapchain disposed")
         if type(generation) is not int or generation < 0:
             raise ValueError("invalid generation")
-        self.epoch, self.generation, self.front = epoch, generation, None
+        old_front = self.front
+        self.epoch, self.generation = epoch, generation
+        if retain_front and old_front is not None and old_front.key.epoch == epoch:
+            self.front = old_front
+            self.retained_on_resize += 1
+        else:
+            self.front = None
 
     def publish(self, frame: RasterFrame):
         if self.closed:
@@ -91,7 +98,8 @@ class FrameSwapchain:
         if frame.key.epoch != self.epoch or frame.key.surface_generation != self.generation:
             self.dropped += 1
             return False
-        if self.front is not None:
+        if (self.front is not None and
+                self.front.key.surface_generation == self.generation):
             old = self.front.key
             new = frame.key
             if ((new.book_version, new.view_version, new.style_version, new.dpi_version)
