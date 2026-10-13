@@ -277,6 +277,12 @@ class LevelTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'invalid timeframe series'):
                     merge_levels(invalid,3600000)
 
+    def test_quality_rejects_invalid_series_containers(self):
+        for invalid in (None, [], 42, '1h'):
+            with self.subTest(series=repr(invalid)):
+                with self.assertRaisesRegex(ValueError,'invalid timeframe series'):
+                    level_history_quality(invalid,3600000)
+
     def test_quality_invalid_timeframe_does_not_consume_history(self):
         for invalid in ([], {}, None, 1, '2h'):
             with self.subTest(timeframe=repr(invalid)):
