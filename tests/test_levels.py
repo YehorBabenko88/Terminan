@@ -183,6 +183,28 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['stale_timeframes'],[])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
+    def test_levels_api_exposes_irregular_spacing_as_unverified(self):
+        from terminan.server import Handler
+        h=3600000
+        rows=[dict(t=0,h=10,l=9,complete=True),
+              dict(t=h//2,h=11,l=10,complete=True)]
+        def candles(symbol,tf,limit=1000):
+            return rows if tf=='1h' else []
+        handler=object.__new__(Handler)
+        handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+        handler.wfile=io.BytesIO()
+        handler.send_response=lambda code:None
+        handler.send_header=lambda *args:None
+        handler.end_headers=lambda:None
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=candles):
+            handler.do_GET()
+        result=json.loads(handler.wfile.getvalue())
+        self.assertEqual(result['history']['state'],'GAPS_DETECTED')
+        self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
+        self.assertTrue(result['history']['gaps']['1h'][0]['irregular_spacing'])
+        self.assertIsNone(result['history']['gaps']['1h'][0]['missing_intervals'])
+        self.assertEqual(result['history']['trading_authority'],'NONE')
+
     def test_overlapping_closed_candles_are_reported_as_irregular(self):
         h=3600000
         gaps=missing_candle_intervals([dict(t=0),dict(t=h//2)],'1h',3*h)
