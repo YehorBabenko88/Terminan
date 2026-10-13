@@ -4,7 +4,13 @@ PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
-    if type(tick_size) not in (int, float) or not isfinite(tick_size) or tick_size<0 or type(max_levels) is not int or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
+    if type(tick_size) not in (int, float) or type(max_levels) is not int or not 1<=max_levels<=2000:
+        raise ValueError('invalid parameters')
+    try:
+        if not isfinite(tick_size) or tick_size < 0:
+            raise ValueError('invalid parameters')
+    except OverflowError:
+        raise ValueError('invalid parameters') from None
     if type(as_of_ms) is not int or not 0<=as_of_ms<=2**63-1: raise ValueError('invalid observation timestamp')
     active=[]
     seen={}
