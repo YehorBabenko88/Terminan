@@ -85,6 +85,8 @@ class FrameSwapchain:
                 raise RuntimeError("swapchain disposed")
             if type(generation) is not int or generation < 0:
                 raise ValueError("invalid generation")
+            if epoch == self.epoch and generation < self.generation:
+                raise ValueError("surface generation must not decrease")
             old_front = self.front
             self.epoch, self.generation = epoch, generation
             if retain_front and old_front is not None and old_front.key.epoch == epoch:
