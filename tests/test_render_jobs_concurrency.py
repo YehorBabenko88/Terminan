@@ -28,6 +28,32 @@ class ConcurrentRenderJobTests(unittest.TestCase):
         self.assertEqual(results, [False])
         self.assertEqual(cleaned, ["once"])
 
+    def test_invalidate_during_running_action_rejects_result(self):
+        gate = RenderJobGate()
+        started = threading.Event()
+        release = threading.Event()
+        results = []
+        cleanup = []
+        def work():
+            started.set()
+            self.assertTrue(release.wait(3))
+        job = gate.submit(work, lambda: cleanup.append("released"))
+        worker = threading.Thread(target=lambda: results.append(gate.execute(job)))
+        worker.start()
+        try:
+            self.assertTrue(started.wait(3))
+            gate.invalidate()
+            self.assertEqual(gate.generation, 1)
+        finally:
+            release.set()
+            worker.join(3)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(results, [False])
+        self.assertEqual(cleanup, ["released"])
+        fresh = gate.submit(lambda: results.append("new"))
+        self.assertTrue(gate.execute(fresh))
+        self.assertEqual(results, [False, "new"])
+
     def test_concurrent_submissions_replace_and_cleanup_all_pending(self):
         gate = RenderJobGate()
         jobs = []
