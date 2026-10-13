@@ -32,7 +32,8 @@ class RenderModel:
     pixel_height: int
 
     def hit_test(self, y_dip: float):
-        if not isfinite(y_dip) or y_dip < 0:
+        if (type(y_dip) not in (int, float) or
+                not isfinite(y_dip) or y_dip < 0):
             return None
         index = int(y_dip // self.row_height_dip)
         return self.rows[index].price_ticks if 0 <= index < len(self.rows) else None
@@ -52,7 +53,10 @@ def build_render_model(view: BookView, *, top_tick: int, row_count: int,
     for value in (view_version, style_version, dpi_version, surface_generation):
         if type(value) is not int or value < 0:
             raise ValueError("invalid render generation")
-    pixel_width, pixel_height = ceil(width_dip * scale_x), ceil(height_dip * scale_y)
+    scaled_width, scaled_height = width_dip * scale_x, height_dip * scale_y
+    if not isfinite(scaled_width) or not isfinite(scaled_height):
+        raise ValueError("surface dimensions overflow")
+    pixel_width, pixel_height = ceil(scaled_width), ceil(scaled_height)
     if not 0 < pixel_width <= 16384 or not 0 < pixel_height <= 16384:
         raise ValueError("surface exceeds pixel limits")
     if pixel_width * pixel_height > 32_000_000:
