@@ -1,4 +1,4 @@
-"""Single-owner cancellable render jobs with an irreversible close tombstone.
+"""Serialized render-job state transitions with an irreversible close tombstone.
 
 A dequeued job must call begin() immediately before its action. Cancellation
 before begin prevents execution; cancellation after begin cannot interrupt
@@ -89,10 +89,14 @@ class RenderJobGate:
                 if job is not None:
                     job.cancel()
                 return False
-            try:
-                job.action()
+        try:
+            # Never hold the gate lock while executing arbitrary work:
+            # close/invalidate must be able to invalidate in-flight jobs.
+            job.action()
+            with self._lock:
                 return not self.closed and job.generation == self.generation
-            finally:
+        finally:
+            with self._lock:
                 job.finish()
 
     def invalidate(self):
