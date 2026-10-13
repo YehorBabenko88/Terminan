@@ -99,25 +99,39 @@ class RenderJobGate:
             return job
 
     def execute(self, job):
+        rejected_cleanup = None
         with self._lock:
-            # Direct execute() transfers ownership just like dequeue().
-            # Otherwise close() may clean an already finished job twice.
             if job is not None and self.pending is job:
                 self.pending = None
             if (self.closed or job is None or
                     job.generation != self.generation or not job.begin()):
-                if job is not None:
-                    job.cancel()
-                return False
+                if job is not None and job.state is JobState.PENDING:
+                    job.state = JobState.CANCELLED
+                    if not job.cleaned:
+                        job.cleaned = True
+                        rejected_cleanup = job.cleanup
+                accepted = False
+            else:
+                accepted = True
+        if not accepted:
+            if rejected_cleanup is not None:
+                rejected_cleanup()
+            return False
         try:
-            # Never hold the gate lock while executing arbitrary work:
-            # close/invalidate must be able to invalidate in-flight jobs.
             job.action()
             with self._lock:
                 return not self.closed and job.generation == self.generation
         finally:
             with self._lock:
-                job.finish()
+                if job.state is JobState.RUNNING:
+                    job.state = JobState.FINISHED
+                if not job.cleaned:
+                    job.cleaned = True
+                    cleanup = job.cleanup
+                else:
+                    cleanup = None
+            if cleanup is not None:
+                cleanup()
 
     def invalidate(self):
         with self._lock:
