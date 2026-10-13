@@ -27,6 +27,20 @@ class SwapchainRevisionTests(unittest.TestCase):
             self.assertIs(chain.snapshot(), newest)
         self.assertEqual(chain.dropped, 3)
 
+    def test_concurrent_publications_keep_newest_revision(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        chain = FrameSwapchain()
+        chain.reset("a", 0)
+        frames = [self.make_frame(version) for version in range(1, 33)]
+        start = Barrier(len(frames))
+        def publish(frame):
+            start.wait(timeout=10)
+            return chain.publish(frame)
+        with ThreadPoolExecutor(max_workers=len(frames)) as pool:
+            list(pool.map(publish, frames))
+        self.assertEqual(chain.snapshot().key.book_version, 32)
+
     def test_retained_front_cannot_be_overwritten_by_old_generation(self):
         chain = FrameSwapchain()
         chain.reset("a", 0)
