@@ -9,7 +9,7 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     active=[]
     for c in sorted(candles,key=lambda v:int(v['t'])):
         t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if t<0 or t%PERIODS[timeframe]!=0: raise ValueError('invalid candle timestamp')
+        if t<0: raise ValueError('invalid candle timestamp')
         if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
         active=[v for v in active if high<v['price']-tick_size if v['side']=='high'] + [v for v in active if low>v['price']+tick_size if v['side']=='low']
