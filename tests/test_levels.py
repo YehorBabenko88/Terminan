@@ -125,7 +125,7 @@ class LevelTests(unittest.TestCase):
             handler.do_GET()
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['history']['state'],'NO_INTERNAL_GAPS_DETECTED')
-        self.assertEqual(result['history']['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
+        self.assertEqual(result['history']['level_validation'],'UNVERIFIED_MISSING_TIMEFRAMES')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
     def test_empty_history_is_not_misreported_as_verified(self):
@@ -156,6 +156,7 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['timeframe_states']['1h'],'GAPS_DETECTED')
         self.assertEqual(quality['timeframe_states']['4h'],'NO_CLOSED_CANDLES')
         self.assertEqual(quality['missing_timeframes'],['4h'])
+        self.assertEqual(quality['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(quality['trading_authority'],'NONE')
 
     def test_invalid(self):
