@@ -5,12 +5,12 @@ PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
     if not isfinite(tick_size) or tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
-    if type(as_of_ms) is not int or as_of_ms<0: raise ValueError('invalid observation timestamp')
+    if type(as_of_ms) is not int or not 0<=as_of_ms<=2**63-1: raise ValueError('invalid observation timestamp')
     active=[]
     seen={}
     for c in sorted(candles,key=lambda v:int(v['t'])):
         t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if t<0: raise ValueError('invalid candle timestamp')
+        if t<0 or t>2**63-1: raise ValueError('invalid candle timestamp')
         if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
         candle_key=(high,low)
@@ -35,13 +35,17 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
     closed candle cannot be inferred from this bounded history.
     """
     if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
-    if type(as_of_ms) is not int or as_of_ms < 0:
+    if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
         raise ValueError('invalid observation timestamp')
     period = PERIODS[timeframe]
-    times = sorted({int(c['t']) for c in candles
-                    if c.get('complete') is not False
-                    and int(c['t']) >= 0
-                    and int(c['t']) + period <= as_of_ms})
+    times = set()
+    for candle in candles:
+        t = candle['t']
+        if type(t) is not int or not 0 <= t <= 2**63-1:
+            raise ValueError('invalid candle timestamp')
+        if candle.get('complete') is not False and t + period <= as_of_ms:
+            times.add(t)
+    times = sorted(times)
     gaps = []
     for left, right in zip(times, times[1:]):
         if right - left > period:
