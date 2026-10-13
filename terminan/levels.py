@@ -26,3 +26,25 @@ def merge_levels(series,as_of_ms,*,tick_size=0):
     levels=[]
     for tf,rows in series.items():levels.extend(untouched_levels(rows,tf,as_of_ms,tick_size=tick_size))
     return sorted(levels,key=lambda v:(v['price'],v['timeframe'],v['side']))
+
+
+def missing_candle_intervals(candles, timeframe, as_of_ms):
+    """Report gaps between observed closed candles, without inventing missing prices.
+
+    Gaps preceding the first available candle or following the last observed
+    closed candle cannot be inferred from this bounded history.
+    """
+    if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
+    if type(as_of_ms) is not int or as_of_ms < 0:
+        raise ValueError('invalid observation timestamp')
+    period = PERIODS[timeframe]
+    times = sorted({int(c['t']) for c in candles
+                    if c.get('complete') is not False
+                    and int(c['t']) >= 0
+                    and int(c['t']) + period <= as_of_ms})
+    gaps = []
+    for left, right in zip(times, times[1:]):
+        if right - left > period:
+            gaps.append({'after_ms': left, 'before_ms': right,
+                         'missing_intervals': (right - left) // period - 1})
+    return gaps
