@@ -4,7 +4,7 @@ PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
-    if tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
+    if not isfinite(tick_size) or tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
     active=[]
     for c in sorted(candles,key=lambda v:int(v['t'])):
         t=int(c['t']); high=float(c['h']); low=float(c['l'])
