@@ -8,9 +8,11 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     if type(as_of_ms) is not int or not 0<=as_of_ms<=2**63-1: raise ValueError('invalid observation timestamp')
     active=[]
     seen={}
-    for c in sorted(candles,key=lambda v:int(v['t'])):
-        t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if t<0 or t>2**63-1: raise ValueError('invalid candle timestamp')
+    for c in candles:
+        t=c['t']
+        if type(t) is not int or not 0<=t<=2**63-1: raise ValueError('invalid candle timestamp')
+    for c in sorted(candles,key=lambda v:v['t']):
+        t=c['t']; high=float(c['h']); low=float(c['l'])
         if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
         candle_key=(high,low)
