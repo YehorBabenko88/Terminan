@@ -271,6 +271,17 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_ambiguous_completion_flags_are_rejected(self):
+        h=3600000
+        from terminan.levels import missing_candle_intervals
+        for flag in (0, 1, 'false', None):
+            with self.subTest(flag=flag):
+                rows=[dict(t=0,h=10,l=9,complete=flag)]
+                with self.assertRaisesRegex(ValueError,'invalid candle completion flag'):
+                    untouched_levels(rows,'1h',h)
+                with self.assertRaisesRegex(ValueError,'invalid candle completion flag'):
+                    missing_candle_intervals(rows,'1h',h)
+
     def test_levels_api_handles_missing_candle_fields_without_server_error(self):
         from terminan.server import Handler
         cases=[
