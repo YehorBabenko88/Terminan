@@ -240,6 +240,22 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(regular[0]['missing_intervals'],2)
         self.assertNotIn('irregular_spacing',regular[0])
 
+    def test_open_and_future_candles_do_not_require_price_fields(self):
+        h=3600000
+        rows=[dict(t=0,h=10,l=9,complete=True),
+              dict(t=h,complete=False),
+              dict(t=2*h,h='unavailable',l=None,complete=True)]
+        levels=untouched_levels(rows,'1h',2*h)
+        self.assertEqual(len(levels),2)
+        self.assertTrue(all(level['origin_ms']==0 for level in levels))
+
+    def test_invalid_closed_candle_prices_raise_value_error(self):
+        h=3600000
+        for bad in ('unavailable',None):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError,'invalid candle'):
+                    untouched_levels([dict(t=0,h=bad,l=9,complete=True)],'1h',h)
+
     def test_level_builder_rejects_boolean_and_fractional_limits(self):
         for bad in (True, 1.5, '20'):
             with self.subTest(max_levels=bad):
