@@ -104,19 +104,30 @@ class RenderJobGate:
             if self.closed:
                 return
             self.generation += 1
-            if self.pending is not None:
-                self.pending.cancel()
-                self.pending = None
+            pending, self.pending = self.pending, None
+            if pending is not None:
+                pending.state = JobState.CANCELLED
+                pending.cleaned = True
+        if pending is not None and pending.cleanup is not None:
+            pending.cleanup()
 
     def close(self):
         with self._lock:
             if self.closed:
                 return
             self.closed = True
-            self.invalidate_pending()
+            pending, self.pending = self.pending, None
+            if pending is not None:
+                pending.state = JobState.CANCELLED
+                pending.cleaned = True
+        if pending is not None and pending.cleanup is not None:
+            pending.cleanup()
 
     def invalidate_pending(self):
         with self._lock:
-            if self.pending is not None:
-                self.pending.cancel()
-                self.pending = None
+            pending, self.pending = self.pending, None
+            if pending is not None:
+                pending.state = JobState.CANCELLED
+                pending.cleaned = True
+        if pending is not None and pending.cleanup is not None:
+            pending.cleanup()
