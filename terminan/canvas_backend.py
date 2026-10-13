@@ -4,6 +4,7 @@ This is a deterministic CPU rasterizer, not a GPU or platform-native canvas.
 Only the latest completed frame is retained; no exchange data is modified.
 """
 from dataclasses import dataclass
+from threading import RLock
 from .render_model import RenderModel, RenderKey
 
 MAX_PIXELS = 32_000_000
@@ -70,6 +71,7 @@ class FrameSwapchain:
     """Publish a completed immutable frame only for the active surface generation."""
 
     def __init__(self):
+        self._lock = RLock()
         self.epoch = None
         self.generation = 0
         self.front = None
@@ -78,40 +80,44 @@ class FrameSwapchain:
         self.retained_on_resize = 0
 
     def reset(self, epoch, generation, *, retain_front=False):
-        if self.closed:
-            raise RuntimeError("swapchain disposed")
-        if type(generation) is not int or generation < 0:
-            raise ValueError("invalid generation")
-        old_front = self.front
-        self.epoch, self.generation = epoch, generation
-        if retain_front and old_front is not None and old_front.key.epoch == epoch:
-            self.front = old_front
-            self.retained_on_resize += 1
-        else:
-            self.front = None
+        with self._lock:
+            if self.closed:
+                raise RuntimeError("swapchain disposed")
+            if type(generation) is not int or generation < 0:
+                raise ValueError("invalid generation")
+            old_front = self.front
+            self.epoch, self.generation = epoch, generation
+            if retain_front and old_front is not None and old_front.key.epoch == epoch:
+                self.front = old_front
+                self.retained_on_resize += 1
+            else:
+                self.front = None
 
     def publish(self, frame: RasterFrame):
-        if self.closed:
-            return False
-        if not isinstance(frame, RasterFrame):
-            raise ValueError("invalid raster frame")
-        if frame.key.epoch != self.epoch or frame.key.surface_generation != self.generation:
-            self.dropped += 1
-            return False
-        if (self.front is not None and
-                self.front.key.surface_generation == self.generation):
-            old = self.front.key
-            new = frame.key
-            if ((new.book_version, new.view_version, new.style_version, new.dpi_version)
-                    < (old.book_version, old.view_version, old.style_version, old.dpi_version)):
+        with self._lock:
+            if self.closed:
+                return False
+            if not isinstance(frame, RasterFrame):
+                raise ValueError("invalid raster frame")
+            if frame.key.epoch != self.epoch or frame.key.surface_generation != self.generation:
                 self.dropped += 1
                 return False
-        self.front = frame
-        return True
+            if (self.front is not None and
+                    self.front.key.surface_generation == self.generation):
+                old = self.front.key
+                new = frame.key
+                if ((new.book_version, new.view_version, new.style_version, new.dpi_version)
+                        < (old.book_version, old.view_version, old.style_version, old.dpi_version)):
+                    self.dropped += 1
+                    return False
+            self.front = frame
+            return True
 
     def snapshot(self):
-        return None if self.closed else self.front
+        with self._lock:
+            return None if self.closed else self.front
 
     def dispose(self):
-        self.front = None
-        self.closed = True
+        with self._lock:
+            self.front = None
+            self.closed = True
