@@ -15,6 +15,20 @@ def make_model(epoch, generation, version=1):
 
 
 class ResizeLastGoodTests(unittest.TestCase):
+    def test_fractional_dpi_scales_raster_rows(self):
+        from terminan.canvas_backend import rasterize
+        book = BookEngine()
+        book.snapshot(Snapshot("A", 1, (Level("bid", 100, 3),)))
+        m = build_render_model(book.view, top_tick=100, row_count=1,
+                               row_height_dip=2, width_dip=4, height_dip=4,
+                               scale_y=1.5)
+        frame = rasterize(m)
+        self.assertEqual(frame.height, 6)
+        bid = bytes((28, 135, 105, 255))
+        for y in range(3):
+            self.assertEqual(frame.rgba[(y * frame.width) * 4:(y * frame.width + 1) * 4], bid)
+        self.assertNotEqual(frame.rgba[(3 * frame.width) * 4:(3 * frame.width + 1) * 4], bid)
+
     def test_resize_retains_last_good_until_new_publish(self):
         p = DomFramePipeline()
         p.reset("A", 0)
