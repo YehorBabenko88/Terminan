@@ -33,6 +33,7 @@ class DomFramePipeline:
         self.mailbox.reset(epoch, surface_generation)
         self.swapchain.reset(epoch, surface_generation)
         self.last_version = -1
+        self.last_revision = None
 
     def offer(self, model: RenderModel):
         if self.closed:
