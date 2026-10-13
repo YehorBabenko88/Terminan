@@ -15,6 +15,21 @@ def model(epoch, generation):
 
 
 class RasterInvalidationTests(unittest.TestCase):
+    def test_invalid_reset_does_not_invalidate_render_jobs_or_pending_frame(self):
+        pipeline = DomFramePipeline()
+        pipeline.reset("old", 0)
+        self.assertTrue(pipeline.offer(model("old", 0)))
+        original_generation = pipeline.jobs.generation
+        original_pending = pipeline.mailbox.pending
+        for invalid in (-1, 1.5, True, "1"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    pipeline.reset("new", invalid)
+                self.assertEqual(pipeline.jobs.generation, original_generation)
+                self.assertIs(pipeline.mailbox.pending, original_pending)
+                self.assertEqual(pipeline.swapchain.epoch, "old")
+        self.assertTrue(pipeline.pump(0).published)
+
     def test_newer_frame_published_during_raster_blocks_old_revision(self):
         pipeline = DomFramePipeline()
         pipeline.reset("old", 0)
