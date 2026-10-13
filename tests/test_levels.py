@@ -33,6 +33,20 @@ class LevelTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'invalid parameters'):
                     untouched_levels([], '1h', 0, tick_size=bad)
 
+    def test_invalid_observation_timestamp(self):
+        for bad in (-1, 1.5, None, True):
+            with self.subTest(observation=bad):
+                with self.assertRaisesRegex(ValueError, 'invalid observation timestamp'):
+                    untouched_levels([], '1h', bad)
+
+    def test_negative_candle_timestamp(self):
+        with self.assertRaisesRegex(ValueError, 'invalid candle timestamp'):
+            untouched_levels([dict(t=-1, h=5, l=1)], '1h', 3600000)
+
+    def test_weekly_exchange_alignment_is_allowed(self):
+        w=604800000
+        self.assertEqual(len(untouched_levels([dict(t=4*86400000, h=5, l=1)], '1w', w+4*86400000)), 2)
+
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
 if __name__=='__main__':unittest.main()
