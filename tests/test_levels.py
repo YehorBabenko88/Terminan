@@ -249,6 +249,28 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(len(levels),2)
         self.assertTrue(all(level['origin_ms']==0 for level in levels))
 
+    def test_levels_api_ignores_incomplete_prices_without_hiding_history_gaps(self):
+        from terminan.server import Handler
+        h=3600000
+        handler=object.__new__(Handler)
+        handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+        handler.wfile=io.BytesIO()
+        statuses=[]
+        handler.send_response=lambda code:statuses.append(code)
+        handler.send_header=lambda *args:None
+        handler.end_headers=lambda:None
+        rows=[dict(t=0,h=10,l=9,complete=True),
+              dict(t=h,h=None,l=None,complete=False),
+              dict(t=2*h,h=11,l=10,complete=True)]
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=lambda symbol,tf,limit=1000:rows if tf=='1h' else []):
+            handler.do_GET()
+        self.assertEqual(statuses,[200])
+        result=json.loads(handler.wfile.getvalue())
+        self.assertEqual(result['history']['state'],'GAPS_DETECTED')
+        self.assertEqual(result['history']['gaps']['1h'][0]['missing_intervals'],1)
+        self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
+        self.assertEqual(result['history']['trading_authority'],'NONE')
+
     def test_levels_api_rejects_conflicting_duplicate_closed_candles(self):
         from terminan.server import Handler
         h=3600000
