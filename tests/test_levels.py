@@ -271,6 +271,14 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_gap_diagnostics_reject_non_mapping_candles_cleanly(self):
+        for invalid in (None, 42):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError,'invalid candle'):
+                    missing_candle_intervals([invalid],'1h',3600000)
+                with self.assertRaisesRegex(ValueError,'invalid candle'):
+                    level_history_quality({'1h':[invalid]},3600000)
+
     def test_non_mapping_candle_is_rejected_cleanly(self):
         with self.assertRaisesRegex(ValueError,'invalid candle'):
             untouched_levels([None],'1h',3600000)
