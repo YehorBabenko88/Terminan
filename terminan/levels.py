@@ -77,7 +77,9 @@ def level_history_quality(series, as_of_ms):
         'gaps': gaps,
         'timeframe_states': timeframe_states,
         'missing_timeframes': missing_timeframes,
-        'level_validation': 'UNVERIFIED_DUE_TO_GAPS' if has_gaps else 'UNVERIFIED_BOUNDED_HISTORY',
+        'level_validation': ('UNVERIFIED_DUE_TO_GAPS' if has_gaps
+                             else 'UNVERIFIED_MISSING_TIMEFRAMES' if missing_timeframes
+                             else 'UNVERIFIED_BOUNDED_HISTORY'),
         'data_state': 'CLOSED_CANDLES_PRESENT' if has_closed else 'NO_CLOSED_CANDLES',
         'trading_authority': 'NONE',
     }
