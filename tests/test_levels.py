@@ -271,6 +271,12 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_merge_rejects_invalid_series_container(self):
+        for invalid in (None, [], 42, '1h'):
+            with self.subTest(series=repr(invalid)):
+                with self.assertRaisesRegex(ValueError,'invalid timeframe series'):
+                    merge_levels(invalid,3600000)
+
     def test_quality_invalid_timeframe_does_not_consume_history(self):
         for invalid in ([], {}, None, 1, '2h'):
             with self.subTest(timeframe=repr(invalid)):
