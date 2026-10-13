@@ -15,6 +15,24 @@ def model(epoch, generation):
 
 
 class RasterInvalidationTests(unittest.TestCase):
+    def test_newer_frame_published_during_raster_blocks_old_revision(self):
+        pipeline = DomFramePipeline()
+        pipeline.reset("old", 0)
+        pipeline.offer(model("old", 0))
+        from dataclasses import replace
+        newer = model("old", 0)
+        newer = replace(newer, key=replace(newer.key, book_version=2))
+        def racing_raster(m):
+            result = rasterize(m)
+            pipeline.offer(newer)
+            with patch("terminan.frame_pipeline.rasterize", side_effect=rasterize):
+                self.assertTrue(pipeline.pump(1).published)
+            return result
+        with patch("terminan.frame_pipeline.rasterize", side_effect=racing_raster):
+            outcome = pipeline.pump(0)
+        self.assertEqual(outcome.reason, "STALE_AFTER_RASTER")
+        self.assertEqual(pipeline.snapshot().key.book_version, 2)
+
     def test_reset_during_raster_drops_old_frame(self):
         pipeline = DomFramePipeline()
         pipeline.reset("old", 0)
