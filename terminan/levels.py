@@ -90,7 +90,7 @@ def level_history_quality(series, as_of_ms):
     missing_timeframes = [tf for tf, state in timeframe_states.items()
                           if state == 'NO_CLOSED_CANDLES']
     return {
-        'state': 'GAPS_DETECTED' if has_gaps else 'NO_INTERNAL_GAPS_DETECTED',
+        'state': 'GAPS_DETECTED' if has_gaps else 'NO_CLOSED_CANDLES' if not has_closed else 'NO_INTERNAL_GAPS_DETECTED',
         'coverage': 'BOUNDED_WINDOW_ONLY',
         'gaps': gaps,
         'timeframe_states': timeframe_states,
