@@ -7,11 +7,17 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     if not isfinite(tick_size) or tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
     if type(as_of_ms) is not int or as_of_ms<0: raise ValueError('invalid observation timestamp')
     active=[]
+    seen={}
     for c in sorted(candles,key=lambda v:int(v['t'])):
         t=int(c['t']); high=float(c['h']); low=float(c['l'])
         if t<0: raise ValueError('invalid candle timestamp')
         if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
+        candle_key=(high,low)
+        if t in seen:
+            if seen[t]!=candle_key: raise ValueError('conflicting duplicate candle')
+            continue
+        seen[t]=candle_key
         active=[v for v in active if high<v['price']-tick_size if v['side']=='high'] + [v for v in active if low>v['price']+tick_size if v['side']=='low']
         active.extend([dict(timeframe=timeframe,side='high',price=high,origin_ms=t,confirmed_ms=t+PERIODS[timeframe]),dict(timeframe=timeframe,side='low',price=low,origin_ms=t,confirmed_ms=t+PERIODS[timeframe])])
     return active[-max_levels:]
