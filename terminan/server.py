@@ -38,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
                     now=int(datetime.now(timezone.utc).timestamp()*1000)
                     series={}
                     for tf in ("1h","4h","1d"):
-                        series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"]} for r in data.candles(symbol,tf,1000)]
+                        series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"],"complete":r["complete"]} for r in data.candles(symbol,tf,1000)]
                     result=merge_levels(series,now)
                 elif url.path == "/api/logs":
                     data.validate(symbol)

@@ -25,8 +25,12 @@ def candles(symbol, timeframe="1m", limit=300):
     if con is None:
         return []
     try:
-        rows = con.execute("SELECT open_time,open,high,low,close,volume FROM candles WHERE symbol=? AND timeframe=? ORDER BY open_time DESC LIMIT ?", (symbol, timeframe, limit)).fetchall()
-        return [dict(zip(("t","o","h","l","c","v"), row)) for row in reversed(rows)]
+        # Legacy adapters predate the completion column. Preserve their display
+        # behavior while retaining authoritative completion from current stores.
+        columns = {r[1] for r in con.execute('PRAGMA table_info(candles)')}
+        completion = 'complete' if 'complete' in columns else '1'
+        rows = con.execute(f"SELECT open_time,open,high,low,close,volume,{completion} FROM candles WHERE symbol=? AND timeframe=? ORDER BY open_time DESC LIMIT ?", (symbol, timeframe, limit)).fetchall()
+        return [dict(zip(("t","o","h","l","c","v"), row[:6]), complete=bool(row[6])) for row in reversed(rows)]
     finally:
         con.close()
 
