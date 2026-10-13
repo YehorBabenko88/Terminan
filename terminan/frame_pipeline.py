@@ -32,6 +32,11 @@ class DomFramePipeline:
     def reset(self, epoch, surface_generation=0, *, retain_front=False):
         if self.closed:
             raise RuntimeError("pipeline disposed")
+        # A reset to an older generation of the same instrument would
+        # resurrect frames from an obsolete UI surface.
+        if (epoch == self.swapchain.epoch and
+                surface_generation < self.swapchain.generation):
+            raise ValueError("surface generation must not decrease")
         self.jobs.invalidate()
         self.mailbox.reset(epoch, surface_generation)
         self.swapchain.reset(epoch, surface_generation, retain_front=retain_front)
