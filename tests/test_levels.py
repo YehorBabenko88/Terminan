@@ -1,5 +1,5 @@
 import unittest
-from terminan.levels import untouched_levels,merge_levels
+from terminan.levels import untouched_levels,merge_levels,missing_candle_intervals
 
 class LevelTests(unittest.TestCase):
     def test_high_low_touch_invalidation(self):
@@ -62,6 +62,24 @@ class LevelTests(unittest.TestCase):
         h=3600000
         rows=[dict(t=0,h=101,l=90,complete=False),dict(t=0,h=100,l=90,complete=True)]
         self.assertEqual(len(untouched_levels(rows,'1h',h)),2)
+
+    def test_missing_closed_intervals_reported(self):
+        h=3600000
+        candles=[dict(t=0,h=10,l=9),dict(t=3*h,h=11,l=10)]
+        self.assertEqual(missing_candle_intervals(candles,'1h',4*h),
+                         [dict(after_ms=0,before_ms=3*h,missing_intervals=2)])
+
+    def test_gap_detector_ignores_open_and_future_candles(self):
+        h=3600000
+        candles=[dict(t=0,h=10,l=9),dict(t=h,h=10,l=9,complete=False),
+                 dict(t=3*h,h=11,l=10),dict(t=4*h,h=12,l=11)]
+        self.assertEqual(missing_candle_intervals(candles,'1h',4*h),
+                         [dict(after_ms=0,before_ms=3*h,missing_intervals=2)])
+
+    def test_duplicate_timestamps_do_not_create_gaps(self):
+        h=3600000
+        candles=[dict(t=0),dict(t=0),dict(t=h)]
+        self.assertEqual(missing_candle_intervals(candles,'1h',2*h),[])
 
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
