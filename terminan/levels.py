@@ -69,6 +69,14 @@ def level_history_quality(series, as_of_ms):
              else 'NO_CLOSED_CANDLES')
         for tf, rows in series.items()
     }
+    latest_closed_ms = {
+        tf: max((int(c['t']) + PERIODS[tf] for c in rows
+                 if c.get('complete') is not False and int(c['t']) >= 0
+                 and int(c['t']) + PERIODS[tf] <= as_of_ms), default=None)
+        for tf, rows in series.items()
+    }
+    stale_timeframes = [tf for tf, end in latest_closed_ms.items()
+                        if end is not None and as_of_ms - end >= 2 * PERIODS[tf]]
     missing_timeframes = [tf for tf, state in timeframe_states.items()
                           if state == 'NO_CLOSED_CANDLES']
     return {
@@ -77,8 +85,11 @@ def level_history_quality(series, as_of_ms):
         'gaps': gaps,
         'timeframe_states': timeframe_states,
         'missing_timeframes': missing_timeframes,
+        'latest_closed_ms': latest_closed_ms,
+        'stale_timeframes': stale_timeframes,
         'level_validation': ('UNVERIFIED_DUE_TO_GAPS' if has_gaps
                              else 'UNVERIFIED_MISSING_TIMEFRAMES' if missing_timeframes
+                             else 'UNVERIFIED_STALE_TIMEFRAMES' if stale_timeframes
                              else 'UNVERIFIED_BOUNDED_HISTORY'),
         'data_state': 'CLOSED_CANDLES_PRESENT' if has_closed else 'NO_CLOSED_CANDLES',
         'trading_authority': 'NONE',
