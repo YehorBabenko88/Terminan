@@ -249,6 +249,24 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(len(levels),2)
         self.assertTrue(all(level['origin_ms']==0 for level in levels))
 
+    def test_levels_api_rejects_conflicting_duplicate_closed_candles(self):
+        from terminan.server import Handler
+        h=3600000
+        handler=object.__new__(Handler)
+        handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
+        handler.wfile=io.BytesIO()
+        statuses=[]
+        handler.send_response=lambda code:statuses.append(code)
+        handler.send_header=lambda *args:None
+        handler.end_headers=lambda:None
+        rows=[dict(t=0,h=10,l=9,complete=True),
+              dict(t=0,h=11,l=9,complete=True)]
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=rows):
+            handler.do_GET()
+        self.assertEqual(statuses,[400])
+        self.assertEqual(json.loads(handler.wfile.getvalue()),
+                         {'error':'conflicting duplicate candle'})
+
     def test_levels_api_rejects_invalid_closed_prices_without_partial_payload(self):
         from terminan.server import Handler
         h=3600000
