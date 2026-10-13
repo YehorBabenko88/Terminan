@@ -46,6 +46,7 @@ class Handler(BaseHTTPRequestHandler):
                                 'history':{'state':'GAPS_DETECTED' if any(gaps.values()) else 'NO_INTERNAL_GAPS_DETECTED',
                                            'coverage':'BOUNDED_WINDOW_ONLY','gaps':gaps,
                                            'level_validation':'UNVERIFIED_DUE_TO_GAPS' if any(gaps.values()) else 'UNVERIFIED_BOUNDED_HISTORY',
+                                           'data_state':'NO_CLOSED_CANDLES' if not any(any(r.get('complete') is not False and r['t']+{'1h':3600000,'4h':14400000,'1d':86400000}[tf]<=now for r in rows) for tf,rows in series.items()) else 'CLOSED_CANDLES_PRESENT',
                                            'trading_authority':'NONE'}}
                     else:
                         result=levels
