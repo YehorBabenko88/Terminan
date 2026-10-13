@@ -1,0 +1,57 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terminan · Исследования Strattester</title>
+<style>
+body{background:#0c1621;color:#dce7f4;font:14px Segoe UI,Arial,sans-serif;max-width:1200px;margin:24px auto;padding:0 16px}
+a{color:#87caff}h1{font-size:24px}button,input{padding:9px;background:#20354a;border:1px solid #47617b;color:#fff;border-radius:5px}
+table{width:100%;border-collapse:collapse;overflow-wrap:anywhere}td,th{padding:10px;border-bottom:1px solid #36516a;text-align:left}th{color:#a7bed3}
+.panel{background:#142538;border:1px solid #36516a;border-radius:10px;padding:16px;margin-top:16px}
+.muted{color:#9db2c7}.warning{color:#ffd18c}
+</style>
+<h1>Terminan · Результаты Strattester</h1>
+<p><a href="/">Терминал</a> · <a href="/sources">Источники</a> · <a href="/monitor">Мониторинг</a></p>
+<p class="warning">Исторические результаты не подтверждают пригодность стратегии для live-торговли. Публикационная полномочность (fencing) в этом представлении не проверяется.</p>
+<label>Инструмент <input id="symbol" value="BTCUSDT" maxlength="30"></label> <button id="refresh">Загрузить</button>
+<p id="state" class="muted">Ожидание</p><section class="panel"><h2>Сравнить два запуска</h2><label>Левый run_id <input id="left-run" maxlength="128"></label> <label>Правый run_id <input id="right-run" maxlength="128"></label> <button id="compare">Сравнить</button><p id="compare-result" class="warning">Сравнение не выполнялось</p></section>
+<section class="panel"><table><thead><tr><th>Запуск</th><th>Стратегия</th><th>Версия</th><th>Время (UTC)</th><th>Сделки</th><th>Net PnL</th><th>Profit factor</th><th>Drawdown</th><th>Fencing</th><th>Live</th><th>Simulation</th><th>Dataset</th><th>Coverage</th></tr></thead><tbody id="runs"></tbody></table></section>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+function metric(metrics,key){const value=metrics&&metrics[key];return typeof value==='number'&&Number.isFinite(value)?String(value):'—'}
+async function refresh(){
+ const symbol=$('symbol').value.trim().toUpperCase();$('runs').replaceChildren();
+ if(!/^[A-Z0-9]{2,30}$/.test(symbol)){$('state').textContent='Некорректный инструмент';return}
+ $('state').textContent='Загрузка…';
+ try{
+  const response=await fetch('/api/source/strattester?symbol='+encodeURIComponent(symbol),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json();
+  $('state').textContent='Источник: '+data.source+' · '+data.state+' · '+data.runs.length+' записей · только история · authority UNVERIFIED';
+  const fragment=document.createDocumentFragment();
+  for(const run of data.runs){
+   const tr=document.createElement('tr');
+   const timestamp=typeof run.created_at==='number'&&Number.isFinite(run.created_at)?new Date(run.created_at*1000).toISOString():'—';
+   const cells=[run.run_id,run.strategy,run.version,timestamp,metric(run.metrics,'trades'),metric(run.metrics,'net_pnl'),metric(run.metrics,'profit_factor'),metric(run.metrics,'max_drawdown'),run.fencing?.state||'UNVERIFIED',run.validation?.live_validation||'NOT_VERIFIED',run.validation?.simulation_pass||'NOT_VERIFIED',run.dataset?.fingerprint||'UNVERIFIED',run.dataset?.coverage||'UNSPECIFIED'];
+   for(const value of cells){const td=document.createElement('td');td.textContent=value===null||value===undefined?'—':String(value);tr.append(td)}
+   fragment.append(tr)
+  }
+  $('runs').replaceChildren(fragment)
+ }catch(error){$('state').textContent='Ошибка чтения: '+error.message}
+}
+async function compare(){
+ const symbol=$('symbol').value.trim().toUpperCase();
+ const left=$('left-run').value.trim(),right=$('right-run').value.trim();
+ const output=$('compare-result');
+ if(!/^[A-Z0-9]{2,30}$/.test(symbol)||!left||!right||left===right){output.textContent='Укажите корректный символ и два разных run_id';return}
+ output.textContent='Проверка сопоставимости…';
+ try{
+  const url='/api/source/compare?symbol='+encodeURIComponent(symbol)+'&left='+encodeURIComponent(left)+'&right='+encodeURIComponent(right);
+  const response=await fetch(url,{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const result=await response.json();
+  const comparison=result.comparison;
+  output.textContent=comparison?'Результат: '+comparison.state+' · '+comparison.reason+' · dataset совпадает: '+comparison.same_dataset+' · версии совпадают: '+comparison.same_strategy_version +' · интервалы: '+(comparison.coverage_comparison||'UNVERIFIED')+' · параметры: '+Object.entries(comparison.assumption_details||{}).map(([key,value])=>key+'='+value).join(', ')+' · торговые полномочия: '+comparison.trading_authority:'Сравнение недоступно: '+result.state;
+ }catch(error){output.textContent='Ошибка сравнения: '+error.message}
+}
+$('compare').onclick=compare;
+$('refresh').onclick=refresh;refresh();
+</script></html>

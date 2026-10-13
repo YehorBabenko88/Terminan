@@ -1,0 +1,47 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminan · Sources</title>
+<style>body{background:#0c1621;color:#dce7f4;font:15px Segoe UI,Arial,sans-serif;margin:24px auto;padding:0 16px;max-width:1100px}a{color:#87caff}h1{font-size:24px}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.card{background:#142538;border:1px solid #36516a;border-radius:10px;padding:18px}.state{font-weight:bold;color:#ffcc88}.ok{color:#78dfbe}.muted{color:#9db2c7}.error{color:#ff9c9c}</style>
+<h1>Terminan · Источники данных</h1><p><a href="/">Терминал</a> · <a href="/monitor">Мониторинг</a> · <a href="/dom-preview">DOM demo</a></p>
+<p class="muted">Панель только для чтения. Конфигурация источника не означает, что он доступен или содержит свежие данные.</p>
+<main id="cards"><div class="card">Загрузка состояния…</div></main><section class="card" style="margin-top:16px"><h2>Качество рыночных данных Grid</h2><label>Инструмент <input id="symbol" value="BTCUSDT" maxlength="30" pattern="[A-Z0-9]{2,30}" style="background:#20354a;color:#fff;padding:7px;border:1px solid #47617b"></label> <button id="market-refresh">Проверить</button><p id="market-state" class="muted">Нет проверки</p><div id="market-quality" class="muted"></div></section>
+<script>
+'use strict';
+const names={cluster_grid:'Bybit Cluster Grid',strattester_market:'Strattester · история',strattester_research:'Strattester · исследования'};
+async function refresh(){
+ const root=document.getElementById('cards');
+ try{
+  const response=await fetch('/api/source/health',{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const body=await response.json();const fragment=document.createDocumentFragment();
+  for(const [id,source] of Object.entries(body.sources)){
+   const card=document.createElement('section');card.className='card';
+   const heading=document.createElement('h2');heading.textContent=names[id]||id;card.append(heading);
+   const state=document.createElement('p');state.className='state';state.textContent=source.state;card.append(state);
+   const owns=document.createElement('p');owns.className='muted';owns.textContent='Данные: '+source.ownership.join(', ');card.append(owns);
+   if(source.l2){const p=document.createElement('p');p.textContent='L2: '+source.l2;card.append(p)}
+   if(source.authority){const p=document.createElement('p');p.textContent='Подтверждение результатов: '+source.authority;card.append(p)}
+   fragment.append(card)
+  }
+  root.replaceChildren(fragment)
+ }catch(error){root.textContent='Состояние источников недоступно: '+error.message;root.className='error'}
+}
+async function marketRefresh(){
+ const symbol=document.getElementById('symbol').value.trim().toUpperCase();
+ const state=document.getElementById('market-state'),quality=document.getElementById('market-quality');
+ if(!/^[A-Z0-9]{2,30}$/.test(symbol)){state.textContent='Некорректный символ';quality.replaceChildren();return}
+ state.textContent='Проверка…';quality.replaceChildren();
+ try{
+  const response=await fetch('/api/source/grid?symbol='+encodeURIComponent(symbol),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const result=await response.json();state.textContent='Grid: '+result.state+' · L2: '+result.l2.state;
+  const freshness=result.freshness||{};
+  for(const key of ['candles','footprint']){
+   const entry=freshness[key]||freshness;
+   const line=document.createElement('p');
+   line.textContent=key+': '+(entry.state||'NO_DATA')+' · age: '+(entry.age_seconds===null||entry.age_seconds===undefined?'—':entry.age_seconds+' s')+' · latest UTC: '+(entry.latest_ms===null||entry.latest_ms===undefined?'—':new Date(entry.latest_ms).toISOString());
+   quality.append(line)
+  }
+ }catch(error){state.textContent='Источник недоступен: '+error.message}
+}
+document.getElementById('market-refresh').onclick=marketRefresh;
+refresh();marketRefresh();setInterval(refresh,15000);
+</script></html>

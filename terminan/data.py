@@ -40,15 +40,58 @@ def instruments():
         con.close()
 
 def research(symbol, limit=50):
+    """Read stored results; do not infer current fencing or trading authority."""
     validate(symbol)
+    if type(limit) is not int or not 1 <= limit <= 100:
+        raise ValueError("invalid research limit")
     con = sqlite_ro("TERMINAN_RESULTS_DB")
     if con is None:
         return []
     try:
-        rows = con.execute("SELECT run_id,strategy_id,strategy_version,created_at,metrics FROM research_results WHERE symbol=? ORDER BY created_at DESC LIMIT ?", (symbol,max(1,min(int(limit),100)))).fetchall()
-        return [dict(run_id=r[0], strategy=r[1], version=r[2], created_at=r[3], metrics=json.loads(r[4])) for r in rows]
+        columns = {r[1] for r in con.execute("PRAGMA table_info(research_results)")}
+        has_fencing = {"job_id", "lease_token", "node_generation"}.issubset(columns)
+        extra = ",job_id,lease_token,node_generation" if has_fencing else ""
+        rows = con.execute(
+            "SELECT run_id,strategy_id,strategy_version,created_at,metrics" + extra +
+            " FROM research_results WHERE symbol=? ORDER BY created_at DESC LIMIT ?",
+            (symbol, limit),
+        ).fetchall()
+        results = []
+        for row in rows:
+            try:
+                metrics = json.loads(row[4])
+                if not isinstance(metrics, dict):
+                    raise ValueError("metrics must be a JSON object")
+                metrics_state = "PARSED"
+            except (TypeError, ValueError, json.JSONDecodeError):
+                metrics = {}
+                metrics_state = "INVALID_METRICS"
+            result = dict(run_id=row[0], strategy=row[1], version=row[2],
+                          created_at=row[3], metrics=metrics,
+                          metrics_state=metrics_state,
+                          publication_authority="UNVERIFIED")
+            if has_fencing:
+                result["fencing"] = {
+                    "state": "PRESENT_UNVERIFIED" if row[5] is not None else "LEGACY_UNFENCED",
+                    "job_id": row[5], "lease_token_present": row[6] is not None,
+                    "node_generation": row[7],
+                }
+            else:
+                result["fencing"] = {"state": "SCHEMA_UNAVAILABLE"}
+            results.append(result)
+        return results
     finally:
         con.close()
+
+def grid_available():
+    return bool(os.environ.get("TERMINAN_GRID_DSN"))
+
+def results_available():
+    con = sqlite_ro("TERMINAN_RESULTS_DB")
+    if con is None:
+        return False
+    con.close()
+    return True
 
 def grid_query(sql, params):
     dsn = os.environ.get("TERMINAN_GRID_DSN")
@@ -63,7 +106,7 @@ def grid_query(sql, params):
 def grid_candles(symbol, limit=300):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), (float(v) if v is not None else None for v in r))) for r in reversed(rows)]
 
 def footprint(symbol, limit=500):
     validate(symbol)

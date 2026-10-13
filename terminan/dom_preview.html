@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terminan · DOM Preview</title>
+<style>
+:root{color-scheme:dark;font:14px Segoe UI,Arial,sans-serif;background:#0b121c;color:#d8e7f3}
+*{box-sizing:border-box}body{margin:0;padding:16px;max-width:1050px;margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:21px}a{color:#7fc9fa}button,select{background:#1b3045;border:1px solid #42607a;border-radius:5px;color:inherit;padding:7px}
+.panel{background:#111f2e;border:1px solid #2d4459;border-radius:8px;padding:14px;margin-top:12px}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.muted{color:#98acbf}
+.warning{color:#ffcf80;font-weight:bold}.book{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.book th,.book td{padding:7px 9px;text-align:right;border-bottom:1px solid #27394a}
+.book th:nth-child(2),.book td:nth-child(2){text-align:center}
+.book td{position:relative}.bar{position:absolute;top:2px;bottom:2px;opacity:.28;right:0;z-index:0}
+.bar.bid{background:#35c6a3}.bar.ask{background:#e66d80}.cell{position:relative;z-index:1}
+.bidtxt{color:#5ce0bc}.asktxt{color:#f28fa0}.price{color:#e7eef6;font-weight:600}
+#state{font-size:12px}canvas{width:100%;height:30px}
+</style>
+<header><h1>TERMINAN · DOM Preview</h1><a href="/">← Терминал</a></header>
+<p class="warning">ДЕМОНСТРАЦИЯ: только синтетические данные. Не реальные котировки и не торговый сигнал.</p>
+<div class="panel controls">
+<label>Группировка <select id="group"><option value="1">1 тик</option><option value="5">5 тиков</option><option value="10">10 тиков</option></select></label>
+<label>Строк <select id="rows"><option>15</option><option selected>25</option><option>35</option></select></label>
+<label>FPS <select id="fps"><option>10</option><option selected>30</option><option>60</option></select></label>
+<button id="pause">Пауза</button><button id="reset">Сброс</button>
+<span id="state" class="muted"></span>
+</div>
+<div class="panel"><table class="book"><thead><tr><th>BID · lots</th><th>PRICE · ticks</th><th>ASK · lots</th></tr></thead><tbody id="book"></tbody></table></div>
+<p class="muted">Независимый Canvas/DOM-прототип интерфейса. Данные создаёт серверный Python BookEngine из фиксированного синтетического snapshot. Биржевых соединений нет.</p>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let paused=false,dirty=true,lastDraw=-Infinity,frames=0,latest=null,requestInFlight=false;
+async function load(){
+ if(requestInFlight||paused)return;
+ requestInFlight=true;
+ try{
+  const params=new URLSearchParams({rows:$('rows').value,group:$('group').value});
+  const response=await fetch('/api/dom-preview?'+params,{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const result=await response.json();
+  if(result.source!=='SYNTHETIC_FIXTURE'||result.tradable!==false)throw Error('Unexpected data source');
+  latest=result;dirty=true;
+ }catch(error){$('state').textContent='Preview unavailable: '+error.message;latest=null}
+ finally{requestInFlight=false}
+}
+function paint(now){
+ const fps=Number($('fps').value);
+ if(dirty&&latest&&now-lastDraw>=1000/fps){
+  const data=latest.rows,max=Math.max(1,...data.flatMap(r=>[r.bid_lots,r.ask_lots]));
+  const fragment=document.createDocumentFragment();
+  for(const row of data){
+   const tr=document.createElement('tr');
+   for(const [q,side] of [[row.bid_lots,'bid'],[row.price_ticks,'price'],[row.ask_lots,'ask']]){
+    const td=document.createElement('td');
+    if(side!=='price'&&q){const bar=document.createElement('div');bar.className='bar '+side;bar.style.width=(100*q/max)+'%';td.append(bar)}
+    const span=document.createElement('span');span.className='cell '+(side==='bid'?'bidtxt':side==='ask'?'asktxt':'price');span.textContent=side==='price'?String(q):q?String(q):'—';td.append(span);tr.append(td)
+   }
+   fragment.append(tr)
+  }
+  $('book').replaceChildren(fragment);
+  frames++;lastDraw=now;dirty=false;
+  $('state').textContent='SYNTHETIC_FIXTURE · BookEngine v'+latest.version+' · seq '+latest.sequence+' · frames '+frames+' · '+fps+' FPS cap'
+ }
+ requestAnimationFrame(paint)
+}
+$('group').onchange=$('rows').onchange=()=>{dirty=true;load()};
+$('fps').onchange=()=>{dirty=true};
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Продолжить':'Пауза';if(!paused)load()};
+$('reset').onclick=()=>{paused=false;$('pause').textContent='Пауза';load()};
+load();requestAnimationFrame(paint);
+</script></html>

@@ -7,19 +7,28 @@ from urllib.parse import parse_qs, urlsplit
 from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
+from .dom_preview_data import preview_book
+from .source_views import grid_market_view, strattester_research_view, strattester_comparison_view
+from .source_health import source_health
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor"):
-            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/dom-preview", "/sources", "/research"):
+            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "dom_preview.html" if url.path == "/dom-preview" else "sources.html" if url.path == "/sources" else "research.html" if url.path == "/research" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             q = parse_qs(url.query)
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == "/api/monitor": result = fleet_snapshot()
+                if url.path == "/api/dom-preview":
+                    result = preview_book.read(int(q.get("rows", ["25"])[0]), int(q.get("group", ["1"])[0]))
+                elif url.path == "/api/source/health": result = source_health()
+                elif url.path == "/api/source/grid": result = grid_market_view(symbol)
+                elif url.path == "/api/source/strattester": result = strattester_research_view(symbol)
+                elif url.path == "/api/source/compare": result = strattester_comparison_view(symbol, q.get("left", [""])[0], q.get("right", [""])[0])
+                elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
                 elif url.path == "/api/research": result = data.research(symbol)
