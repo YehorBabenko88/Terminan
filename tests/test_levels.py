@@ -142,6 +142,7 @@ class LevelTests(unittest.TestCase):
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['levels'],[])
         self.assertEqual(result['history']['data_state'],'NO_CLOSED_CANDLES')
+        self.assertEqual(result['history']['state'],'NO_CLOSED_CANDLES')
         self.assertEqual(result['history']['missing_timeframes'],['1h','4h','1d'])
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_MISSING_TIMEFRAMES')
 
