@@ -28,7 +28,7 @@ class RenderInputHardeningTests(unittest.TestCase):
     def test_mailbox_invalid_monotonic_time(self):
         mailbox = LatestFrameMailbox()
         mailbox.reset("epoch")
-        for bad in (None, "1", True, float("nan"), -1):
+        for bad in (None, "1", True, float("nan"), float("inf"), float("-inf"), -1):
             with self.assertRaises(ValueError):
                 mailbox.take(bad)
 
