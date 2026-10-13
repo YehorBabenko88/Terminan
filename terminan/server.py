@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
-from .levels import merge_levels, missing_candle_intervals
+from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
 from .source_views import grid_market_view, strattester_research_view, strattester_comparison_view
@@ -41,13 +41,8 @@ class Handler(BaseHTTPRequestHandler):
                         series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"],"complete":r["complete"]} for r in data.candles(symbol,tf,1000)]
                     levels=merge_levels(series,now)
                     if q.get('diagnostics',['0'])[0]=='1':
-                        gaps={tf:missing_candle_intervals(rows,tf,now) for tf,rows in series.items()}
                         result={'version':1,'symbol':symbol,'levels':levels,
-                                'history':{'state':'GAPS_DETECTED' if any(gaps.values()) else 'NO_INTERNAL_GAPS_DETECTED',
-                                           'coverage':'BOUNDED_WINDOW_ONLY','gaps':gaps,
-                                           'level_validation':'UNVERIFIED_DUE_TO_GAPS' if any(gaps.values()) else 'UNVERIFIED_BOUNDED_HISTORY',
-                                           'data_state':'NO_CLOSED_CANDLES' if not any(any(r.get('complete') is not False and r['t']+{'1h':3600000,'4h':14400000,'1d':86400000}[tf]<=now for r in rows) for tf,rows in series.items()) else 'CLOSED_CANDLES_PRESENT',
-                                           'trading_authority':'NONE'}}
+                                'history':level_history_quality(series,now)}
                     else:
                         result=levels
                 elif url.path == "/api/logs":
