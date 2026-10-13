@@ -44,7 +44,9 @@ class Handler(BaseHTTPRequestHandler):
                         gaps={tf:missing_candle_intervals(rows,tf,now) for tf,rows in series.items()}
                         result={'version':1,'symbol':symbol,'levels':levels,
                                 'history':{'state':'GAPS_DETECTED' if any(gaps.values()) else 'NO_INTERNAL_GAPS_DETECTED',
-                                           'coverage':'BOUNDED_WINDOW_ONLY','gaps':gaps}}
+                                           'coverage':'BOUNDED_WINDOW_ONLY','gaps':gaps,
+                                           'level_validation':'UNVERIFIED_DUE_TO_GAPS' if any(gaps.values()) else 'UNVERIFIED_BOUNDED_HISTORY',
+                                           'trading_authority':'NONE'}}
                     else:
                         result=levels
                 elif url.path == "/api/logs":
