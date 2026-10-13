@@ -50,10 +50,10 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
     times = sorted(times)
     gaps = []
     for left, right in zip(times, times[1:]):
-        if right - left > period:
+        if right - left != period:
             delta = right - left
             gap = {'after_ms': left, 'before_ms': right,
-                   'missing_intervals': delta // period - 1 if delta % period == 0 else None}
+                   'missing_intervals': delta // period - 1 if delta > period and delta % period == 0 else None}
             if delta % period != 0:
                 gap['irregular_spacing'] = True
             gaps.append(gap)
