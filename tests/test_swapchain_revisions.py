@@ -27,6 +27,35 @@ class SwapchainRevisionTests(unittest.TestCase):
             self.assertIs(chain.snapshot(), newest)
         self.assertEqual(chain.dropped, 3)
 
+    def test_repeated_concurrent_publish_and_dispose_never_reopens(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        old = self.make_frame(1)
+        newer = self.make_frame(2)
+        for attempt in range(20):
+            with self.subTest(attempt=attempt):
+                chain = FrameSwapchain()
+                chain.reset("a", 0)
+                barrier = Barrier(3)
+                def publish_old():
+                    barrier.wait(timeout=10)
+                    for _ in range(10):
+                        chain.publish(old)
+                def publish_new():
+                    barrier.wait(timeout=10)
+                    for _ in range(10):
+                        chain.publish(newer)
+                def close():
+                    barrier.wait(timeout=10)
+                    chain.dispose()
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    futures = [pool.submit(fn) for fn in (publish_old, publish_new, close)]
+                    for future in futures:
+                        future.result(timeout=10)
+                self.assertTrue(chain.closed)
+                self.assertIsNone(chain.snapshot())
+                self.assertFalse(chain.publish(newer))
+
     def test_concurrent_reset_publish_and_dispose_preserve_closed_tombstone(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Barrier
