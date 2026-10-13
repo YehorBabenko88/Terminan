@@ -25,6 +25,17 @@ class PipelineResetRegressionTests(unittest.TestCase):
         self.assertTrue(p.pump(0).published)
         self.assertEqual(p.snapshot().key.book_version, 1)
 
+    def test_old_surface_generation_cannot_be_resurrected(self):
+        p = DomFramePipeline()
+        p.reset("same", 3)
+        p.offer(make_model("same", 10, 3))
+        self.assertTrue(p.pump(0).published)
+        before = p.snapshot()
+        with self.assertRaisesRegex(ValueError, "generation"):
+            p.reset("same", 2, retain_front=True)
+        self.assertIs(p.snapshot(), before)
+        self.assertEqual(p.swapchain.generation, 3)
+
     def test_surface_reset_allows_new_book_revision(self):
         p = DomFramePipeline()
         p.reset("same", 0)
