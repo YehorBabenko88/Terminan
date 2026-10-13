@@ -15,7 +15,7 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
     active=[]
     seen={}
     for c in candles:
-        t=c['t']
+        t=c.get('t')
         if type(t) is not int or not 0<=t<=2**63-1: raise ValueError('invalid candle timestamp')
         if type(c.get('complete', True)) is not bool: raise ValueError('invalid candle completion flag')
     for c in sorted(candles,key=lambda v:v['t']):
@@ -55,7 +55,7 @@ def missing_candle_intervals(candles, timeframe, as_of_ms):
     period = PERIODS[timeframe]
     times = set()
     for candle in candles:
-        t = candle['t']
+        t = candle.get('t')
         if type(t) is not int or not 0 <= t <= 2**63-1:
             raise ValueError('invalid candle timestamp')
         if type(candle.get('complete', True)) is not bool:
