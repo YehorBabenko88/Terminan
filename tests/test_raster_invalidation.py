@@ -33,6 +33,22 @@ class RasterInvalidationTests(unittest.TestCase):
         self.assertEqual(outcome.reason, "STALE_AFTER_RASTER")
         self.assertEqual(pipeline.snapshot().key.book_version, 2)
 
+    def test_instrument_switch_and_new_publish_during_old_raster(self):
+        pipeline = DomFramePipeline()
+        pipeline.reset("old", 0)
+        pipeline.offer(model("old", 0))
+        def racing_raster(m):
+            old_frame = rasterize(m)
+            pipeline.reset("new", 0)
+            pipeline.offer(model("new", 0))
+            with patch("terminan.frame_pipeline.rasterize", side_effect=rasterize):
+                self.assertTrue(pipeline.pump(1).published)
+            return old_frame
+        with patch("terminan.frame_pipeline.rasterize", side_effect=racing_raster):
+            result = pipeline.pump(0)
+        self.assertEqual(result.reason, "STALE_AFTER_RASTER")
+        self.assertEqual(pipeline.snapshot().key.epoch, "new")
+
     def test_reset_during_raster_drops_old_frame(self):
         pipeline = DomFramePipeline()
         pipeline.reset("old", 0)
