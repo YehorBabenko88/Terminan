@@ -15,6 +15,24 @@ class SwapchainRevisionTests(unittest.TestCase):
                                    dpi_version=dpi, surface_generation=generation)
         return rasterize(replace(model, key=replace(model.key, book_version=book_version)))
 
+    def test_same_epoch_generation_rollback_is_rejected_without_mutation(self):
+        chain = FrameSwapchain()
+        chain.reset("a", 2)
+        latest = self.make_frame(1, generation=2)
+        self.assertTrue(chain.publish(latest))
+        with self.assertRaises(ValueError):
+            chain.reset("a", 1, retain_front=True)
+        self.assertEqual(chain.generation, 2)
+        self.assertIs(chain.snapshot(), latest)
+        self.assertFalse(chain.publish(self.make_frame(999, generation=1)))
+
+    def test_new_epoch_can_start_at_generation_zero(self):
+        chain = FrameSwapchain()
+        chain.reset("a", 5)
+        chain.reset("b", 0)
+        self.assertEqual(chain.generation, 0)
+        self.assertEqual(chain.epoch, "b")
+
     def test_stale_frame_does_not_replace_front(self):
         chain = FrameSwapchain()
         chain.reset("a", 0)
