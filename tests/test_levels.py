@@ -271,6 +271,16 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_merge_empty_series_still_validates_inputs(self):
+        for invalid in (None, True, -1, 1.5, 2**63):
+            with self.subTest(as_of_ms=invalid):
+                with self.assertRaisesRegex(ValueError,'invalid observation timestamp'):
+                    merge_levels({},invalid)
+        for invalid in (None, True, -1, float('nan'), float('inf'), 10**400):
+            with self.subTest(tick_size=str(invalid)[:40]):
+                with self.assertRaisesRegex(ValueError,'invalid parameters'):
+                    merge_levels({},3600000,tick_size=invalid)
+
     def test_gap_diagnostics_reject_non_mapping_candles_cleanly(self):
         for invalid in (None, 42):
             with self.subTest(invalid=invalid):
