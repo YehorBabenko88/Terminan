@@ -183,6 +183,14 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(quality['stale_timeframes'],[])
         self.assertEqual(quality['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
 
+    def test_overlapping_closed_candles_are_reported_as_irregular(self):
+        h=3600000
+        gaps=missing_candle_intervals([dict(t=0),dict(t=h//2)],'1h',3*h)
+        self.assertEqual(len(gaps),1)
+        self.assertTrue(gaps[0]['irregular_spacing'])
+        self.assertIsNone(gaps[0]['missing_intervals'])
+        self.assertEqual(missing_candle_intervals([dict(t=0),dict(t=h)],'1h',3*h),[])
+
     def test_irregular_candle_spacing_does_not_invent_missing_count(self):
         h=3600000
         gaps=missing_candle_intervals([dict(t=0),dict(t=2*h+1)],'1h',4*h)
