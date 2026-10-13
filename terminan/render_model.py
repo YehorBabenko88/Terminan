@@ -30,6 +30,7 @@ class RenderModel:
     row_height_dip: float
     pixel_width: int
     pixel_height: int
+    scale_y: float = 1.0
 
     def hit_test(self, y_dip: float):
         if (type(y_dip) not in (int, float) or
@@ -68,4 +69,4 @@ def build_render_model(view: BookView, *, top_tick: int, row_count: int,
     return RenderModel(RenderKey(view.epoch, view.version, view_version, style_version,
                                  dpi_version, surface_generation),
                        view.status.value, rows, float(row_height_dip),
-                       pixel_width, pixel_height)
+                       pixel_width, pixel_height, float(scale_y))
