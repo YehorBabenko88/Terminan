@@ -271,6 +271,19 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_history_staleness_boundary_and_future_incomplete_candle(self):
+        h=3600000
+        series={'1h':[dict(t=0,h=10,l=9,complete=True),
+                      dict(t=3*h,h=None,l=None,complete=False)]}
+        fresh=level_history_quality(series,3*h-1)
+        stale=level_history_quality(series,3*h)
+        self.assertEqual(fresh['stale_timeframes'],[])
+        self.assertEqual(stale['stale_timeframes'],['1h'])
+        self.assertEqual(fresh['latest_closed_ms']['1h'],h)
+        self.assertEqual(stale['latest_closed_ms']['1h'],h)
+        self.assertEqual(stale['level_validation'],'UNVERIFIED_STALE_TIMEFRAMES')
+        self.assertEqual(stale['trading_authority'],'NONE')
+
     def test_missing_timestamps_fail_closed_in_direct_level_functions(self):
         from terminan.levels import missing_candle_intervals
         rows=[dict(h=10,l=9,complete=True)]
