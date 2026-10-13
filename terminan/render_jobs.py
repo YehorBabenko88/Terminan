@@ -6,6 +6,7 @@ an already-running action. No threads or external scheduler are assumed.
 """
 from dataclasses import dataclass
 from enum import Enum, auto
+from threading import RLock
 
 
 class JobState(Enum):
@@ -61,50 +62,57 @@ class RenderJobGate:
         self.pending = None
         self.closed = False
         self.replacements = 0
+        self._lock = RLock()
 
     def submit(self, action, cleanup=None):
-        if self.closed:
-            if cleanup is not None:
-                cleanup()
-            return None
-        job = RenderJob(self.generation, action, cleanup)
-        if self.pending is not None:
-            self.pending.cancel()
-            self.replacements += 1
-        self.pending = job
-        return job
+        with self._lock:
+            if self.closed:
+                if cleanup is not None:
+                    cleanup()
+                return None
+            job = RenderJob(self.generation, action, cleanup)
+            if self.pending is not None:
+                self.pending.cancel()
+                self.replacements += 1
+            self.pending = job
+            return job
 
     def dequeue(self):
-        job, self.pending = self.pending, None
-        return job
+        with self._lock:
+            job, self.pending = self.pending, None
+            return job
 
     def execute(self, job):
-        if (self.closed or job is None or
-                job.generation != self.generation or not job.begin()):
-            if job is not None:
-                job.cancel()
-            return False
-        try:
-            job.action()
-            return not self.closed and job.generation == self.generation
-        finally:
-            job.finish()
+        with self._lock:
+            if (self.closed or job is None or
+                    job.generation != self.generation or not job.begin()):
+                if job is not None:
+                    job.cancel()
+                return False
+            try:
+                job.action()
+                return not self.closed and job.generation == self.generation
+            finally:
+                job.finish()
 
     def invalidate(self):
-        if self.closed:
-            return
-        self.generation += 1
-        if self.pending is not None:
-            self.pending.cancel()
-            self.pending = None
+        with self._lock:
+            if self.closed:
+                return
+            self.generation += 1
+            if self.pending is not None:
+                self.pending.cancel()
+                self.pending = None
 
     def close(self):
-        if self.closed:
-            return
-        self.closed = True
-        self.invalidate_pending()
+        with self._lock:
+            if self.closed:
+                return
+            self.closed = True
+            self.invalidate_pending()
 
     def invalidate_pending(self):
-        if self.pending is not None:
-            self.pending.cancel()
-            self.pending = None
+        with self._lock:
+            if self.pending is not None:
+                self.pending.cancel()
+                self.pending = None
