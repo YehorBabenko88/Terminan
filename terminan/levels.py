@@ -15,6 +15,8 @@ def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
         t=c['t']
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
         try:
+            if type(c['h']) is bool or type(c['l']) is bool:
+                raise ValueError('invalid candle')
             high=float(c['h']); low=float(c['l'])
         except (TypeError, ValueError, KeyError, OverflowError):
             raise ValueError('invalid candle') from None
