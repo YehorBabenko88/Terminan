@@ -269,6 +269,13 @@ class LevelTests(unittest.TestCase):
                 payload=json.loads(handler.wfile.getvalue())
                 self.assertEqual(payload,{'error':'invalid candle'})
 
+    def test_closed_candle_price_conversion_overflow_is_controlled(self):
+        h=3600000
+        for bad in (10**400, {}, object()):
+            with self.subTest(kind=type(bad).__name__):
+                with self.assertRaisesRegex(ValueError,'invalid candle'):
+                    untouched_levels([dict(t=0,h=bad,l=9,complete=True)],'1h',h)
+
     def test_invalid_closed_candle_prices_raise_value_error(self):
         h=3600000
         for bad in ('unavailable',None):
