@@ -23,6 +23,7 @@ class DomFramePipeline:
         self.swapchain = FrameSwapchain()
         self.closed = False
         self.last_version = -1
+        self.last_revision = None
         self.renders = 0
         self.failed_renders = 0
 
@@ -38,20 +39,30 @@ class DomFramePipeline:
             return False
         if not isinstance(model, RenderModel):
             raise ValueError("invalid render model")
-        if model.key.book_version < self.last_version:
+        revision = self._revision(model)
+        if self.last_revision is not None and revision < self.last_revision:
             return False
         if (self.mailbox.pending is not None
-                and model.key.book_version < self.mailbox.pending.key.book_version):
+                and revision < self._revision(self.mailbox.pending)):
             return False
         return self.mailbox.offer(model)
+
+    @staticmethod
+    def _revision(model):
+        # The book revision is primary. Equal books may still need redraw
+        # after a viewport, style or DPI change.
+        key = model.key
+        return (key.book_version, key.view_version,
+                key.style_version, key.dpi_version)
 
     def pump(self, now, visible=True):
         decision = self.mailbox.take(now, visible=visible)
         if decision.model is None:
             return PumpResult(decision.reason, False)
         model = decision.model
-        if model.key.book_version < self.last_version:
-            return PumpResult("STALE_BOOK_VERSION", False)
+        revision = self._revision(model)
+        if self.last_revision is not None and revision < self.last_revision:
+            return PumpResult("STALE_RENDER_REVISION", False)
         try:
             frame = rasterize(model)
         except (ValueError, OverflowError, MemoryError):
@@ -60,6 +71,7 @@ class DomFramePipeline:
         if not self.swapchain.publish(frame):
             return PumpResult("STALE_SURFACE", False)
         self.last_version = model.key.book_version
+        self.last_revision = revision
         self.renders += 1
         return PumpResult("PUBLISHED", True)
 
