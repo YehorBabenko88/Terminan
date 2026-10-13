@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 from terminan.dom import BookEngine, Snapshot, Level
 from terminan.render_model import build_render_model
 from terminan.frame_pipeline import DomFramePipeline
@@ -7,9 +8,12 @@ from terminan.frame_pipeline import DomFramePipeline
 def model(epoch, version, generation=0):
     book = BookEngine()
     book.snapshot(Snapshot(epoch, version, (Level("bid", 100, 2),)))
-    return build_render_model(book.view, top_tick=100, row_count=1,
-                              width_dip=8, height_dip=4,
-                              surface_generation=generation)
+    frame = build_render_model(book.view, top_tick=100, row_count=1,
+                               width_dip=8, height_dip=4,
+                               surface_generation=generation)
+    # Snapshot sequence numbers are source events; the render key carries
+    # the monotonically increasing book revision independently.
+    return replace(frame, key=replace(frame.key, book_version=version))
 
 
 class DomFramePipelineTests(unittest.TestCase):
