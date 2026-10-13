@@ -271,6 +271,17 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_history_quality_reports_gaps_before_staleness(self):
+        h=3600000
+        series={'1h':[dict(t=0,h=10,l=9,complete=True),
+                      dict(t=2*h,h=12,l=11,complete=True)]}
+        quality=level_history_quality(series,8*h)
+        self.assertEqual(quality['state'],'GAPS_DETECTED')
+        self.assertEqual(quality['gaps']['1h'][0]['missing_intervals'],1)
+        self.assertEqual(quality['stale_timeframes'],['1h'])
+        self.assertEqual(quality['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
+        self.assertEqual(quality['trading_authority'],'NONE')
+
     def test_history_staleness_boundary_and_future_incomplete_candle(self):
         h=3600000
         series={'1h':[dict(t=0,h=10,l=9,complete=True),
