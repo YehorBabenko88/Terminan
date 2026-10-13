@@ -107,7 +107,25 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(detailed['levels'],legacy)
         self.assertEqual(detailed['history']['state'],'GAPS_DETECTED')
         self.assertEqual(detailed['history']['coverage'],'BOUNDED_WINDOW_ONLY')
+        self.assertEqual(detailed['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
+        self.assertEqual(detailed['history']['trading_authority'],'NONE')
         self.assertEqual(detailed['history']['gaps']['1h'][0]['missing_intervals'],2)
+
+    def test_gap_free_bounded_history_remains_unverified(self):
+        from terminan.server import Handler
+        h=3600000
+        handler=object.__new__(Handler)
+        handler.path='/api/levels?diagnostics=1'
+        handler.wfile=io.BytesIO()
+        handler.send_response=lambda code:None
+        handler.send_header=lambda *args:None
+        handler.end_headers=lambda:None
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[dict(t=0,h=10,l=9,complete=True)]):
+            handler.do_GET()
+        result=json.loads(handler.wfile.getvalue())
+        self.assertEqual(result['history']['state'],'NO_INTERNAL_GAPS_DETECTED')
+        self.assertEqual(result['history']['level_validation'],'UNVERIFIED_BOUNDED_HISTORY')
+        self.assertEqual(result['history']['trading_authority'],'NONE')
 
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
