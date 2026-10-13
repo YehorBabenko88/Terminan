@@ -84,6 +84,10 @@ class RenderJobGate:
 
     def execute(self, job):
         with self._lock:
+            # Direct execute() transfers ownership just like dequeue().
+            # Otherwise close() may clean an already finished job twice.
+            if job is not None and self.pending is job:
+                self.pending = None
             if (self.closed or job is None or
                     job.generation != self.generation or not job.begin()):
                 if job is not None:
