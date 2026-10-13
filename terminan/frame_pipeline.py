@@ -27,11 +27,11 @@ class DomFramePipeline:
         self.renders = 0
         self.failed_renders = 0
 
-    def reset(self, epoch, surface_generation=0):
+    def reset(self, epoch, surface_generation=0, *, retain_front=False):
         if self.closed:
             raise RuntimeError("pipeline disposed")
         self.mailbox.reset(epoch, surface_generation)
-        self.swapchain.reset(epoch, surface_generation)
+        self.swapchain.reset(epoch, surface_generation, retain_front=retain_front)
         self.last_version = -1
         self.last_revision = None
 
