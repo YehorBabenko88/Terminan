@@ -271,6 +271,14 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_empty_history_still_validates_observation_timestamp(self):
+        for invalid in (None, True, -1, 1.5, 2**63):
+            with self.subTest(as_of_ms=invalid):
+                with self.assertRaisesRegex(ValueError,'invalid observation timestamp'):
+                    level_history_quality({},invalid)
+                with self.assertRaisesRegex(ValueError,'invalid observation timestamp'):
+                    level_history_quality({'1h':[]},invalid)
+
     def test_history_quality_empty_timeframe_does_not_hide_stale_timeframe(self):
         h=3600000
         series={'1h':[dict(t=0,h=10,l=9,complete=True)], '4h':[]}
