@@ -271,6 +271,17 @@ class LevelTests(unittest.TestCase):
         self.assertEqual(result['history']['level_validation'],'UNVERIFIED_DUE_TO_GAPS')
         self.assertEqual(result['history']['trading_authority'],'NONE')
 
+    def test_quality_invalid_timeframe_does_not_consume_history(self):
+        for invalid in ([], {}, None, 1, '2h'):
+            with self.subTest(timeframe=repr(invalid)):
+                observed=[]
+                def candles():
+                    observed.append('consumed')
+                    yield dict(t=0,h=10,l=9)
+                with self.assertRaisesRegex(ValueError,'unsupported timeframe'):
+                    level_history_quality({str(invalid):candles()},3600000)
+                self.assertEqual(observed,[])
+
     def test_unhashable_timeframe_is_rejected_cleanly(self):
         for invalid in ([], {}, None, 1):
             with self.subTest(timeframe=repr(invalid)):
