@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
-from .levels import merge_levels
+from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .dom_preview_data import preview_book
 from .source_views import grid_market_view, strattester_research_view, strattester_comparison_view
@@ -38,8 +38,13 @@ class Handler(BaseHTTPRequestHandler):
                     now=int(datetime.now(timezone.utc).timestamp()*1000)
                     series={}
                     for tf in ("1h","4h","1d"):
-                        series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"]} for r in data.candles(symbol,tf,1000)]
-                    result=merge_levels(series,now)
+                        series[tf]=[{"t":r.get("t"),"h":r.get("h"),"l":r.get("l"),"complete":r.get("complete", True)} for r in data.candles(symbol,tf,1000)]
+                    levels=merge_levels(series,now)
+                    if q.get('diagnostics',['0'])[0]=='1':
+                        result={'version':1,'symbol':symbol,'levels':levels,
+                                'history':level_history_quality(series,now)}
+                    else:
+                        result=levels
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}

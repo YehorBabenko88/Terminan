@@ -107,7 +107,9 @@ class BookEngine:
     def snapshot(self, msg: Snapshot):
         _validate_header(msg.epoch, msg.sequence)
         changes = _changes(msg.levels)
-        if self._status == BookStatus.LIVE and self._epoch == msg.epoch and msg.sequence <= self._sequence:
+        # Invalidating the book does not erase its sequence watermark.
+        # Recovery must not promote a delayed or duplicate snapshot to LIVE.
+        if self._epoch == msg.epoch and self._sequence is not None and msg.sequence <= self._sequence:
             return False
         bids, asks = {}, {}
         for level in changes:
