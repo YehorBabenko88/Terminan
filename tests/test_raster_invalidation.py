@@ -75,6 +75,29 @@ class RasterInvalidationTests(unittest.TestCase):
         self.assertEqual(result.reason, "STALE_AFTER_RASTER")
         self.assertIsNone(pipeline.snapshot())
 
+    def test_resize_and_book_update_during_raster_rejects_old_frame(self):
+        pipeline = DomFramePipeline()
+        pipeline.reset("A", 0)
+        pipeline.offer(model("A", 0))
+        self.assertTrue(pipeline.pump(0).published)
+        pipeline.offer(model("A", 0))
+        def racing_raster(m):
+            stale = rasterize(m)
+            pipeline.reset("A", 1, retain_front=True)
+            from dataclasses import replace
+            fresh = model("A", 1)
+            fresh = replace(fresh, key=replace(fresh.key, book_version=2, view_version=1))
+            self.assertTrue(pipeline.offer(fresh))
+            with patch("terminan.frame_pipeline.rasterize", side_effect=rasterize):
+                self.assertTrue(pipeline.pump(1).published)
+            return stale
+        with patch("terminan.frame_pipeline.rasterize", side_effect=racing_raster):
+            outcome = pipeline.pump(1)
+        self.assertEqual(outcome.reason, "STALE_AFTER_RASTER")
+        self.assertEqual(pipeline.snapshot().key.surface_generation, 1)
+        self.assertEqual(pipeline.snapshot().key.book_version, 2)
+        self.assertEqual(pipeline.snapshot().key.view_version, 1)
+
     def test_dpi_change_during_raster_rejects_old_frame(self):
         pipeline = DomFramePipeline()
         pipeline.reset("A", 0)
