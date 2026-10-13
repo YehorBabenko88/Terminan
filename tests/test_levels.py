@@ -1,4 +1,7 @@
 import unittest
+import io
+import json
+from unittest.mock import patch
 from terminan.levels import untouched_levels,merge_levels,missing_candle_intervals
 
 class LevelTests(unittest.TestCase):
@@ -80,6 +83,31 @@ class LevelTests(unittest.TestCase):
         h=3600000
         candles=[dict(t=0),dict(t=0),dict(t=h)]
         self.assertEqual(missing_candle_intervals(candles,'1h',2*h),[])
+
+    def test_levels_api_opt_in_diagnostics_preserves_default_list(self):
+        from terminan.server import Handler
+        h=3600000
+        rows=[dict(t=0,h=10,l=9,complete=True),
+              dict(t=3*h,h=11,l=10,complete=True)]
+        def candles(symbol,tf,limit=1000):
+            return rows if tf=='1h' else []
+        def call(path):
+            handler=object.__new__(Handler)
+            handler.path=path
+            handler.wfile=io.BytesIO()
+            handler.send_response=lambda code:None
+            handler.send_header=lambda *args:None
+            handler.end_headers=lambda:None
+            handler.do_GET()
+            return json.loads(handler.wfile.getvalue())
+        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=candles):
+            legacy=call('/api/levels?symbol=BTCUSDT')
+            detailed=call('/api/levels?symbol=BTCUSDT&diagnostics=1')
+        self.assertIsInstance(legacy,list)
+        self.assertEqual(detailed['levels'],legacy)
+        self.assertEqual(detailed['history']['state'],'GAPS_DETECTED')
+        self.assertEqual(detailed['history']['coverage'],'BOUNDED_WINDOW_ONLY')
+        self.assertEqual(detailed['history']['gaps']['1h'][0]['missing_intervals'],2)
 
     def test_invalid(self):
         with self.assertRaises(ValueError): untouched_levels([], '1m', 0)
