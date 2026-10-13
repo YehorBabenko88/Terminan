@@ -67,15 +67,31 @@ class RenderJobGate:
     def submit(self, action, cleanup=None):
         with self._lock:
             if self.closed:
-                if cleanup is not None:
-                    cleanup()
-                return None
-            job = RenderJob(self.generation, action, cleanup)
-            if self.pending is not None:
-                self.pending.cancel()
-                self.replacements += 1
-            self.pending = job
-            return job
+                rejected = True
+                job = None
+                previous_cleanup = None
+            else:
+                rejected = False
+                job = RenderJob(self.generation, action, cleanup)
+                previous = self.pending
+                previous_cleanup = None
+                if previous is not None:
+                    # Transfer cleanup ownership while holding the gate lock,
+                    # then invoke the callback only after unlocking.
+                    if previous.state is JobState.PENDING:
+                        previous.state = JobState.CANCELLED
+                        if not previous.cleaned:
+                            previous.cleaned = True
+                            previous_cleanup = previous.cleanup
+                    self.replacements += 1
+                self.pending = job
+        if rejected:
+            if cleanup is not None:
+                cleanup()
+            return None
+        if previous_cleanup is not None:
+            previous_cleanup()
+        return job
 
     def dequeue(self):
         with self._lock:
