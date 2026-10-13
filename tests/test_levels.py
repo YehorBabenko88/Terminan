@@ -191,7 +191,7 @@ class LevelTests(unittest.TestCase):
         self.assertIsNone(gaps[0]['missing_intervals'])
         regular=missing_candle_intervals([dict(t=0),dict(t=3*h)],'1h',4*h)
         self.assertEqual(regular[0]['missing_intervals'],2)
-        self.assertFalse(regular[0]['irregular_spacing'])
+        self.assertNotIn('irregular_spacing',regular[0])
 
     def test_level_builder_rejects_invalid_timestamp_types(self):
         for bad in (True, 1.5, '0', -1, 2**63):
