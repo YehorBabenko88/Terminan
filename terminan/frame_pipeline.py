@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .frame_scheduler import LatestFrameMailbox
 from .canvas_backend import FrameSwapchain, rasterize
 from .render_model import RenderModel
+from .render_jobs import RenderJobGate
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class DomFramePipeline:
     def __init__(self, fps=60):
         self.mailbox = LatestFrameMailbox(fps)
         self.swapchain = FrameSwapchain()
+        self.jobs = RenderJobGate()
         self.closed = False
         self.last_version = -1
         self.last_revision = None
@@ -30,6 +32,7 @@ class DomFramePipeline:
     def reset(self, epoch, surface_generation=0, *, retain_front=False):
         if self.closed:
             raise RuntimeError("pipeline disposed")
+        self.jobs.invalidate()
         self.mailbox.reset(epoch, surface_generation)
         self.swapchain.reset(epoch, surface_generation, retain_front=retain_front)
         self.last_version = -1
@@ -80,6 +83,7 @@ class DomFramePipeline:
         return self.swapchain.snapshot()
 
     def dispose(self):
+        self.jobs.close()
         self.mailbox.dispose()
         self.swapchain.dispose()
         self.closed = True
