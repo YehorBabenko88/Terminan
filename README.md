@@ -6,6 +6,8 @@ Run with Python 3.11 or later: `python -m terminan`. Open http://127.0.0.1:8765.
 
 Optional environment variables:
 
+- `TERMINAN_PORT`: local HTTP port (default 8765, range 1–65535). Set to `8766` when Grid CONTROL uses port 8765 on the same PC. Loopback-only binding remains enforced.
+
 - `TERMINAN_STRATTESTER_DB`: existing SQLite candles database.
 - `TERMINAN_RESULTS_DB`: existing SQLite research results database.
 - `TERMINAN_GRID_DSN`: PostgreSQL connection string (install `psycopg[binary]` separately; use read-only database credentials).
