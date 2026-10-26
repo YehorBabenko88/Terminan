@@ -33,6 +33,8 @@ def validate_fixture(raw,as_of_ms):
              authority='SYNTHETIC_ONLY',coverage={'verified':False,'scope':'BOUNDED_FIXTURE'})
     try:
         _stamp(as_of_ms)
+        if _stamp(raw['observed_at_ms'])>as_of_ms:
+            out['state']='FUTURE_LEAKAGE';return out
         source=raw['source'];kind=raw['kind'];provenance=raw['provenance']
         if source not in ('grid','strattester') or kind not in ('candles','footprint','research'):return out
         out.update(source=source,kind=kind)
@@ -52,6 +54,7 @@ def validate_fixture(raw,as_of_ms):
         period=PERIODS[tf] if kind!='research' else 0
         stamps=[];keys=set();partial=raw['source_state']=='PARTIAL'
         for row in rows:
+            if row.get("symbol",symbol)!=symbol or row.get("timeframe",tf)!=tf:raise ValueError()
             _json_numbers(row)
             available=_stamp(row['available_at_ms'])
             if available>as_of_ms:
@@ -65,6 +68,8 @@ def validate_fixture(raw,as_of_ms):
                 continue
             t=_stamp(row['t'])
             if t>as_of_ms:out['state']='FUTURE_LEAKAGE';return out
+            if available<t:raise ValueError()
+            if kind=='candles' and stamps and t<=stamps[-1]:raise ValueError()
             key=(t,row['price']) if kind=='footprint' else t
             if key in keys:raise ValueError()
             keys.add(key);stamps.append(t)

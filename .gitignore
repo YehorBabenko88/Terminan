@@ -6,3 +6,6 @@ node_modules/
 playwright-report/
 test-results/
 .r2-evidence/
+
+r3-test-results/
+.r3-evidence/

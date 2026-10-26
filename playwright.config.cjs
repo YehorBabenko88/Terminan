@@ -1,6 +1,6 @@
 const {defineConfig}=require('@playwright/test');
 module.exports=defineConfig({
-  testDir:'tests/browser',timeout:45000,expect:{timeout:10000},workers:1,
+  testDir:'tests/browser',testIgnore:'**/r3.spec.cjs',timeout:45000,expect:{timeout:10000},workers:1,
   retries:0,reporter:[['list'],['json',{outputFile:'reports/r2-browser.json'}]],
   outputDir:'test-results',
   projects:['chromium','firefox'].flatMap(browserName=>[1,1.5,2].map(dpr=>({

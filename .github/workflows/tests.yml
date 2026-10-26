@@ -1,4 +1,4 @@
-name: R2 exact synthetic candidate
+name: R3 exact synthetic candidate
 on: [push, pull_request]
 permissions:
   contents: read
@@ -10,7 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: candidate
@@ -41,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '7ff974b3b2db694e4b8e4d044cf0844b5d384fc4') { throw 'Frozen R2 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'a10c092825442262149a29e59ea041c6ef5cacc9') { throw 'Frozen R2 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -98,6 +98,18 @@ jobs:
         if: ${{ !cancelled() }}
         shell: pwsh
         run: python -m terminan.r2_evidence bundle --report reports/r2-browser.json --out reports/r2-browser-evidence --sha (git rev-parse HEAD).Trim()
+      - name: R3 measurable 10k and 100k browser workloads
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          $env:R3_INVOCATION=[Guid]::NewGuid().ToString('N')
+          "R3_INVOCATION=$env:R3_INVOCATION" >> $env:GITHUB_ENV
+          node node_modules/@playwright/test/cli.js test --config=playwright.r3.config.cjs
+          exit $LASTEXITCODE
+      - name: R3 strict benchmark SHA256 evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r3_evidence --sha (git rev-parse HEAD).Trim() --out reports/r3-browser-evidence
       - name: R2 Windows PowerShell 5.1 harness
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: powershell
@@ -131,6 +143,11 @@ jobs:
             candidate/reports/python.txt
             candidate/reports/harness-shell-*.json
             candidate/reports/r2-browser-evidence/
+            candidate/reports/r3-browser-evidence/
+            candidate/reports/r3-browser.json
+            candidate/r3-test-results/**/r3-performance.json
+            candidate/r3-test-results/**/r3-preview.png
+            candidate/r3-test-results/**/error-context.md
             candidate/.g0-evidence/
             candidate/.r2-evidence/
           include-hidden-files: true
