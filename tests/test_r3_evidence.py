@@ -45,3 +45,27 @@ class R3EvidenceTests(unittest.TestCase):
         from terminan.r3_evidence import report_invocation
         self.assertEqual(report_invocation({'config':{'metadata':{'r3_invocation':'nonce'}}}),'nonce')
         self.assertIsNone(report_invocation({'metadata':{'r3_invocation':'stale'}}))
+
+    def test_final_verification_failure_never_leaves_pass(self):
+        import os,shutil
+        from unittest.mock import patch
+        repo=Path.cwd();nonce='a'*32
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            shutil.copyfile(repo/'contracts.lock.json',root/'contracts.lock.json')
+            (root/'terminan/fixtures').mkdir(parents=True)
+            shutil.copyfile(repo/'terminan/fixtures/r3-negative-v1.json',root/'terminan/fixtures/r3-negative-v1.json')
+            tests=[]
+            for project in ('chromium-dpr1','chromium-dpr1.5','chromium-dpr2'):
+                d=valid();d.update(project=project,invocation=nonce,run_id='LOCAL',attempt='1')
+                folder=root/'r3-test-results'/project;folder.mkdir(parents=True)
+                (folder/'r3-performance.json').write_text(json.dumps(d))
+                (folder/'r3-preview.png').write_bytes(b'INVALID PNG')
+                tests.append(dict(projectName=project,status='expected',results=[dict(status='passed')]))
+            (root/'report.json').write_text(json.dumps(dict(config=dict(metadata=dict(r3_invocation=nonce)),suites=[dict(specs=[dict(tests=tests)])])))
+            try:
+                os.chdir(root)
+                with patch.dict(os.environ,{'R3_INVOCATION':nonce,'GITHUB_RUN_ID':'LOCAL','GITHUB_RUN_ATTEMPT':'1'}):
+                    with self.assertRaises(ValueError):bundle(Path('report.json'),Path('out'),SHA,'chromium')
+                self.assertEqual(json.loads(Path('out/summary.json').read_text())['result'],'FAIL')
+            finally:os.chdir(repo)

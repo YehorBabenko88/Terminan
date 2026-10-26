@@ -66,7 +66,12 @@ def bundle(report,out,sha,scope):
     finally:
         write(out/'summary.json',summary)
         write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
-    verify(out,sha)
+    try:verify(out,sha)
+    except (ValueError,KeyError,TypeError,OSError):
+        summary['result']='FAIL'
+        write(out/'summary.json',summary)
+        write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
+        raise
     return 0
 
 def verify(root,sha):
