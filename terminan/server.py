@@ -4,13 +4,53 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
+
+MAX_TARGET_LENGTH = 2048
+MAX_QUERY_FIELDS = 12
+MAX_HEADER_LINE = 8192
+MAX_HEADERS = 64
+
+
+def valid_host(value, port):
+    """Reject DNS rebinding and ambiguous/multiple Host headers."""
+    allowed = {f'127.0.0.1:{port}', f'localhost:{port}', f'[::1]:{port}',
+               '127.0.0.1', 'localhost', '[::1]'}
+    return value in allowed
+
 from . import data
 from .levels import merge_levels
 from .monitor import fleet_snapshot
 
 class Handler(BaseHTTPRequestHandler):
+    # Bound header parsing before application dispatch.
+    maxline = MAX_HEADER_LINE
+    maxheaders = MAX_HEADERS
+
+    def do_OPTIONS(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_POST(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_PUT(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_DELETE(self):
+        self.send_error(405, 'Method not allowed')
+
     def do_GET(self):
+        host_values = self.headers.get_all('Host', [])
+        if len(host_values) != 1 or not valid_host(host_values[0], self.server.server_port):
+            return self.send_error(403, 'Forbidden host')
+        if len(self.path) > MAX_TARGET_LENGTH:
+            return self.send_error(414, 'Request target too long')
         url = urlsplit(self.path)
+        if url.scheme or url.netloc or url.fragment:
+            return self.send_error(400, 'Invalid request target')
+        if url.query.count('&') >= MAX_QUERY_FIELDS:
+            return self.send_error(400, 'Too many query fields')
+        if url.path.startswith('/api/') and (';' in url.query or '\x00' in url.query):
+            return self.send_error(400, 'Invalid query')
         if url.path in ("/", "/monitor"):
             body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
