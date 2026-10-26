@@ -71,6 +71,23 @@ def main():
                 check["controls_present"] = all(
                     page.locator("#" + key).count() == 1
                     for key in ("symbols", "selected", "tf", "refresh", "chart", "error"))
+                check["timeframe_controls"] = "NOT_RUN"
+                if check["controls_present"]:
+                    tf = page.locator("#tf")
+                    choices = tf.locator("option").all_text_contents()
+                    expected = ("1m", "3m", "5m", "15m", "1h", "4h", "1d")
+                    if all(value in choices for value in expected):
+                        for value in expected:
+                            tf.select_option(label=value)
+                            page.wait_for_timeout(50)
+                            if tf.input_value() != value:
+                                break
+                        else:
+                            check["timeframe_controls"] = "SYNTHETIC_CONTROL_PASS"
+                    if check["timeframe_controls"] == "NOT_RUN":
+                        check["timeframe_controls"] = "FAIL"
+                    page.locator("#refresh").click()
+                    page.wait_for_timeout(200)
                 for width, height in ((1280, 800), (800, 600), (1920, 1080)):
                     page.set_viewport_size({"width": width, "height": height})
                     page.wait_for_timeout(200)
@@ -88,6 +105,7 @@ def main():
                     if check["http_status"] == 200 and not check["blank_screen"]
                     and check["controls_present"] and check["reload_ok"]
                     and not check["reload_blank_screen"] and check["reload_controls_present"]
+                    and check["timeframe_controls"] == "SYNTHETIC_CONTROL_PASS"
                     and not errors else "FAIL")
             except Exception as exc:
                 check["error_type"] = type(exc).__name__
