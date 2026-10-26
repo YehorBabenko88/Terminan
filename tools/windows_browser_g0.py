@@ -21,7 +21,7 @@ def main():
     u = urlsplit(args.url)
     if (u.scheme != "http" or u.hostname != "127.0.0.1"
             or u.path not in ("", "/") or u.query or u.fragment
-            or u.username or u.password or u.port is None):
+            or u.username or u.password or u.port is None or u.port == 0):
         parser.error("Only explicit http://127.0.0.1:PORT/ is allowed")
     allowed_origin = "%s://%s:%s" % (u.scheme, u.hostname, u.port)
     out = pathlib.Path(args.output).resolve()
@@ -77,15 +77,17 @@ def main():
                     name = "browser_%s_dpr%s_%sx%s.png" % (
                         args.browser, str(dpr).replace(".", "_"), width, height)
                     page.screenshot(path=str(out / name))
-                page.reload(wait_until="domcontentloaded", timeout=15000)
-                check["reload_ok"] = True
+                reloaded = page.reload(wait_until="domcontentloaded", timeout=15000)
+                check["reload_ok"] = bool(reloaded and reloaded.status == 200)
+                check["reload_blank_screen"] = not bool(page.locator("body").inner_text().strip())
                 check["reload_controls_present"] = all(
                     page.locator("#" + key).count() == 1
                     for key in ("symbols", "selected", "tf", "refresh", "chart", "error"))
                 check["console_error_count"] = len(errors)
                 check["status"] = ("SYNTHETIC_SMOKE_PASS"
                     if check["http_status"] == 200 and not check["blank_screen"]
-                    and check["controls_present"] and check["reload_controls_present"]
+                    and check["controls_present"] and check["reload_ok"]
+                    and not check["reload_blank_screen"] and check["reload_controls_present"]
                     and not errors else "FAIL")
             except Exception as exc:
                 check["error_type"] = type(exc).__name__
