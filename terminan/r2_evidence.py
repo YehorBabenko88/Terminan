@@ -74,6 +74,15 @@ def verify(root,sha):
         if len(smoke)!=9 or any(r['status']!=200 for r in smoke):raise ValueError('missing smoke assertions')
         routes={r['route'] for r in smoke}
         if not {'/api/status','/api/synthetic/frame?step=24&scenario=gap','/api/synthetic/contracts?scenario=future','/'}.issubset(routes):raise ValueError('missing required routes')
+        if summary.get('harness_contract_version')==2:
+            from .r2_harness import _integrity
+            _integrity(root)
+            stages=summary.get('stages',{})
+            if any(stages.get(s)!='PASS' for s in ('preflight','startup','smoke','child_health','graceful_shutdown','evidence_finalize')):raise ValueError('incomplete harness stages')
+            if stages.get('browser_launch')!=('DISPATCHED' if summary['browser_requested'] else 'NOT_REQUESTED'):raise ValueError('browser stage mismatch')
+            requested=summary['review_seconds_requested']
+            if stages.get('review_wait')!=('PASS' if requested else 'NOT_REQUESTED') or not summary['review_completed'] or summary['review_elapsed_seconds']<requested:raise ValueError('review stage incomplete')
+            if any(r.get('assertions_passed') is not True for r in smoke):raise ValueError('smoke assertions incomplete')
 
 def bundle(report,results,out,sha,scope='all'):
     report=read(report);check_report(report);out=Path(out);out.mkdir(parents=True,exist_ok=False)
@@ -120,4 +129,8 @@ def main():
         for path in manifests:verify(path.parent,args.sha)
     print('R2 synthetic evidence verified; PHYSICAL PENDING')
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    try:main()
+    except (Exception,KeyboardInterrupt):
+        print('R2 evidence FAIL error_class=EVIDENCE_INVALID')
+        raise SystemExit(50)
