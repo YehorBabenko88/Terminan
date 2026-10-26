@@ -12,3 +12,30 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q terminan
+  g0-preflight-hosted:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Windows PowerShell 5.1 read-only preflight
+        shell: powershell
+        run: |
+          .\tools\g0_evidence_preflight.ps1 -EvidenceDir "$env:RUNNER_TEMP\g0-ps51"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $path = "$env:RUNNER_TEMP\g0-ps51\manifest.json"
+          $expected = ((Get-Content "$env:RUNNER_TEMP\g0-ps51\manifest.sha256" -Raw).Split(' ')[0]).Trim()
+          if ((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'SHA256 mismatch' }
+          $m = Get-Content $path -Raw | ConvertFrom-Json
+          if ($m.classification -ne 'PHYSICAL_NOT_VERIFIED' -or $m.physical_gates -ne 'NOT_RUN') { throw 'Invalid hosted evidence classification' }
+      - name: PowerShell 7 read-only preflight
+        shell: pwsh
+        run: |
+          .\tools\g0_evidence_preflight.ps1 -EvidenceDir "$env:RUNNER_TEMP\g0-ps7"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $path = "$env:RUNNER_TEMP\g0-ps7\manifest.json"
+          $expected = ((Get-Content "$env:RUNNER_TEMP\g0-ps7\manifest.sha256" -Raw).Split(' ')[0]).Trim()
+          if ((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'SHA256 mismatch' }
+          $m = Get-Content $path -Raw | ConvertFrom-Json
+          if ($m.classification -ne 'PHYSICAL_NOT_VERIFIED' -or $m.physical_gates -ne 'NOT_RUN') { throw 'Invalid hosted evidence classification' }
