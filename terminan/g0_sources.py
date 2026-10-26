@@ -92,9 +92,10 @@ def grid_rows(kind,symbol):
             if kind=='health':
                 cur.execute('SELECT node_id,(extract(epoch from last_seen)*1000)::bigint,cpu_pct,ram_pct,disk_free,assigned_symbols FROM public.nodes ORDER BY node_id LIMIT 200')
                 return [dict(node_id=r[0],t=int(r[1]),cpu=r[2],ram=r[3],disk=r[4],symbols=r[5]) for r in cur.fetchall()],'pg18-structural-v1'
-            cur.execute(f'SELECT (extract(epoch from ts)*1000)::bigint,{fields} FROM public.{table} WHERE symbol=%s ORDER BY ts DESC'+(',price DESC' if kind=='footprint' else '')+' LIMIT %s',(symbol,300))
+            cur.execute(f'SELECT extract(epoch from ts)*1000,{fields} FROM public.{table} WHERE symbol=%s ORDER BY ts DESC'+(',price DESC' if kind=='footprint' else '')+' LIMIT %s',(symbol,300))
             result=[]
             for row in cur.fetchall():
+                if row[0]!=int(row[0]):raise ValueError('fractional source milliseconds')
                 result.append(dict(zip(keys,(int(v) if i==0 or keys[i]=='trades' else float(v) if v is not None else None for i,v in enumerate(row)))))
             if kind!='footprint':result.reverse()
             return result,'pg18-structural-v1'
@@ -124,7 +125,8 @@ def snapshot(kind,symbol,*,now_ms=None,timeframe='1m'):
                 row['online']=row['age_seconds']<=120
             out.update(rows=rows,schema_version=schema,state='NO_DATA' if not rows else 'STALE' if any(not r['online'] for r in rows) else 'FRESH')
             return out
-        times=[]
+        period={'1m':60000,'3m':180000,'5m':300000,'15m':900000,'30m':1800000,'1h':3600000,'4h':14400000,'1d':86400000}[out['timeframe'] or '1m']
+        times=[];footprint_keys=set()
         for row in rows:
             if kind=='research':
                 if milliseconds(row['created_at_ms'])>now_ms:raise ValueError('future research time')
@@ -137,16 +139,24 @@ def snapshot(kind,symbol,*,now_ms=None,timeframe='1m'):
                 number(value,nonnegative=key not in ('delta',))
             if kind in ('grid','strattester'):
                 if not row['l']<=min(row['o'],row['c'])<=max(row['o'],row['c'])<=row['h']:raise ValueError('OHLC')
+                if (kind=='grid' or row.get('complete')) and t+period>now_ms:raise ValueError('future close')
+            if kind=='footprint':
+                key=(t,row['price'])
+                if key in footprint_keys:raise ValueError('duplicate price level')
+                footprint_keys.add(key)
+                if t+period>now_ms or not math.isclose(row['buy']+row['sell'],row['volume'],rel_tol=1e-9,abs_tol=1e-9) or not math.isclose(row['buy']-row['sell'],row['delta'],rel_tol=1e-9,abs_tol=1e-9):raise ValueError('invalid footprint')
         out.update(rows=rows,schema_version=schema,state='HISTORICAL' if rows else 'NO_DATA')
         if times:
             unique=sorted(set(times))
             if kind!='footprint' and len(unique)!=len(times):raise ValueError('duplicate')
-            period={'1m':60000,'3m':180000,'5m':300000,'15m':900000,'30m':1800000,'1h':3600000,'4h':14400000,'1d':86400000}[timeframe]
             gaps=sum(max(0,(b-a)//period-1) for a,b in zip(unique,unique[1:]))
             irregular=any(t%period for t in unique)
             age=max(0,now_ms-unique[-1]-period)
             out['coverage'].update(from_ms=unique[0],to_ms=unique[-1]+period,missing_intervals=gaps,irregular=irregular,tail_age_ms=age)
             out['state']='STALE' if age>120000 else 'PARTIAL' if gaps or irregular or any(r.get('complete') is False for r in rows) else 'HISTORICAL'
+            if kind=='footprint':
+                out['coverage']['price_levels_complete']=False
+                if out['state']=='HISTORICAL':out['state']='PARTIAL'
         return out
     except SchemaMismatch:out['state']='SCHEMA_MISMATCH'
     except (ValueError,TypeError,OverflowError):out['state']='INVALID_DATA'

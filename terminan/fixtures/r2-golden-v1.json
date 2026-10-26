@@ -1,0 +1,27 @@
+[
+  {
+    "request": {
+      "seed": 17,
+      "step": 0
+    },
+    "sha256": "02f6bc99f7acf412602304c38e46b646ab9f2fef61dca64189781f95fad547fc"
+  },
+  {
+    "request": {
+      "seed": 17,
+      "step": 90,
+      "timeframe": "5m",
+      "scenario": "mixed"
+    },
+    "sha256": "1e63e95241dfc681b7e933e11d2b1ca72de41d7806bae994859749e3564d6d3a"
+  },
+  {
+    "request": {
+      "seed": 3,
+      "step": 600,
+      "symbol": "SOLUSDT",
+      "timeframe": "1h"
+    },
+    "sha256": "650bd4f73364a72c830fcedbcb921bb25cc892c7717b3fe2cd9fb2a92ee37bac"
+  }
+]

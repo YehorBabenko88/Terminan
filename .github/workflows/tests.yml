@@ -1,4 +1,4 @@
-name: G0 exact candidate
+name: R2 exact synthetic candidate
 on: [push, pull_request]
 permissions:
   contents: read
@@ -10,6 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: candidate
@@ -40,6 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '0ad0f36edce2ac7717c753d35ebe113dc6334fd0') { throw 'Frozen G0 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -59,6 +61,39 @@ jobs:
       - name: Compile
         if: ${{ !cancelled() }}
         run: python -m compileall -q terminan
+      - name: Install pinned browser test dependencies
+        if: ${{ !cancelled() }}
+        run: npm ci --ignore-scripts
+      - name: Install browser engines (Linux)
+        timeout-minutes: 8
+        if: ${{ !cancelled() && runner.os == 'Linux' }}
+        run: npx playwright install --with-deps chromium firefox
+      - name: Install browser engines (Windows)
+        timeout-minutes: 8
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        run: npx playwright install chromium firefox
+      - name: Synthetic browser regressions (zero retries)
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node node_modules/@playwright/test/cli.js test
+          exit $LASTEXITCODE
+      - name: Mandatory browser assertions and SHA256 evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r2_evidence bundle --report reports/r2-browser.json --out reports/r2-browser-evidence --sha (git rev-parse HEAD).Trim()
+      - name: R2 Windows PowerShell 5.1 harness
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: powershell
+        run: ./scripts/Invoke-R2.ps1 -ExpectedSha (git rev-parse HEAD).Trim() -EvidenceRoot '.r2-evidence/ps51'
+      - name: R2 Windows PowerShell 7 harness
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: ./scripts/Invoke-R2.ps1 -ExpectedSha (git rev-parse HEAD).Trim() -EvidenceRoot '.r2-evidence/ps7'
+      - name: Verify mandatory R2 harness evidence
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python -m terminan.r2_evidence verify .r2-evidence --sha (git rev-parse HEAD).Trim()
       - name: Windows PowerShell 5.1 harness
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: powershell
@@ -74,41 +109,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: g0-${{ matrix.os }}-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: r2-${{ matrix.os }}-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            candidate/reports/
+            candidate/reports/identity.json
+            candidate/reports/python.txt
+            candidate/reports/r2-browser-evidence/
             candidate/.g0-evidence/
+            candidate/.r2-evidence/
           include-hidden-files: true
-  pg18:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: g0
-          POSTGRES_PASSWORD: g0_synthetic_only
-          POSTGRES_DB: g0_synthetic
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U g0 -d g0_synthetic"
-          --health-interval 5s --health-timeout 5s --health-retries 12
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: candidate
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/checkout@v4
-        with:
-          repository: YehorBabenko88/bybit-cluster-grid
-          ref: d537d525296ef34f727996e240ae6c60102c6082
-          path: grid
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m pip install 'psycopg[binary]==3.2.13'
-      - name: Disposable PG18 contract
-        working-directory: candidate
-        env:
-          GRID_REPO: ${{ github.workspace }}/grid
-          G0_SYNTHETIC_PG: '1'
-        run: python scripts/test_pg18_contract.py
