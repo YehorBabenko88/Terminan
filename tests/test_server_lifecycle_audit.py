@@ -2,7 +2,6 @@
 
 Only local mocks are used. No sockets, database connections or deployment.
 """
-import threading
 import unittest
 from unittest.mock import patch
 
@@ -23,14 +22,17 @@ class ServerLifecycleAudit(unittest.TestCase):
                 with self.assertRaisesRegex(OSError, "synthetic occupied port"):
                     server.run()
 
-    def test_server_uses_threaded_request_handler(self):
-        self.assertTrue(issubclass(server.ThreadingHTTPServer, server.ThreadingHTTPServer))
-        # This is a characterization test, NOT a claim of bounded concurrency.
-        self.assertTrue(hasattr(server.ThreadingHTTPServer, "process_request_thread"))
+    def test_loopback_server_startup_uses_expected_port(self):
+        from unittest.mock import MagicMock
+        fake = MagicMock()
+        with patch.dict("os.environ", {"TERMINAN_HOST": "127.0.0.1"}):
+            with patch.object(server, "ThreadingHTTPServer", return_value=fake) as factory:
+                server.run()
+        factory.assert_called_once_with(("127.0.0.1", 8765), server.Handler)
+        fake.serve_forever.assert_called_once_with()
 
-    def test_request_thread_configuration_is_explicitly_unbounded(self):
-        # Standard library ThreadingMixIn spawns a thread per accepted request.
-        # This documents a G0 capacity blocker until an admission limit exists.
+    def test_threaded_handler_has_no_explicit_admission_limit(self):
+        # Characterization only: no capacity PASS is implied.
         self.assertTrue(hasattr(server.ThreadingHTTPServer, "process_request_thread"))
 
 
