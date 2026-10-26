@@ -1,19 +1,145 @@
 """Historical untouched high/low levels, using only closed candles."""
+from math import isfinite
 PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
 
 def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
-    if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
-    if tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
+    if type(timeframe) is not str or timeframe not in PERIODS: raise ValueError('unsupported timeframe')
+    if type(tick_size) not in (int, float) or type(max_levels) is not int or not 1<=max_levels<=2000:
+        raise ValueError('invalid parameters')
+    try:
+        if not isfinite(tick_size) or tick_size < 0:
+            raise ValueError('invalid parameters')
+    except OverflowError:
+        raise ValueError('invalid parameters') from None
+    if type(as_of_ms) is not int or not 0<=as_of_ms<=2**63-1: raise ValueError('invalid observation timestamp')
+    candles = list(candles)
     active=[]
-    for c in sorted(candles,key=lambda v:int(v['t'])):
-        t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if high<low: raise ValueError('invalid candle')
+    seen={}
+    for c in candles:
+        if not isinstance(c, dict):
+            raise ValueError('invalid candle')
+        t=c.get('t')
+        if type(t) is not int or not 0<=t<=2**63-1: raise ValueError('invalid candle timestamp')
+        if type(c.get('complete', True)) is not bool: raise ValueError('invalid candle completion flag')
+    for c in sorted(candles,key=lambda v:v['t']):
+        t=c['t']
         if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
+        try:
+            if type(c['h']) is bool or type(c['l']) is bool:
+                raise ValueError('invalid candle')
+            high=float(c['h']); low=float(c['l'])
+        except (TypeError, ValueError, KeyError, OverflowError):
+            raise ValueError('invalid candle') from None
+        if not isfinite(high) or not isfinite(low) or high<low: raise ValueError('invalid candle')
+        candle_key=(high,low)
+        if t in seen:
+            if seen[t]!=candle_key: raise ValueError('conflicting duplicate candle')
+            continue
+        seen[t]=candle_key
         active=[v for v in active if high<v['price']-tick_size if v['side']=='high'] + [v for v in active if low>v['price']+tick_size if v['side']=='low']
         active.extend([dict(timeframe=timeframe,side='high',price=high,origin_ms=t,confirmed_ms=t+PERIODS[timeframe]),dict(timeframe=timeframe,side='low',price=low,origin_ms=t,confirmed_ms=t+PERIODS[timeframe])])
     return active[-max_levels:]
 
 def merge_levels(series,as_of_ms,*,tick_size=0):
+    if not hasattr(series, 'items'):
+        raise ValueError('invalid timeframe series')
+    if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
+        raise ValueError('invalid observation timestamp')
+    if type(tick_size) not in (int, float):
+        raise ValueError('invalid parameters')
+    try:
+        if not isfinite(tick_size) or tick_size < 0:
+            raise ValueError('invalid parameters')
+    except OverflowError:
+        raise ValueError('invalid parameters') from None
     levels=[]
     for tf,rows in series.items():levels.extend(untouched_levels(rows,tf,as_of_ms,tick_size=tick_size))
     return sorted(levels,key=lambda v:(v['price'],v['timeframe'],v['side']))
+
+
+def missing_candle_intervals(candles, timeframe, as_of_ms):
+    """Report gaps between observed closed candles, without inventing missing prices.
+
+    Gaps preceding the first available candle or following the last observed
+    closed candle cannot be inferred from this bounded history.
+    """
+    if type(timeframe) is not str or timeframe not in PERIODS: raise ValueError('unsupported timeframe')
+    if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
+        raise ValueError('invalid observation timestamp')
+    period = PERIODS[timeframe]
+    times = set()
+    for candle in candles:
+        if not isinstance(candle, dict):
+            raise ValueError('invalid candle')
+        t = candle.get('t')
+        if type(t) is not int or not 0 <= t <= 2**63-1:
+            raise ValueError('invalid candle timestamp')
+        if type(candle.get('complete', True)) is not bool:
+            raise ValueError('invalid candle completion flag')
+        if candle.get('complete') is not False and t + period <= as_of_ms:
+            times.add(t)
+    times = sorted(times)
+    gaps = []
+    for left, right in zip(times, times[1:]):
+        if right - left != period:
+            delta = right - left
+            gap = {'after_ms': left, 'before_ms': right,
+                   'missing_intervals': delta // period - 1 if delta > period and delta % period == 0 else None}
+            if delta % period != 0:
+                gap['irregular_spacing'] = True
+            gaps.append(gap)
+    return gaps
+
+
+def level_history_quality(series, as_of_ms):
+    """Shared read-only quality contract for chart and DOM consumers."""
+    if not hasattr(series, "items"):
+        raise ValueError("invalid timeframe series")
+    if type(as_of_ms) is not int or not 0 <= as_of_ms <= 2**63-1:
+        raise ValueError("invalid observation timestamp")
+    for tf in series:
+        if type(tf) is not str or tf not in PERIODS:
+            raise ValueError('unsupported timeframe')
+    series = {tf: list(rows) for tf, rows in series.items()}
+    gaps = {tf: missing_candle_intervals(rows, tf, as_of_ms)
+            for tf, rows in series.items()}
+    has_closed = any(
+        any(c.get('complete') is not False
+            and int(c['t']) >= 0
+            and int(c['t']) + PERIODS[tf] <= as_of_ms
+            for c in rows)
+        for tf, rows in series.items()
+    )
+    has_gaps = any(gaps.values())
+    timeframe_states = {
+        tf: ('GAPS_DETECTED' if gaps[tf] else 'CLOSED_CANDLES_PRESENT'
+             if any(c.get('complete') is not False and int(c['t']) >= 0
+                    and int(c['t']) + PERIODS[tf] <= as_of_ms for c in rows)
+             else 'NO_CLOSED_CANDLES')
+        for tf, rows in series.items()
+    }
+    latest_closed_ms = {
+        tf: max((int(c['t']) + PERIODS[tf] for c in rows
+                 if c.get('complete') is not False and int(c['t']) >= 0
+                 and int(c['t']) + PERIODS[tf] <= as_of_ms), default=None)
+        for tf, rows in series.items()
+    }
+    stale_timeframes = [tf for tf, end in latest_closed_ms.items()
+                        if end is not None and as_of_ms - end >= 2 * PERIODS[tf]]
+    missing_timeframes = [tf for tf, state in timeframe_states.items()
+                          if state == 'NO_CLOSED_CANDLES']
+    return {
+        'state': 'GAPS_DETECTED' if has_gaps else 'NO_CLOSED_CANDLES' if not has_closed else 'NO_INTERNAL_GAPS_DETECTED',
+        'coverage': 'BOUNDED_WINDOW_ONLY',
+        'gaps': gaps,
+        'timeframe_states': timeframe_states,
+        'missing_timeframes': missing_timeframes,
+        'latest_closed_ms': latest_closed_ms,
+        'stale_timeframes': stale_timeframes,
+        'level_validation': ('UNVERIFIED_DUE_TO_GAPS' if has_gaps
+                             else 'UNVERIFIED_MISSING_TIMEFRAMES' if missing_timeframes
+                             else 'UNVERIFIED_STALE_TIMEFRAMES' if stale_timeframes
+                             else 'UNVERIFIED_BOUNDED_HISTORY'),
+        'data_state': 'CLOSED_CANDLES_PRESENT' if has_closed else 'NO_CLOSED_CANDLES',
+        'trading_authority': 'NONE',
+    }
