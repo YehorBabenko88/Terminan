@@ -3,6 +3,7 @@
 These tests exercise the Terminan boundary only. They DO NOT establish live
 Grid/Strattester schema compatibility or physical Windows acceptance.
 """
+import json
 import os
 import sqlite3
 import tempfile
@@ -80,7 +81,7 @@ class PinnedReadOnlyBoundaryTests(unittest.TestCase):
             with sqlite3.connect(path) as con:
                 con.execute("CREATE TABLE research_results(symbol TEXT, run_id TEXT, strategy_id TEXT, strategy_version TEXT, created_at INTEGER, metrics TEXT)")
                 con.execute("INSERT INTO research_results VALUES (?,?,?,?,?,?)",
-                            ("BTCUSDT", "run-1", "strategy-1", "v1", 1000, '{"sharpe":1.25}'))
+                            ("BTCUSDT", "run-1", "strategy-1", "v1", 1000, json.dumps({"sharpe": 1.25})))
             with patch.dict(os.environ, {"TERMINAN_RESULTS_DB": str(path)}):
                 result = data.research("BTCUSDT")
             self.assertEqual(result[0]["run_id"], "run-1")
