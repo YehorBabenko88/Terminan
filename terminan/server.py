@@ -53,6 +53,10 @@ def run():
     host=os.environ.get("TERMINAN_HOST","127.0.0.1")
     if host not in ("127.0.0.1","localhost","::1"):
         raise SystemExit("Remote binding disabled until authentication is implemented")
-    server=ThreadingHTTPServer((host,8765),Handler)
-    print("Terminan read-only: http://127.0.0.1:8765")
+    raw_port=os.environ.get("TERMINAN_PORT","8765")
+    if not raw_port.isascii() or not raw_port.isdecimal() or len(raw_port)>5 or not 1<=int(raw_port)<=65535:
+        raise SystemExit("TERMINAN_PORT must be an integer from 1 to 65535")
+    port=int(raw_port)
+    server=ThreadingHTTPServer((host,port),Handler)
+    print(f"Terminan read-only: http://{host}:{port}")
     server.serve_forever()
