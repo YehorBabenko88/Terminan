@@ -31,6 +31,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(400, 'Invalid request target')
         if url.query.count('&') >= MAX_QUERY_FIELDS:
             return self.send_error(400, 'Too many query fields')
+        if url.path.startswith('/api/') and (';' in url.query or '\\x00' in url.query):
+            return self.send_error(400, 'Invalid query')
         if url.path in ("/", "/monitor"):
             body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")

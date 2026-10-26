@@ -16,7 +16,7 @@ def sqlite_ro(env):
     path = os.environ.get(env)
     if not path or not Path(path).is_file():
         return None
-    return sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+    con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=2)\n    try:\n        con.execute("PRAGMA query_only=ON")\n        return con\n    except Exception:\n        con.close()\n        raise
 
 def candles(symbol, timeframe="1m", limit=300):
     validate(symbol, timeframe)
