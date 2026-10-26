@@ -17,7 +17,7 @@ const canvas = {clientWidth:500, clientHeight:320, _width:0, _height:0,
 const elements = {chart:canvas,chartmsg:{textContent:''},showlevels:{checked:true}};
 const document = {getElementById(id){return elements[id]}};
 const ctx = vm.createContext({document,devicePixelRatio:1.5,Math,Number});
-vm.runInContext('let currentLevels=[];'+drawSource,ctx);
+vm.runInContext('const el=id=>document.getElementById(id);let currentLevels=[];'+drawSource,ctx);
 vm.runInContext('draw([])',ctx);
 assert.equal(calls.allocations,2);
 vm.runInContext('draw([])',ctx);
