@@ -10,7 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: candidate
@@ -41,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'a10c092825442262149a29e59ea041c6ef5cacc9') { throw 'Frozen R2 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'f401c2dda46ff38ee14004bdbb566fe0a3881014') { throw 'Frozen R3 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -66,6 +66,18 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -m terminan.r2_evidence verify .r2-evidence/linux --sha (git rev-parse HEAD).Trim()
           exit $LASTEXITCODE
+      - name: Real transport cancellation 15 second lifecycle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python scripts/r3_transport_soak.py --expected-sha (git rev-parse HEAD).Trim() --seconds 15 --evidence-root .r3-reliability-evidence/short
+      - name: Real transport cancellation 600 second lifecycle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python scripts/r3_transport_soak.py --expected-sha (git rev-parse HEAD).Trim() --seconds 600 --evidence-root .r3-reliability-evidence/long
+      - name: Verify transport lifecycle evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r2_evidence verify .r3-reliability-evidence --sha (git rev-parse HEAD).Trim()
       - name: UI syntax and cancellation contracts
         if: ${{ !cancelled() }}
         shell: pwsh
@@ -150,4 +162,5 @@ jobs:
             candidate/r3-test-results/**/error-context.md
             candidate/.g0-evidence/
             candidate/.r2-evidence/
+            candidate/.r3-reliability-evidence/
           include-hidden-files: true
