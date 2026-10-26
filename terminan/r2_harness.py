@@ -23,10 +23,10 @@ CLASSES={'NONE','UNEXPECTED_EXCEPTION','INVALID_SHA','SHA_MISMATCH','INVALID_ARG
  'PYTHON_UNSUPPORTED','SOURCE_IDENTITY_UNAVAILABLE','STARTUP_FAILED','READY_TIMEOUT',
  'READY_INVALID','SYNTHETIC_IDENTITY_MISMATCH','SMOKE_HTTP_FAILED','SMOKE_ASSERTION_FAILED',
  'BROWSER_LAUNCH_FAILED','REVIEW_WAIT_FAILED','CHILD_EARLY_EXIT','CHILD_HEALTH_FAILED',
- 'CHILD_STDERR','CHILD_OUTPUT_LIMIT','SHUTDOWN_TIMEOUT','SHUTDOWN_FAILED',
+ 'CHILD_STDERR','CHILD_HTTP_FAILURE','CHILD_DIAGNOSTICS_INVALID','CHILD_OUTPUT_LIMIT','SHUTDOWN_TIMEOUT','SHUTDOWN_FAILED',
  'CHILD_EXIT_FAILED','OUTPUT_DRAIN_TIMEOUT','EVIDENCE_FINALIZE_FAILED',
  'EVIDENCE_DIRECTORY_UNAVAILABLE','EVIDENCE_PATH_REDIRECTED'}
-FILES={'ready.json','smoke.json','browser-checklist.txt','summary.json'}
+FILES={'child-diagnostics.json','ready.json','smoke.json','browser-checklist.txt','summary.json'}
 ROUTES=('/api/status','/api/synthetic/frame?step=24&scenario=gap',
  '/api/synthetic/frame?step=48&scenario=stale','/api/synthetic/frame?step=72&scenario=reconnect',
  '/api/synthetic/frame?step=80&scenario=reconnect','/api/synthetic/contracts?scenario=future',
@@ -41,6 +41,11 @@ class Fault(Exception):
 class OwnedChild:
     def __init__(self,process):
         self.process=process;self.counts=[0,0];self.threads=[]
+        self.started=time.monotonic();self.first_stderr_ms=None;self.last_stderr_ms=None;self.stderr_classes=set()
+        self.tokens={'PYTHON_BUFFERED_IO_SHUTDOWN_FATAL':b'_enter_buffered_busy','PYTHON_FATAL_TEXT_PRESENT':b'Fatal Python error:',
+          'PYTHON_TRACEBACK_PRESENT':b'Traceback (most recent call last):',
+          **{kind:('R2_DIAGNOSTIC '+kind+'\n').encode() for kind in ('HTTP_HANDLER_FAILURE','HTTP_GENERATOR_FAILURE','HTTP_ADMISSION_FAILURE','RUNNER_FAILURE')}}
+        self.progress={kind:0 for kind in self.tokens};self.scanned=0
         for index,stream in enumerate((process.stdout,process.stderr)):
             def drain(index=index,stream=stream):
                 try:
@@ -48,8 +53,23 @@ class OwnedChild:
                         data=stream.read1(4096)
                         if not data:break
                         self.counts[index]=min(2**31-1,self.counts[index]+len(data))
+                        if index==1:
+                            now=round((time.monotonic()-self.started)*1000,3)
+                            if self.first_stderr_ms is None:self.first_stderr_ms=now
+                            self.last_stderr_ms=now
+                            for byte in data[:max(0,65536-self.scanned)]:
+                                for kind,token in self.tokens.items():
+                                    position=self.progress[kind]
+                                    position=position+1 if byte==token[position] else int(byte==token[0])
+                                    if position==len(token):self.stderr_classes.add(kind);position=0
+                                    self.progress[kind]=position
+                            self.scanned=min(65536,self.scanned+len(data))
+                        data=None # Drop transient payload before blocking for the next chunk.
                 except (OSError,ValueError):self.counts[index]=65537
             thread=threading.Thread(target=drain,daemon=True);thread.start();self.threads.append(thread)
+    def diagnostics(self):
+        return dict(classification_scope='TOKEN_PRESENCE_NEVER_A_STDERR_WAIVER',first_stderr_ms=self.first_stderr_ms,last_stderr_ms=self.last_stderr_ms,
+          stderr_classes=sorted(self.stderr_classes) if self.stderr_classes else ['UNCLASSIFIED_STDERR'] if self.stderr_bytes else [],scanned_bytes=self.scanned)
     @property
     def stdout_bytes(self):return self.counts[0]
     @property
@@ -84,7 +104,7 @@ class Runtime:
         return sha,not bool(dirty.strip())
     def spawn(self,repo,ready):
         env={k:v for k,v in os.environ.items() if not k.startswith('TERMINAN_')}
-        return OwnedChild(subprocess.Popen([sys.executable,'-m','terminan.r2_runner','--ready',str(ready)],
+        return OwnedChild(subprocess.Popen([sys.executable,'-m','terminan.r2_runner','--ready',str(ready),'--diagnostics',str(ready.with_name('child-diagnostics.json'))],
             cwd=repo,env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE))
     def fetch(self,url):
         with build_opener(ProxyHandler({})).open(url,timeout=3) as response:
@@ -128,6 +148,24 @@ def _integrity(root):
     if code==0:
         if stage!='NONE' or error!='NONE' or summary['result']!='AUTOMATED_SYNTHETIC_SMOKE_PASS':raise ValueError()
     elif STAGES.get(stage)!=code or error=='NONE' or summary['result']!='FAIL':raise ValueError()
+    if 'ready.json' in names:
+        ready=json.loads((root/'ready.json').read_text(encoding='utf-8'))
+        if ready.get('diagnostics_version')==1 and summary.get('diagnostics_required') is not True:raise ValueError()
+    if summary.get('diagnostics_required'):
+        from terminan.r2_diagnostics import validate,FATAL
+        if code==0 and ('child-diagnostics.json' not in names or summary.get('last_http_diagnostics') is None):raise ValueError()
+        for key in ('last_http_diagnostics','final_http_diagnostics'):
+            if summary.get(key) is not None:
+                data=validate(summary[key])
+                if code==0 and any(data['counters'][kind] for kind in FATAL):raise ValueError()
+        if 'child-diagnostics.json' in names:
+            final=json.loads((root/'child-diagnostics.json').read_text(encoding='utf-8'))
+            import math
+            duration=final['shutdown_elapsed_ms']
+            if type(duration) not in (int,float) or not math.isfinite(duration) or duration<0:raise ValueError()
+            if type(final['version']) is not int or final['version']!=1 or final['mode']!='SYNTHETIC' or final['candidate_sha']!=summary['candidate_sha'] or final['shutdown_complete'] is not True:raise ValueError()
+            data=validate(final['diagnostics'])
+            if code==0 and (data['active_workers']!=0 or data!=summary['final_http_diagnostics']):raise ValueError()
     return summary
 
 def inspect_run(root,expected_sha):
@@ -143,7 +181,7 @@ def inspect_run(root,expected_sha):
 
 class Harness:
     def __init__(self,*,expected_sha,evidence_root,review_seconds='0',open_browser=False,runtime=None,run_id=None,shutdown_timeout=10,shell_version=None):
-        self.ops=runtime or Runtime();self.expected=expected_sha;self.requested_seconds=review_seconds;self.seconds=0
+        self.ops=runtime or Runtime();self.started=self.ops.clock();self.timeline={};self.diagnostics_required=False;self.last_http_diagnostics=None;self.final_http_diagnostics=None;self.expected=expected_sha;self.requested_seconds=review_seconds;self.seconds=0
         self.open_browser=bool(open_browser);self.shutdown_timeout=shutdown_timeout
         self.run_id=run_id or datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')[:-3]+'Z-'+uuid.uuid4().hex[:8]
         if not RUN_ID.fullmatch(self.run_id):raise ValueError('invalid run identifier')
@@ -156,8 +194,10 @@ class Harness:
         self.actual_sha='UNVERIFIED';self.clean=False;self.review_elapsed=0;self.review_completed=False;self.health_probes=0
         self.owned_pending=False
         self.shell_version=shell_version if isinstance(shell_version,str) and re.fullmatch(r'[0-9]{1,3}(\.[0-9]{1,10}){1,3}',shell_version) else None
+    def _mark(self,name):self.timeline.setdefault(name,round(max(0,self.ops.clock()-self.started)*1000,3))
     def _set(self,stage,state='RUNNING'):self.stage=stage;self.states[stage]=state
     def _fail(self,stage,exc):
+        self._mark('first_failure_observed_ms')
         fallback={'preflight':'SOURCE_IDENTITY_UNAVAILABLE','startup':'STARTUP_FAILED','smoke':'SMOKE_HTTP_FAILED',
           'browser_launch':'BROWSER_LAUNCH_FAILED','review_wait':'REVIEW_WAIT_FAILED','child_health':'CHILD_HEALTH_FAILED',
           'graceful_shutdown':'SHUTDOWN_FAILED','evidence_finalize':'EVIDENCE_FINALIZE_FAILED'}
@@ -190,14 +230,16 @@ class Harness:
         self.pending.mkdir(parents=True,exist_ok=False)
         self.owned_pending=True
     def _startup(self):
-        self.child=self.ops.spawn(REPO,self.pending/'ready.json');deadline=self.ops.clock()+15
+        self._mark('spawn_requested_ms');self.child=self.ops.spawn(REPO,self.pending/'ready.json');self._mark('child_spawned_ms');deadline=self.ops.clock()+15
         while True:
-            if self.child.poll() is not None:raise Fault('CHILD_EARLY_EXIT')
+            if self.child.poll() is not None:self._mark('child_exit_observed_ms');raise Fault('CHILD_EARLY_EXIT')
             if (self.pending/'ready.json').exists():break
             if self.ops.clock()>=deadline:raise Fault('READY_TIMEOUT')
             self.ops.sleep(.1)
         ready=json.loads((self.pending/'ready.json').read_text(encoding='utf-8'))
         self._identity(ready)
+        self.diagnostics_required=ready.get('diagnostics_version')==1
+        self._mark('ready_observed_ms')
         if ready.get('host')!='127.0.0.1' or type(ready.get('port')) is not int or not 1<=ready['port']<=65535:raise Fault('READY_INVALID')
         self.url='http://127.0.0.1:'+str(ready['port'])
     def _smoke(self):
@@ -209,7 +251,7 @@ class Harness:
             if status!=200:raise Fault('SMOKE_HTTP_FAILED')
             record['response_sha256']=hashlib.sha256(body).hexdigest()
             if index==0:
-                data=json.loads(body);self._identity(data)
+                data=json.loads(body);self._identity(data);self._diagnostics(data)
                 if data.get('execution')!='DISABLED':raise Fault('SMOKE_ASSERTION_FAILED')
             elif 1<=index<=4:
                 data=json.loads(body)
@@ -222,18 +264,45 @@ class Harness:
             elif not body:raise Fault('SMOKE_ASSERTION_FAILED')
             record['assertions_passed']=True
         self.checklist='PHYSICAL PENDING. SYNTHETIC ONLY.\nCandidate: '+self.expected+'\nReview browser/DPR/zoom/pan/resize/switch/cancellation/console/performance.\nPreserve redacted screenshots separately; no real sources or orders.\n'
+    def _diagnostics(self,data):
+        from terminan.r2_diagnostics import validate,FATAL
+        if 'diagnostics' not in data:
+            if self.diagnostics_required:raise Fault('CHILD_DIAGNOSTICS_INVALID')
+            return
+        try:self.last_http_diagnostics=validate(data['diagnostics'])
+        except (ValueError,TypeError,KeyError):raise Fault('CHILD_DIAGNOSTICS_INVALID') from None
+        if any(self.last_http_diagnostics['counters'][kind] for kind in FATAL):raise Fault('CHILD_HTTP_FAILURE')
+    def _final_diagnostics(self):
+        path=self.pending/'child-diagnostics.json'
+        if not path.exists():
+            if self.diagnostics_required and self.child.poll()==0:raise Fault('CHILD_DIAGNOSTICS_INVALID')
+            return
+        from terminan.r2_diagnostics import validate,FATAL
+        try:
+            if path.stat().st_size>16384:raise ValueError()
+            value=json.loads(path.read_text(encoding='utf-8'))
+            if value['version']!=1 or value['mode']!='SYNTHETIC' or value['candidate_sha']!=self.expected or value['shutdown_complete'] is not True:raise ValueError()
+            self.final_http_diagnostics=validate(value['diagnostics'])
+            if self.final_http_diagnostics['active_workers']!=0:raise ValueError()
+        except (ValueError,TypeError,KeyError):raise Fault('CHILD_DIAGNOSTICS_INVALID') from None
+        if any(self.final_http_diagnostics['counters'][kind] for kind in FATAL):raise Fault('CHILD_HTTP_FAILURE')
     def _health(self):
         self._set('child_health');self.health_probes+=1
-        if self.child.poll() is not None:raise Fault('CHILD_EARLY_EXIT')
+        if self.child.poll() is not None:self._mark('child_exit_observed_ms');raise Fault('CHILD_EARLY_EXIT')
         if self.child.output_limit:raise Fault('CHILD_OUTPUT_LIMIT')
-        if self.child.stderr_bytes:raise Fault('CHILD_STDERR')
+        if self.child.stderr_bytes:
+            self._mark('stderr_observed_ms')
+            try:self._diagnostics(json.loads(self.ops.fetch(self.url+'/api/status')[1]))
+            except Exception:pass # Enrichment cannot waive or replace CHILD_STDERR.
+            raise Fault('CHILD_STDERR')
         status,body=self.ops.fetch(self.url+'/api/status')
         if status!=200:raise Fault('CHILD_HEALTH_FAILED')
-        data=json.loads(body);self._identity(data)
+        data=json.loads(body);self._identity(data);self._diagnostics(data)
         if data.get('execution')!='DISABLED':raise Fault('SYNTHETIC_IDENTITY_MISMATCH')
         self._set('child_health','PASS')
     def _review(self):
         self._health();self._set('review_wait')
+        self._mark('review_started_ms')
         start=self.ops.clock();deadline=start+self.seconds;next_probe=start+1
         try:
             while self.ops.clock()<deadline:
@@ -244,8 +313,11 @@ class Harness:
         self._set('review_wait','PASS' if self.seconds else 'NOT_REQUESTED');self._health()
     def _shutdown(self):
         self._set('graceful_shutdown');self.shutdown_attempted=True
+        self._mark('quit_requested_ms')
         code=self.child.quit(self.shutdown_timeout)
+        self._mark('child_exit_observed_ms')
         if code!=0:raise Fault('CHILD_EXIT_FAILED')
+        self._final_diagnostics()
         self._set('graceful_shutdown','PASS')
     def _cleanup(self):
         if not self.child:
@@ -267,6 +339,9 @@ class Harness:
                     try:
                         if self.child.close() is False:raise Fault('OUTPUT_DRAIN_TIMEOUT')
                         if self.child.output_limit:raise Fault('CHILD_OUTPUT_LIMIT')
+                        self._mark('streams_drained_ms')
+                        if self.child.poll() is not None:self._mark('child_exit_observed_ms')
+                        self._final_diagnostics()
                         if self.child.stderr_bytes:raise Fault('CHILD_STDERR')
                     except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
         finally:
@@ -279,6 +354,10 @@ class Harness:
           mode='SYNTHETIC',sources='DISABLED',physical='PENDING',exit_code=self.code,
           result='FAIL' if self.code else 'AUTOMATED_SYNTHETIC_SMOKE_PASS',
           failure_stage=self.failure_stage,error_class=self.error_class,os_error_code=self.os_error_code,
+          diagnostics_required=self.diagnostics_required,last_http_diagnostics=self.last_http_diagnostics,final_http_diagnostics=self.final_http_diagnostics,
+          child_io=self.child.diagnostics() if self.child and hasattr(self.child,'diagnostics') else None,
+          timeline_clock='HARNESS_MONOTONIC_MS_SINCE_START',timeline=self.timeline.copy(),
+          child_exit_hex=f'{self.child.poll()&0xffffffff:08X}' if self.child and type(self.child.poll()) is int else None,
           stages=self.states,secondary_failures=self.secondary,health_probes=self.health_probes,
           browser_requested=self.open_browser,review_seconds_requested=self.seconds,
           review_elapsed_seconds=self.review_elapsed,review_completed=self.review_completed,
@@ -319,6 +398,7 @@ class Harness:
             try:self._cleanup()
             except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
         if not self.owned_pending:return self.code or 50
+        self._mark('finalize_started_ms')
         self._set('evidence_finalize','PASS')
         try:self._write()
         except (Exception,KeyboardInterrupt) as exc:
