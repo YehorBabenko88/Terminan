@@ -100,6 +100,26 @@ class PinnedReadOnlyBoundaryTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     data.research("BTCUSDT")
 
+    def test_grid_candles_query_is_bounded_and_symbol_scoped(self):
+        row = (60000, 10, 12, 9, 11, 5, 3, 2, 4, 10)
+        with patch.object(data, "grid_query", return_value=[row]) as query:
+            result = data.grid_candles("BTCUSDT", limit=999999)
+        self.assertEqual(result[0]["t"], 60000.0)
+        sql, params = query.call_args.args
+        self.assertIn("WHERE symbol=%s", sql)
+        self.assertIn("LIMIT %s", sql)
+        self.assertEqual(params, ("BTCUSDT", 1000))
+
+    def test_grid_footprint_query_is_bounded_and_symbol_scoped(self):
+        row = (60000, 10, 5, 3, 2, 8)
+        with patch.object(data, "grid_query", return_value=[row]) as query:
+            result = data.footprint("BTCUSDT", limit=999999)
+        self.assertEqual(result[0]["volume"], 8.0)
+        sql, params = query.call_args.args
+        self.assertIn("WHERE symbol=%s", sql)
+        self.assertIn("LIMIT %s", sql)
+        self.assertEqual(params, ("BTCUSDT", 1000))
+
     def test_grid_footprint_is_not_l2_feed(self):
         import inspect
         source = inspect.getsource(data.footprint)
