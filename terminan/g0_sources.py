@@ -38,9 +38,14 @@ def sqlite_rows(kind,symbol,timeframe='1m'):
         try:
             # Read transaction pins schema and rows to one consistent snapshot.
             con.execute('BEGIN')
+            deadline=time.monotonic()+2
+            con.set_progress_handler(lambda:int(time.monotonic()>deadline),1000)
             if kind=='strattester':
                 version=con.execute("SELECT value FROM schema_meta WHERE key='schema_version'").fetchone()
                 if version!=('2',): raise SchemaMismatch()
+                columns={r[1]:r[2].upper() for r in con.execute('PRAGMA table_info(candles)')}
+                expected={'symbol':'TEXT','timeframe':'TEXT','open_time':'INTEGER','open':'REAL','high':'REAL','low':'REAL','close':'REAL','volume':'REAL','complete':'INTEGER'}
+                if any(columns.get(k)!=v for k,v in expected.items()):raise SchemaMismatch()
                 rows=con.execute('SELECT open_time,open,high,low,close,volume,complete FROM candles WHERE symbol=? AND timeframe=? ORDER BY open_time DESC LIMIT 300',(symbol,timeframe)).fetchall()
                 result=[]
                 for row in reversed(rows):
@@ -125,7 +130,7 @@ def snapshot(kind,symbol,*,now_ms=None,timeframe='1m'):
             irregular=any(t%period for t in unique)
             age=max(0,now_ms-unique[-1]-period)
             out['coverage'].update(from_ms=unique[0],to_ms=unique[-1]+period,missing_intervals=gaps,irregular=irregular,tail_age_ms=age)
-            out['state']='STALE' if age>120000 else 'PARTIAL' if gaps or irregular else 'HISTORICAL'
+            out['state']='STALE' if age>120000 else 'PARTIAL' if gaps or irregular or any(r.get('complete') is False for r in rows) else 'HISTORICAL'
         return out
     except SchemaMismatch:out['state']='SCHEMA_MISMATCH'
     except (ValueError,TypeError,OverflowError):out['state']='INVALID_DATA'

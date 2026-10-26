@@ -63,6 +63,17 @@ class SourceContracts(unittest.TestCase):
     def test_symbol_validation_even_when_disconnected(self):
         with self.assertRaises(ValueError): sources.snapshot('grid','BTCUSDT;DROP')
 
+    def test_declared_version_does_not_hide_structural_mismatch(self):
+        with connection(self.path) as con:
+            con.execute('ALTER TABLE candles RENAME COLUMN volume TO wrong_volume')
+        self.assertEqual(sources.snapshot('strattester','BTCUSDT')['state'],'SCHEMA_MISMATCH')
+
+    def test_incomplete_window_is_partial(self):
+        with connection(self.path) as con:
+            con.execute('DELETE FROM candles')
+            con.execute("INSERT INTO candles(symbol,timeframe,open_time,open,high,low,close,volume,complete) VALUES('BTCUSDT','1m',60000,10,12,9,11,5,0)")
+        self.assertEqual(sources.snapshot('strattester','BTCUSDT',now_ms=120000)['state'],'PARTIAL')
+
     def test_partial_sources_and_no_credentials_in_errors(self):
         with patch.dict(os.environ,{'TERMINAN_GRID_DSN':'postgresql://secret:password@private/db'}):
             with patch.object(sources,'grid_rows',side_effect=RuntimeError('secret password private')):

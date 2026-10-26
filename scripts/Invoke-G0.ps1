@@ -19,7 +19,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or $sha -cne $ExpectedSha) { throw 'Source SHA mismatch' }
     $dirty = & git status --porcelain --untracked-files=normal
     if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Clean checkout required' }
-    $version = & $Python -c 'import sys; print(".".join(map(str,sys.version_info[:3]))); sys.exit(sys.version_info < (3,11))'
+    $version = & $Python -c 'import sys; print(sys.version.split()[0]); sys.exit(sys.version_info < (3,11))'
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ required' }
     # No admin check: no privileged operation is performed, and hosted CI may be
     # elevated. The operator runbook requires an ordinary non-admin shell.

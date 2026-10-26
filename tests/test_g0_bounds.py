@@ -3,6 +3,13 @@ from terminan.dom import BookEngine, Snapshot, Delta, Level
 from terminan.dom_stream import BoundedFeed, FeedEnvelope
 
 class Bounds(unittest.TestCase):
+    def test_retired_epoch_cannot_recover_delayed_snapshot(self):
+        book=BookEngine()
+        book.snapshot(Snapshot('old',10,()))
+        book.snapshot(Snapshot('new',1,()))
+        before=book.view
+        self.assertFalse(book.snapshot(Snapshot('old',11,(Level('bid',99,1),))))
+        self.assertEqual(book.view,before)
     def test_iterable_stops_at_batch_bound(self):
         consumed=[]
         def levels():

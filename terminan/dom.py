@@ -91,6 +91,7 @@ class BookEngine:
         if type(max_levels) is not int or not 1<=max_levels<=100000:
             raise ValueError('invalid book limit')
         self.max_levels=max_levels
+        self._retired_epochs=set()
         self._bids = {}
         self._asks = {}
         self._version = 0
@@ -109,6 +110,9 @@ class BookEngine:
 
     def snapshot(self, msg: Snapshot):
         _validate_header(msg.epoch, msg.sequence)
+        if msg.epoch in self._retired_epochs:return False
+        if self._epoch is not None and msg.epoch!=self._epoch and len(self._retired_epochs)>=128:
+            raise ValueError('epoch history limit exceeded; replace engine')
         changes = _changes(msg.levels)
         # Invalidating the book does not erase its sequence watermark.
         # Recovery must not promote a delayed or duplicate snapshot to LIVE.
@@ -123,6 +127,7 @@ class BookEngine:
                 side.pop(level.price_ticks, None)
         if len(bids)+len(asks)>self.max_levels:raise ValueError('book limit exceeded')
         self._bids, self._asks = bids, asks
+        if self._epoch is not None and self._epoch!=msg.epoch:self._retired_epochs.add(self._epoch)
         self._epoch, self._sequence = msg.epoch, msg.sequence
         self._status, self._error = BookStatus.LIVE, None
         self._version += 1

@@ -89,7 +89,7 @@ class LevelTests(unittest.TestCase):
         h=3600000
         rows=[dict(t=0,h=10,l=9,complete=True),
               dict(t=3*h,h=11,l=10,complete=True)]
-        def candles(symbol,tf,limit=1000):
+        def candles(kind,symbol,tf):
             return rows if tf=='1h' else []
         def call(path):
             handler=object.__new__(Handler)
@@ -100,7 +100,7 @@ class LevelTests(unittest.TestCase):
             handler.end_headers=lambda:None
             handler.do_GET()
             return json.loads(handler.wfile.getvalue())
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=candles):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',side_effect=candles):
             legacy=call('/api/levels?symbol=BTCUSDT')
             detailed=call('/api/levels?symbol=BTCUSDT&diagnostics=1')
         self.assertIsInstance(legacy,list)
@@ -121,7 +121,7 @@ class LevelTests(unittest.TestCase):
         handler.send_response=lambda code:None
         handler.send_header=lambda *args:None
         handler.end_headers=lambda:None
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[dict(t=0,h=10,l=9,complete=True)]):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=[dict(t=0,h=10,l=9,complete=True)]):
             handler.do_GET()
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['history']['state'],'NO_INTERNAL_GAPS_DETECTED')
@@ -137,7 +137,7 @@ class LevelTests(unittest.TestCase):
         handler.send_response=lambda code:None
         handler.send_header=lambda *args:None
         handler.end_headers=lambda:None
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[]):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=[]):
             handler.do_GET()
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['levels'],[])
@@ -195,7 +195,7 @@ class LevelTests(unittest.TestCase):
                 handler.send_response=lambda code:statuses.append(code)
                 handler.send_header=lambda *args:None
                 handler.end_headers=lambda:None
-                with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[dict(t=bad,h=10,l=9,complete=True)]):
+                with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=[dict(t=bad,h=10,l=9,complete=True)]):
                     handler.do_GET()
                 self.assertEqual(statuses,[400])
                 self.assertIn('invalid candle timestamp',handler.wfile.getvalue().decode())
@@ -205,7 +205,7 @@ class LevelTests(unittest.TestCase):
         h=3600000
         rows=[dict(t=0,h=10,l=9,complete=True),
               dict(t=h//2,h=11,l=10,complete=True)]
-        def candles(symbol,tf,limit=1000):
+        def candles(kind,symbol,tf):
             return rows if tf=='1h' else []
         handler=object.__new__(Handler)
         handler.path='/api/levels?symbol=BTCUSDT&diagnostics=1'
@@ -213,7 +213,7 @@ class LevelTests(unittest.TestCase):
         handler.send_response=lambda code:None
         handler.send_header=lambda *args:None
         handler.end_headers=lambda:None
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=candles):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',side_effect=candles):
             handler.do_GET()
         result=json.loads(handler.wfile.getvalue())
         self.assertEqual(result['history']['state'],'GAPS_DETECTED')
@@ -262,7 +262,7 @@ class LevelTests(unittest.TestCase):
         rows=[dict(t=0,h=10,l=9,complete=True),
               dict(t=h,h=None,l=None,complete=False),
               dict(t=2*h,h=11,l=10,complete=True)]
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',side_effect=lambda symbol,tf,limit=1000:rows if tf=='1h' else []):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',side_effect=lambda kind,symbol,tf:rows if tf=='1h' else []):
             handler.do_GET()
         self.assertEqual(statuses,[200])
         result=json.loads(handler.wfile.getvalue())
@@ -427,7 +427,7 @@ class LevelTests(unittest.TestCase):
                 handler.send_response=lambda code:statuses.append(code)
                 handler.send_header=lambda *args:None
                 handler.end_headers=lambda:None
-                with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[row]):
+                with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=[row]):
                     handler.do_GET()
                 self.assertEqual(statuses,[400])
                 self.assertEqual(json.loads(handler.wfile.getvalue()),{'error':expected})
@@ -441,7 +441,7 @@ class LevelTests(unittest.TestCase):
         handler.send_response=lambda code:statuses.append(code)
         handler.send_header=lambda *args:None
         handler.end_headers=lambda:None
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=[{'t':0,'complete':False}]):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=[{'t':0,'complete':False}]):
             handler.do_GET()
         self.assertEqual(statuses,[200])
         result=json.loads(handler.wfile.getvalue())
@@ -460,7 +460,7 @@ class LevelTests(unittest.TestCase):
         handler.end_headers=lambda:None
         rows=[dict(t=0,h=10,l=9,complete=True),
               dict(t=0,h=11,l=9,complete=True)]
-        with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=rows):
+        with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=rows):
             handler.do_GET()
         self.assertEqual(statuses,[400])
         self.assertEqual(json.loads(handler.wfile.getvalue()),
@@ -480,7 +480,7 @@ class LevelTests(unittest.TestCase):
                 handler.end_headers=lambda:None
                 rows=[dict(t=0,h=10,l=9,complete=True),
                       dict(t=h,h=bad,l=9,complete=True)]
-                with patch('terminan.server.data.validate'), patch('terminan.server.data.candles',return_value=rows):
+                with patch('terminan.server.data.validate'), patch('terminan.server.source_rows',return_value=rows):
                     handler.do_GET()
                 self.assertEqual(statuses,[400])
                 payload=json.loads(handler.wfile.getvalue())

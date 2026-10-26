@@ -2,6 +2,11 @@ import http.client
 import json
 import threading
 import unittest
+import os
+import sqlite3
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from terminan import server
 
 class HTTPContract(unittest.TestCase):
@@ -20,6 +25,16 @@ class HTTPContract(unittest.TestCase):
     def test_versioned_disconnected_sources(self):
         status,body=self.request('/api/sources?symbol=BTCUSDT')
         self.assertEqual(status,200);self.assertEqual(json.loads(body)['l2'],'UNAVAILABLE')
+    def test_levels_cannot_bypass_schema_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'synthetic.sqlite'
+            con=sqlite3.connect(path)
+            try:
+                con.executescript("CREATE TABLE schema_meta(key TEXT,value TEXT); INSERT INTO schema_meta VALUES('schema_version','99'); CREATE TABLE candles(symbol TEXT,timeframe TEXT,open_time INTEGER,open REAL,high REAL,low REAL,close REAL,volume REAL,complete INTEGER);")
+                con.commit()
+            finally:con.close()
+            with patch.dict(os.environ,{'TERMINAN_STRATTESTER_DB':str(path)}):
+                self.assertEqual(self.request('/api/levels?diagnostics=1')[0],503)
     def test_invalid_and_duplicate_query_rejected(self):
         for path in ('/api/candles?symbol=bad','/api/candles?symbol=BTCUSDT&symbol=ETHUSDT','/api/candles?timeframe=1w'):
             self.assertEqual(self.request(path)[0],400)
