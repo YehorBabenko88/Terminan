@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
+import stat
 import subprocess
 import sys
 import threading
@@ -22,7 +24,8 @@ CLASSES={'NONE','UNEXPECTED_EXCEPTION','INVALID_SHA','SHA_MISMATCH','INVALID_ARG
  'READY_INVALID','SYNTHETIC_IDENTITY_MISMATCH','SMOKE_HTTP_FAILED','SMOKE_ASSERTION_FAILED',
  'BROWSER_LAUNCH_FAILED','REVIEW_WAIT_FAILED','CHILD_EARLY_EXIT','CHILD_HEALTH_FAILED',
  'CHILD_STDERR','CHILD_OUTPUT_LIMIT','SHUTDOWN_TIMEOUT','SHUTDOWN_FAILED',
- 'CHILD_EXIT_FAILED','OUTPUT_DRAIN_TIMEOUT','EVIDENCE_FINALIZE_FAILED'}
+ 'CHILD_EXIT_FAILED','OUTPUT_DRAIN_TIMEOUT','EVIDENCE_FINALIZE_FAILED',
+ 'EVIDENCE_DIRECTORY_UNAVAILABLE','EVIDENCE_PATH_REDIRECTED'}
 FILES={'ready.json','smoke.json','browser-checklist.txt','summary.json'}
 ROUTES=('/api/status','/api/synthetic/frame?step=24&scenario=gap',
  '/api/synthetic/frame?step=48&scenario=stale','/api/synthetic/frame?step=72&scenario=reconnect',
@@ -103,6 +106,9 @@ class Runtime:
         os.rename(pending,final)
 
 def _integrity(root):
+    for path in (root,root/'manifest.json'):
+        info=os.lstat(path)
+        if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:raise ValueError()
     entries=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
     if not isinstance(entries,list) or not entries:raise ValueError()
     names=set()
@@ -136,7 +142,7 @@ def inspect_run(root,expected_sha):
     except Exception:return 50
 
 class Harness:
-    def __init__(self,*,expected_sha,evidence_root,review_seconds='0',open_browser=False,runtime=None,run_id=None,shutdown_timeout=10):
+    def __init__(self,*,expected_sha,evidence_root,review_seconds='0',open_browser=False,runtime=None,run_id=None,shutdown_timeout=10,shell_version=None):
         self.ops=runtime or Runtime();self.expected=expected_sha;self.requested_seconds=review_seconds;self.seconds=0
         self.open_browser=bool(open_browser);self.shutdown_timeout=shutdown_timeout
         self.run_id=run_id or datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')[:-3]+'Z-'+uuid.uuid4().hex[:8]
@@ -148,6 +154,8 @@ class Harness:
         self.code=0;self.failure_stage='NONE';self.error_class='NONE';self.os_error_code=None;self.secondary=[]
         self.child=None;self.shutdown_attempted=False;self.smoke=[];self.checklist=None
         self.actual_sha='UNVERIFIED';self.clean=False;self.review_elapsed=0;self.review_completed=False;self.health_probes=0
+        self.owned_pending=False
+        self.shell_version=shell_version if isinstance(shell_version,str) and re.fullmatch(r'[0-9]{1,3}(\.[0-9]{1,10}){1,3}',shell_version) else None
     def _set(self,stage,state='RUNNING'):self.stage=stage;self.states[stage]=state
     def _fail(self,stage,exc):
         fallback={'preflight':'SOURCE_IDENTITY_UNAVAILABLE','startup':'STARTUP_FAILED','smoke':'SMOKE_HTTP_FAILED',
@@ -173,6 +181,14 @@ class Harness:
         self.seconds=int(seconds);self.actual_sha,self.clean=self.ops.identity(REPO)
         if self.actual_sha!=self.expected:raise Fault('SHA_MISMATCH')
         if not self.clean:raise Fault('DIRTY_SOURCE')
+    def _acquire(self):
+        for path in (self.pending,*self.pending.parents,self.final_dir):
+            try:info=os.lstat(path)
+            except FileNotFoundError:continue
+            if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:raise Fault('EVIDENCE_PATH_REDIRECTED')
+            if path in (self.pending,self.final_dir):raise Fault('EVIDENCE_DIRECTORY_UNAVAILABLE')
+        self.pending.mkdir(parents=True,exist_ok=False)
+        self.owned_pending=True
     def _startup(self):
         self.child=self.ops.spawn(REPO,self.pending/'ready.json');deadline=self.ops.clock()+15
         while True:
@@ -234,22 +250,32 @@ class Harness:
     def _cleanup(self):
         if not self.child:
             self.states['graceful_shutdown']='NOT_REQUESTED';return
-        if self.child.poll() is None:
-            if not self.shutdown_attempted:
-                try:self._shutdown()
-                except Exception as exc:self._fail('graceful_shutdown',exc)
-            if self.child.poll() is None:
-                try:self.child.kill()
-                except Exception as exc:self._fail('graceful_shutdown',exc)
+        previous=None
+        if threading.current_thread() is threading.main_thread():
+            try:previous=signal.signal(signal.SIGINT,signal.SIG_IGN)
+            except (ValueError,OSError):pass
         try:
-            if self.child.close() is False:raise Fault('OUTPUT_DRAIN_TIMEOUT')
-            if self.child.output_limit:raise Fault('CHILD_OUTPUT_LIMIT')
-            if self.child.stderr_bytes:raise Fault('CHILD_STDERR')
-        except Exception as exc:self._fail('graceful_shutdown',exc)
+            try:
+                if self.child.poll() is None and not self.shutdown_attempted:
+                    try:self._shutdown()
+                    except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
+            finally:
+                try:
+                    if self.child.poll() is None:self.child.kill()
+                except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
+                finally:
+                    try:
+                        if self.child.close() is False:raise Fault('OUTPUT_DRAIN_TIMEOUT')
+                        if self.child.output_limit:raise Fault('CHILD_OUTPUT_LIMIT')
+                        if self.child.stderr_bytes:raise Fault('CHILD_STDERR')
+                    except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
+        finally:
+            if previous is not None:signal.signal(signal.SIGINT,previous)
     def _summary(self):
         return dict(harness_contract_version=2,kind='harness',run_id=self.run_id,
           candidate_sha=self.expected if isinstance(self.expected,str) and SHA.fullmatch(self.expected) else 'INVALID',
           actual_sha=self.actual_sha,source_clean=self.clean,utc=datetime.now(timezone.utc).isoformat(),
+          python_version='.'.join(map(str,sys.version_info[:3])),powershell_version=self.shell_version,
           mode='SYNTHETIC',sources='DISABLED',physical='PENDING',exit_code=self.code,
           result='FAIL' if self.code else 'AUTOMATED_SYNTHETIC_SMOKE_PASS',
           failure_stage=self.failure_stage,error_class=self.error_class,os_error_code=self.os_error_code,
@@ -260,6 +286,9 @@ class Harness:
           child_stdout_bytes=self.child.stdout_bytes if self.child else 0,
           child_stderr_bytes=self.child.stderr_bytes if self.child else 0)
     def _write(self):
+        if not self.owned_pending:raise Fault('EVIDENCE_DIRECTORY_UNAVAILABLE')
+        info=os.lstat(self.pending)
+        if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:raise Fault('EVIDENCE_PATH_REDIRECTED')
         if self.smoke:self.ops.write_json(self.pending/'smoke.json',self.smoke)
         if self.checklist:
             with (self.pending/'browser-checklist.txt').open('w',encoding='utf-8',newline='\n') as out:out.write(self.checklist)
@@ -277,7 +306,7 @@ class Harness:
         self.ops.publish(self.pending,self.final_dir)
     def run(self):
         try:
-            self.pending.mkdir(parents=True,exist_ok=False)
+            self._set('evidence_finalize');self._acquire()
             self._set('preflight');self._preflight();self._set('preflight','PASS')
             self._set('startup');self._startup();self._set('startup','PASS')
             self._set('smoke');self._smoke();self._set('smoke','PASS')
@@ -289,6 +318,7 @@ class Harness:
         finally:
             try:self._cleanup()
             except (Exception,KeyboardInterrupt) as exc:self._fail('graceful_shutdown',exc)
+        if not self.owned_pending:return self.code or 50
         self._set('evidence_finalize','PASS')
         try:self._write()
         except (Exception,KeyboardInterrupt) as exc:
@@ -305,8 +335,9 @@ def main(argv=None):
         parser=PrivateParser();parser.add_argument('--expected-sha',required=True);parser.add_argument('--evidence-root',default='.r2-evidence')
         parser.add_argument('--review-seconds',default='0');parser.add_argument('--open-browser',action='store_true')
         parser.add_argument('--run-id');parser.add_argument('--inspect-run',action='store_true')
+        parser.add_argument('--shell-version')
         args=parser.parse_args(argv)
-        harness=Harness(expected_sha=args.expected_sha,evidence_root=args.evidence_root,review_seconds=args.review_seconds,open_browser=args.open_browser,run_id=args.run_id)
+        harness=Harness(expected_sha=args.expected_sha,evidence_root=args.evidence_root,review_seconds=args.review_seconds,open_browser=args.open_browser,run_id=args.run_id,shell_version=args.shell_version)
         if args.inspect_run:
             code=inspect_run(harness.final_dir,args.expected_sha)
             print('R2 evidence inspection exit_code='+str(code))

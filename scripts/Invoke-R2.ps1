@@ -16,7 +16,7 @@ try {
     $engine = [IO.Path]::Combine($repo, 'terminan', 'r2_harness.py')
     $root = if ([IO.Path]::IsPathRooted($EvidenceRoot)) { [IO.Path]::GetFullPath($EvidenceRoot) } else { [IO.Path]::GetFullPath([IO.Path]::Combine($repo, $EvidenceRoot)) }
     $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8)
-    $arguments = @($engine, '--expected-sha', $ExpectedSha, '--evidence-root', $root, '--review-seconds', $ReviewSeconds, '--run-id', $runId)
+    $arguments = @($engine, '--expected-sha', $ExpectedSha, '--evidence-root', $root, '--review-seconds', $ReviewSeconds, '--run-id', $runId, '--shell-version', $PSVersionTable.PSVersion.ToString())
     if ($OpenBrowser) { $arguments += '--open-browser' }
     & $Python @arguments 2>$null
     $nativeCode = $LASTEXITCODE # Capture before ANY other native command.

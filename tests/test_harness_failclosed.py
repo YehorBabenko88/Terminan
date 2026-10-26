@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from urllib.parse import parse_qs,urlsplit
 from terminan.r2_harness import Harness, Runtime, inspect_run
 from terminan.synthetic import frame
@@ -127,3 +128,41 @@ class FailClosedHarness(unittest.TestCase):
         summary=json.loads((h.final_dir/'summary.json').read_text())
         self.assertEqual((summary['result'],summary['failure_stage']),('FAIL','evidence_finalize'))
         self.assertEqual(inspect_run(h.final_dir,SHA),50)
+    def test_existing_pending_evidence_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as temp:
+            h=Harness(expected_sha=SHA,evidence_root=temp,runtime=FakeRuntime())
+            h.pending.mkdir();original=h.pending/'summary.json';original.write_text('ORIGINAL EVIDENCE')
+            self.assertEqual(h.run(),50)
+            self.assertEqual(original.read_text(),'ORIGINAL EVIDENCE')
+            self.assertFalse(h.final_dir.exists())
+    def test_cancellation_during_cleanup_still_stops_owned_child(self):
+        with tempfile.TemporaryDirectory() as temp:
+            rt=FakeRuntime('browser_launch')
+            def interrupted(timeout):raise KeyboardInterrupt()
+            rt.child.quit=interrupted
+            h=Harness(expected_sha=SHA,evidence_root=temp,runtime=rt,open_browser=True)
+            self.assertEqual(h.run(),31)
+            self.assertTrue(rt.child.killed);self.assertIsNotNone(rt.child.poll())
+    def test_redirected_evidence_root_is_rejected_without_writes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);h=Harness(expected_sha=SHA,evidence_root=root,runtime=FakeRuntime())
+            real_stat=__import__('os').lstat
+            def redirected(path,*args,**kwargs):
+                if Path(path)==root:
+                    from types import SimpleNamespace
+                    import stat
+                    return SimpleNamespace(st_mode=stat.S_IFDIR,st_file_attributes=0x400)
+                return real_stat(path,*args,**kwargs)
+            with patch('os.lstat',side_effect=redirected):
+                self.assertEqual(h.run(),50)
+            self.assertEqual(list(root.iterdir()),[])
+    def test_unknown_harness_evidence_version_is_rejected(self):
+        from terminan.r2_evidence import verify
+        code,summary,path,rt=self.run_case()
+        summary['harness_contract_version']=99
+        body=json.dumps(summary).encode();(path/'summary.json').write_bytes(body)
+        entries=json.loads((path/'manifest.json').read_text())
+        for entry in entries:
+            if entry['file']=='summary.json':entry.update(bytes=len(body),sha256=hashlib.sha256(body).hexdigest())
+        (path/'manifest.json').write_text(json.dumps(entries))
+        with self.assertRaises(ValueError):verify(path,SHA)

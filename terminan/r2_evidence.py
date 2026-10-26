@@ -66,6 +66,7 @@ def verify(root,sha):
             if perf['metrics']['retainedCandles']>240 or perf['metrics']['retainedEvents']>20 or perf['metrics']['peakRequests']>4:raise ValueError('resource bounds violated')
             if (root/project/'preview.png').read_bytes()[:8]!=b'\x89PNG\r\n\x1a\n':raise ValueError('invalid screenshot')
     else:
+        if 'harness_contract_version' in summary and (type(summary['harness_contract_version']) is not int or summary['harness_contract_version']!=2):raise ValueError('unsupported harness contract')
         required={'summary.json','ready.json','smoke.json','browser-checklist.txt'}
         if not required.issubset(names) or summary.get('result')!='AUTOMATED_SYNTHETIC_SMOKE_PASS' or summary.get('exit_code')!=0:raise ValueError('incomplete harness evidence')
         ready=read(root/'ready.json')
