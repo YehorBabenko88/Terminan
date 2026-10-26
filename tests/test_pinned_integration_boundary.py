@@ -3,7 +3,6 @@
 These tests exercise the Terminan boundary only. They DO NOT establish live
 Grid/Strattester schema compatibility or physical Windows acceptance.
 """
-import math
 import os
 import sqlite3
 import tempfile
@@ -65,6 +64,40 @@ class PinnedReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("default_transaction_read_only=on", source)
         self.assertIn("statement_timeout=3000", source)
         self.assertIn("connect_timeout=3", source)
+
+    def test_sqlite_missing_schema_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.sqlite"
+            with sqlite3.connect(path) as con:
+                con.execute("CREATE TABLE unrelated(value TEXT)")
+            with patch.dict(os.environ, {"TERMINAN_STRATTESTER_DB": str(path)}):
+                with self.assertRaises(sqlite3.OperationalError):
+                    data.candles("BTCUSDT")
+
+    def test_research_json_is_not_promoted_to_trading_authority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "results.sqlite"
+            with sqlite3.connect(path) as con:
+                con.execute("CREATE TABLE research_results(symbol TEXT, run_id TEXT, strategy_id TEXT, strategy_version TEXT, created_at INTEGER, metrics TEXT)")
+                con.execute("INSERT INTO research_results VALUES (?,?,?,?,?,?)",
+                            ("BTCUSDT", "run-1", "strategy-1", "v1", 1000, '{"sharpe":1.25}'))
+            with patch.dict(os.environ, {"TERMINAN_RESULTS_DB": str(path)}):
+                result = data.research("BTCUSDT")
+            self.assertEqual(result[0]["run_id"], "run-1")
+            self.assertEqual(result[0]["metrics"], {"sharpe": 1.25})
+            self.assertNotIn("execute", result[0])
+            self.assertNotIn("order", result[0])
+
+    def test_research_malformed_json_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad-results.sqlite"
+            with sqlite3.connect(path) as con:
+                con.execute("CREATE TABLE research_results(symbol TEXT, run_id TEXT, strategy_id TEXT, strategy_version TEXT, created_at INTEGER, metrics TEXT)")
+                con.execute("INSERT INTO research_results VALUES (?,?,?,?,?,?)",
+                            ("BTCUSDT", "run-1", "strategy-1", "v1", 1000, "{bad"))
+            with patch.dict(os.environ, {"TERMINAN_RESULTS_DB": str(path)}):
+                with self.assertRaises(ValueError):
+                    data.research("BTCUSDT")
 
     def test_grid_footprint_is_not_l2_feed(self):
         import inspect
