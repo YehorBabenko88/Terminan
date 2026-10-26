@@ -1,5 +1,6 @@
 """Read-only adapters; never mutate source databases."""
 import json
+import math
 import os
 import re
 import sqlite3
@@ -60,12 +61,34 @@ def grid_query(sql, params):
             cur.execute(sql, params)
             return cur.fetchall()
 
+def _grid_number(value, *, timestamp=False):
+    """Reject lossy/nonfinite source values instead of serializing invalid JSON."""
+    if isinstance(value, bool) or value is None:
+        raise ValueError("invalid Grid numeric field")
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("invalid Grid numeric field") from exc
+    if not math.isfinite(result):
+        raise ValueError("nonfinite Grid numeric field")
+    if timestamp:
+        if not result.is_integer() or not 0 <= result <= (1 << 53) - 1:
+            raise ValueError("invalid Grid UTC milliseconds")
+        return int(result)
+    return result
+
+
+def _grid_row(row):
+    return tuple(_grid_number(value, timestamp=index == 0)
+                 for index, value in enumerate(row))
+
+
 def grid_candles(symbol, limit=300):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), _grid_row(r))) for r in reversed(rows)]
 
 def footprint(symbol, limit=500):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,price,buy_volume,sell_volume,delta,volume FROM footprint_1m WHERE symbol=%s ORDER BY ts DESC,price DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","price","buy","sell","delta","volume"),map(float,r))) for r in rows]
+    return [dict(zip(("t","price","buy","sell","delta","volume"),_grid_row(r))) for r in rows]
