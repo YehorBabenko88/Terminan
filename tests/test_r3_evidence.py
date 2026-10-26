@@ -40,3 +40,8 @@ class R3EvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);(root/'summary.json').write_text('{}');(root/'manifest.json').write_text('[{"path":"summary.json","sha256":"'+'0'*64+'"}]')
             with self.assertRaises(ValueError):verify(root,SHA)
+
+    def test_playwright_metadata_location(self):
+        from terminan.r3_evidence import report_invocation
+        self.assertEqual(report_invocation({'config':{'metadata':{'r3_invocation':'nonce'}}}),'nonce')
+        self.assertIsNone(report_invocation({'metadata':{'r3_invocation':'stale'}}))

@@ -32,6 +32,7 @@ def check(data,sha):
         if any(memory[k]['state']!='AVAILABLE' for k in ('before','after')) or memory['after']['rss_bytes']>=2*1024**3 or memory['after']['rss_bytes']-memory['before']['rss_bytes']>=256*1024**2:raise ValueError()
     elif resources['state']!='UNAVAILABLE' or resources['reason']!='FIREFOX_CDP_UNSUPPORTED':raise ValueError()
     if any(data['disposed'][key]!=0 for key in ('listeners','rafPending','activeRequests','timerPending','retainedCandles')):raise ValueError()
+def report_invocation(raw):return raw.get('config',{}).get('metadata',{}).get('r3_invocation')
 def bundle(report,out,sha,scope):
     invocation=os.getenv('R3_INVOCATION','')
     if not re.fullmatch('[0-9a-f]{32}',invocation):raise ValueError()
@@ -39,7 +40,7 @@ def bundle(report,out,sha,scope):
     summary=dict(version=1,invocation=invocation,candidate_sha=sha,result='FAIL',physical='PENDING',scope=scope,run_id=os.getenv('GITHUB_RUN_ID','LOCAL'),attempt=os.getenv('GITHUB_RUN_ATTEMPT','1'))
     try:
         raw=read(report)
-        if raw.get('metadata',{}).get('r3_invocation')!=invocation:raise ValueError()
+        if report_invocation(raw)!=invocation:raise ValueError()
         if raw.get('errors'):raise ValueError()
         tests=[]
         def walk(suites):
