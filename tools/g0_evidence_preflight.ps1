@@ -45,7 +45,7 @@ try {
     $psVersion = $PSVersionTable.PSVersion.ToString()
     $checks.Add([ordered]@{name='powershell';status='PASS';version=$psVersion}) | Out-Null
     $pythonVersion = (& $PythonCommand --version 2>&1)
-    if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^Python (\d+)\.(\d+)\.(\d+)
+    if ($LASTEXITCODE -ne 0 -or $pythonVersion -notmatch '^Python (\d+)\.(\d+)\.(\d+)$') {
         Fail 10 'Python interpreter unavailable or version malformed'
     } elseif ([int]$Matches[1] -lt 3 -or ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -lt 11)) {
         Fail 10 'Python 3.11+ required'
