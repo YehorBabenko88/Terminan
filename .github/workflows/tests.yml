@@ -17,3 +17,4 @@ jobs:
           node-version: '24'
       - run: node tests/check_ui_script.cjs
       - run: node tests/check_ui_refresh_race.cjs
+      - run: node tests/check_canvas_dpr_allocations.cjs
