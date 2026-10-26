@@ -92,11 +92,16 @@ test('stress frame pipeline memory CPU and lifecycle evidence',async({page,labUR
     await cdp.send('Performance.enable');await cdp.send('HeapProfiler.collectGarbage');
     before=await cdp.send('Performance.getMetrics');
   }
+  await page.selectOption('#scenario','mixed');
+  const pipelineBefore=await page.evaluate(()=>window.r2.metrics());
+  await page.evaluate(()=>{for(let i=0;i<1000;i++)window.dispatchEvent(new Event('resize'));});
+  expect((await page.evaluate(()=>window.r2.metrics())).rafPending).toBeLessThanOrEqual(1);
   const started=Date.now();
   for(let i=0;i<40;i++)await seek(page,(i*17)%601);
   await page.locator('#play').click();await page.waitForTimeout(1100);await page.locator('#play').click();
   await page.waitForTimeout(100);
   const metrics=await page.evaluate(()=>window.r2.metrics());
+  expect(metrics.listeners).toBe(pipelineBefore.listeners);
   expect(metrics.retainedCandles).toBeLessThanOrEqual(240);
   expect(metrics.retainedEvents).toBeLessThanOrEqual(20);
   expect(metrics.renderSamples).toBeLessThanOrEqual(240);
