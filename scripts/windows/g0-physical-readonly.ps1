@@ -15,6 +15,22 @@ $checks=New-Object System.Collections.ArrayList
 function Record([string]$Name,[string]$Status,[string]$Detail) {
   [void]$checks.Add([ordered]@{name=$Name;status=$Status;detail=$Detail})
 }
+function VerifiedOwner([int]$ListenerPid,[int]$RootPid,[DateTime]$StartedUtc) {
+  $seen=@{}
+  $pidNow=$ListenerPid
+  for($depth=0;$depth -lt 6;$depth++){
+    if($seen.ContainsKey([string]$pidNow)){return $false}
+    $seen[[string]$pidNow]=$true
+    $p=Get-CimInstance Win32_Process -Filter ("ProcessId="+$pidNow) -ErrorAction Stop
+    if($null -eq $p -or $p.Name -ne 'python.exe'){return $false}
+    if($p.CommandLine -notmatch '(^|\s)-m\s+terminan(\s|$)'){return $false}
+    $created=([DateTime]$p.CreationDate).ToUniversalTime()
+    if($created -lt $StartedUtc.AddSeconds(-5)){return $false}
+    if($pidNow -eq $RootPid){return $true}
+    $pidNow=[int]$p.ParentProcessId
+  }
+  return $false
+}
 function Listeners([int]$P) {
   @(Get-NetTCPConnection -State Listen -LocalPort $P -ErrorAction SilentlyContinue)
 }
@@ -38,6 +54,7 @@ try {
   if((Listeners $Port).Count -ne 0){throw 'gate'}
   Record $stage 'PASS' 'free'
   $stage='start_child'
+  $launchUtc=[DateTime]::UtcNow
   $psi=New-Object Diagnostics.ProcessStartInfo
   $psi.FileName=$PythonExe
   $psi.Arguments='-m terminan'
@@ -67,8 +84,9 @@ try {
   Record $stage 'PASS' 'HTTP 200'
   $stage='listener_identity'
   $listeners=@(Listeners $Port)
-  if($listeners.Count -ne 1 -or $listeners[0].LocalAddress -ne '127.0.0.1' -or $listeners[0].OwningProcess -ne $ownedPid){throw 'gate'}
-  Record $stage 'PASS' 'owned 127.0.0.1 listener'
+  if($listeners.Count -ne 1 -or $listeners[0].LocalAddress -ne '127.0.0.1' -or -not (VerifiedOwner ([int]$listeners[0].OwningProcess) $ownedPid $launchUtc)){throw 'gate'}
+  $listenerPid=[int]$listeners[0].OwningProcess
+  Record $stage 'PASS' 'verified descendant owns 127.0.0.1 listener'
   $stage='http_smoke'
   foreach($endpoint in @('/','/api/status','/api/instruments','/api/candles?symbol=BTCUSDT&timeframe=1m','/api/grid/footprint?symbol=BTCUSDT')){
     $r=Invoke-WebRequest -Uri ($base+$endpoint) -UseBasicParsing -TimeoutSec 5
@@ -96,9 +114,14 @@ try {
       $listeners=@(Listeners $Port)
       $proc=Get-CimInstance Win32_Process -Filter ("ProcessId="+$ownedPid) -ErrorAction Stop
       if($null -eq $proc -or $proc.Name -ne 'python.exe' -or $proc.CommandLine -notmatch '(^|\s)-m\s+terminan(\s|$)'){throw 'identity'}
-      if($listeners.Count -ne 1 -or $listeners[0].OwningProcess -ne $ownedPid -or $listeners[0].LocalAddress -ne '127.0.0.1'){throw 'listener'}
+      if($listeners.Count -ne 1 -or $listeners[0].LocalAddress -ne '127.0.0.1'){throw 'listener'}
+      $livePid=[int]$listeners[0].OwningProcess
+      if(-not (VerifiedOwner $livePid $ownedPid $launchUtc)){throw 'provenance'}
       $stage='forced_shutdown'
-      $child.Kill()
+      if($livePid -ne $ownedPid){
+        Stop-Process -Id $livePid -ErrorAction Stop
+      }
+      if(-not $child.HasExited){$child.Kill()}
       if(-not $child.WaitForExit(5000)){throw 'timeout'}
       $cleanup='PASS'
       Record 'forced_shutdown' 'PASS' 'Verified child terminated; not graceful'
@@ -114,7 +137,7 @@ try {
   if($failure -ne 'NONE'){$exitCode=2}
   if($cleanup -eq 'FAIL'){$exitCode=3}
   $manifest=[ordered]@{
-    schema='terminan-g0-v3'
+    schema='terminan-g0-v4'
     classification='PHYSICAL_EVIDENCE_PENDING_INDEPENDENT_REVIEW'
     started_utc=$started.ToString('o')
     finished_utc=[DateTime]::UtcNow.ToString('o')
