@@ -24,7 +24,7 @@ $checks = New-Object System.Collections.ArrayList
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 try {
     $target = [System.IO.Path]::GetFullPath($EvidenceDir)
-    if ($target.StartsWith($repoRoot + [System.IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    if ($target.Equals($repoRoot, [StringComparison]::OrdinalIgnoreCase) -or $target.StartsWith($repoRoot + [System.IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'EvidenceDir must be outside the source checkout'
     }
     if ($Ports.Count -eq 0 -or @($Ports | Where-Object { $_ -lt 1 -or $_ -gt 65535 }).Count -gt 0) {
@@ -39,8 +39,8 @@ try {
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Cannot pin git commit' }
     $tree = (& git -C $repoRoot rev-parse 'HEAD^{tree}' 2>$null)
     if ($LASTEXITCODE -ne 0 -or $tree -notmatch '^[0-9a-f]{40}$') { throw 'Cannot pin git tree' }
-    $dirty = (& git -C $repoRoot status --porcelain --untracked-files=no 2>$null)
-    $checks.Add([ordered]@{name='source_clean';status=$(if ($dirty) {'FAIL'} else {'PASS'});detail='Tracked working tree only'}) | Out-Null
+    $dirty = (& git -C $repoRoot status --porcelain --untracked-files=normal 2>$null)
+    $checks.Add([ordered]@{name='source_clean';status=$(if ($dirty) {'FAIL'} else {'PASS'});detail='Tracked and untracked working tree'}) | Out-Null
     if ($dirty) { $exitCode = 10 }
     $psVersion = $PSVersionTable.PSVersion.ToString()
     $checks.Add([ordered]@{name='powershell';status='PASS';version=$psVersion}) | Out-Null
@@ -54,7 +54,14 @@ try {
     }
     $listenerChecks = New-Object System.Collections.ArrayList
     foreach ($port in ($Ports | Sort-Object -Unique)) {
-        $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue)
+        $listeners = @() 
+        try {
+            $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction Stop)
+        } catch {
+            # A missing listener is expected; all other discovery failures must be distinguished.
+            $allListeners = @(Get-NetTCPConnection -State Listen -ErrorAction Stop)
+            $listeners = @($allListeners | Where-Object { $_.LocalPort -eq $port })
+        }
         $addresses = @($listeners | ForEach-Object { $_.LocalAddress } | Sort-Object -Unique)
         $unsafe = @($addresses | Where-Object { $_ -notin @('127.0.0.1','::1') })
         $state = if ($unsafe.Count -gt 0) { 'FAIL' } elseif ($addresses.Count -eq 0) { 'UNBOUND' } else { 'LOOPBACK_ONLY' }
@@ -75,7 +82,7 @@ try {
         environment=[ordered]@{powershell=$psVersion;python=$pythonVersion}
         checks=@($checks)
         physical_gates='NOT_RUN'
-        privacy_redaction='PASS_FOR_STRUCTURED_PREFLIGHT_ONLY'
+        privacy_redaction='STRUCTURED_PREFLIGHT_ONLY_NO_RAW_LOGS'
     }
     $json = ConvertTo-Json -InputObject $payload -Depth 12
     $json = ($json -replace "`r`n", "`n") + "`n"
