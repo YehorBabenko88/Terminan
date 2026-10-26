@@ -5,6 +5,12 @@ It does **not** import CScalp binaries, trade, subscribe to Bybit, or read crede
 
 ## Contracts
 
+Sequence continuity is a linked contract: accept a strictly newer sequence only
+when `previous_sequence == current.sequence` in the same epoch. IDs may skip
+integers (2010 -> 2012 with previous=2010 is valid). A mismatched link is GAP.
+An adapter for a consecutive-number protocol must validate that protocol before
+producing Delta. LIVE is an internal continuity enum, never proof of live L2.
+
 * Prices are nonnegative integer ticks, quantities nonnegative integer lots; the upstream
   feed adapter must validate tick/lot precision before producing `Level`.
 * A `Snapshot(epoch, sequence, levels)` replaces both sides. Each delta
