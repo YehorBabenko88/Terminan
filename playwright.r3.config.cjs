@@ -1,0 +1,1 @@
+const base=require('./playwright.config.cjs');module.exports={...base,metadata:{r3_invocation:process.env.R3_INVOCATION},testIgnore:[],testMatch:'**/r3.spec.cjs',reporter:[['list'],['json',{outputFile:'reports/r3-browser.json'}]],outputDir:'r3-test-results'};

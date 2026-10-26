@@ -179,5 +179,39 @@ function dispose(){
   if(s.raf)cancelAnimationFrame(s.raf);s.raf=0;observer.disconnect();
   s.listeners.forEach(remove=>remove());s.listeners=[];clearPanels();s.samples=[];s.renderTimes=[];
 }
-window.r2={seek:step=>{stop();return load(step);},metrics,dispose};load(0);
+// R3 bounded synthetic renderer workload. No source access; final state deterministic.
+let benchmarkRunning=false;
+async function benchmark({updates=10000,batch=100,seed=17}={}){
+  if(![10000,100000].includes(updates)||!Number.isInteger(batch)||batch<100||batch>500||!Number.isInteger(seed)||seed<0||seed>2147483647)throw Error('Invalid benchmark');
+  if(s.disposed||!s.data||s.active)throw Error('Model unavailable');
+  if(benchmarkRunning)throw Error('Benchmark already running');
+  benchmarkRunning=true;try {
+  stop();const generation=s.generation,identity=s.identity,started=performance.now();
+  let checksum=seed>>>0,processed=0,frames=0,previous=0;
+  const latency=[],intervals=[],draw=[];
+  while(processed<updates){
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(s.disposed||s.generation!==generation||s.identity!==identity)throw Error('Benchmark cancelled');
+    const begin=performance.now();
+    for(let i=0;i<batch&&processed<updates;i++,processed++){
+      checksum=(Math.imul(checksum,1664525)+1013904223)>>>0;
+      const c=s.data.candles.at(-1);c.c=c.o+(checksum%101-50)/100;c.h=Math.max(c.h,c.c);c.l=Math.min(c.l,c.c);
+    }
+    s.modelDirty=true;
+    // Use the same renderer as normal market updates, coalescing each ingress batch.
+    if(s.raf){cancelAnimationFrame(s.raf);s.raf=0;}
+    const now=performance.now();render(now);frames++;
+    latency.push(performance.now()-begin);draw.push(s.samples.at(-1));
+    if(previous)intervals.push(now-previous);previous=now;
+  }
+  const percentile=(values,p)=>{const v=[...values].sort((a,b)=>a-b);return v[Math.min(v.length-1,Math.ceil(v.length*p)-1)]||0;};
+  const quantiles=v=>({p50:percentile(v,.5),p95:percentile(v,.95),p99:percentile(v,.99)});
+  const elapsedMs=performance.now()-started;
+  return {version:1,mode:'SYNTHETIC',authority:'SYNTHETIC_ONLY',seed,updates:processed,batch,checksum,frames,elapsedMs,
+    updatesPerSecond:processed*1000/elapsedMs,renderCadenceFps:(frames-1)*1000/intervals.reduce((a,b)=>a+b,0),
+    latencyScope:'BATCH_INGRESS_TO_RENDER_COMPLETE_NOT_PRESENTATION',latencyMs:quantiles(latency),drawMs:quantiles(draw),
+    frameIntervalMs:quantiles(intervals),samples:latency.length,sampleScope:'WHOLE_WORKLOAD_MAX_1000_FRAMES',metrics:metrics()};
+  }finally{benchmarkRunning=false;}
+}
+window.r2={benchmark,seek:step=>{stop();return load(step);},metrics,dispose};load(0);
 })();
