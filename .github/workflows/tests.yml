@@ -1,14 +1,110 @@
-name: tests
+name: G0 exact candidate
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  python:
-    runs-on: ubuntu-latest
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.14']
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: candidate
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+          path: strattester
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - run: python -m unittest discover -s tests -v
-      - run: python -m compileall -q terminan
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Exact run identity
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reports | Out-Null
+          $sha = (git rev-parse HEAD).Trim()
+          if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
+          @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
+      - name: Python contracts (failure retained)
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -v *> reports/python.txt
+          $result=$LASTEXITCODE
+          Get-Content reports/python.txt
+          exit $result
+      - name: UI syntax and cancellation contracts
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          node tests/check_ui_script.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/check_ui_refresh_race.cjs
+          exit $LASTEXITCODE
+      - name: Compile
+        if: ${{ !cancelled() }}
+        run: python -m compileall -q terminan
+      - name: Windows PowerShell 5.1 harness
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: powershell
+        run: ./scripts/Invoke-G0.ps1 -ExpectedSha (git rev-parse HEAD).Trim() -EvidenceRoot '.g0-evidence/ps51'
+      - name: Windows PowerShell 7 harness
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: ./scripts/Invoke-G0.ps1 -ExpectedSha (git rev-parse HEAD).Trim() -EvidenceRoot '.g0-evidence/ps7'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: g0-${{ matrix.os }}-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            candidate/reports/
+            candidate/.g0-evidence/
+          include-hidden-files: true
+  pg18:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: g0
+          POSTGRES_PASSWORD: g0_synthetic_only
+          POSTGRES_DB: g0_synthetic
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U g0 -d g0_synthetic"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'psycopg[binary]==3.2.13'
+      - name: Disposable PG18 contract
+        working-directory: candidate
+        env:
+          GRID_REPO: ${{ github.workspace }}/grid
+          G0_SYNTHETIC_PG: '1'
+        run: python scripts/test_pg18_contract.py

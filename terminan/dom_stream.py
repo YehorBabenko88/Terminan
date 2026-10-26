@@ -22,10 +22,12 @@ class FeedEnvelope:
 class BoundedFeed:
     """A single writer drains events; overflow invalidates the book until a snapshot."""
 
-    def __init__(self, capacity=4096):
+    def __init__(self, capacity=4096, max_symbols=128):
         if type(capacity) is not int or capacity < 1:
             raise ValueError("capacity must be positive")
         self.capacity = capacity
+        if type(max_symbols) is not int or not 1<=max_symbols<=2000:raise ValueError('invalid symbol limit')
+        self.max_symbols=max_symbols
         self._queue = deque()
         self._engines = {}
         self._invalid = set()
@@ -34,11 +36,15 @@ class BoundedFeed:
     def engine(self, symbol):
         if not isinstance(symbol, str) or not symbol or len(symbol) > 64:
             raise ValueError("invalid symbol")
-        return self._engines.setdefault(symbol, BookEngine())
+        if symbol not in self._engines:
+            if len(self._engines)>=self.max_symbols:raise ValueError('symbol limit exceeded')
+            self._engines[symbol]=BookEngine()
+        return self._engines[symbol]
 
     def publish(self, envelope: FeedEnvelope):
         if not isinstance(envelope, FeedEnvelope):
             raise ValueError("invalid envelope")
+        self.engine(envelope.symbol)
         if len(self._queue) >= self.capacity:
             # Dropping any delta destroys sequence continuity. Clear all queued
             # messages and invalidate all affected books rather than replay partial data.

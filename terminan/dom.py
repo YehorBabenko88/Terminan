@@ -79,15 +79,18 @@ def _changes(levels: Iterable[Level]):
         if not isinstance(level, Level):
             raise ValueError("invalid level")
         updates.append(level)
-    if len(updates) > 100_000:
-        raise ValueError("batch too large")
+        if len(updates) > 100_000:
+            raise ValueError("batch too large")
     return updates
 
 
 class BookEngine:
     """Single-writer engine: validate before committing, reject sequence gaps."""
 
-    def __init__(self):
+    def __init__(self, max_levels=100000):
+        if type(max_levels) is not int or not 1<=max_levels<=100000:
+            raise ValueError('invalid book limit')
+        self.max_levels=max_levels
         self._bids = {}
         self._asks = {}
         self._version = 0
@@ -118,6 +121,7 @@ class BookEngine:
                 side[level.price_ticks] = level.quantity_lots
             else:
                 side.pop(level.price_ticks, None)
+        if len(bids)+len(asks)>self.max_levels:raise ValueError('book limit exceeded')
         self._bids, self._asks = bids, asks
         self._epoch, self._sequence = msg.epoch, msg.sequence
         self._status, self._error = BookStatus.LIVE, None
@@ -146,6 +150,7 @@ class BookEngine:
                 side.pop(level.price_ticks, None)
             else:
                 side[level.price_ticks] = level.quantity_lots
+        if len(bids)+len(asks)>self.max_levels:raise ValueError('book limit exceeded')
         self._bids, self._asks = bids, asks
         self._sequence = msg.sequence
         self._version += 1
