@@ -23,7 +23,7 @@ class OfflineDomStress(unittest.TestCase):
             self.assertEqual(tuple(sorted(view.bids, reverse=True)), view.bids)
             self.assertEqual(tuple(sorted(view.asks)), view.asks)
             self.assertLessEqual(len(viewport(view, 150, 40, 2)), 40)
-        self.assertFalse(book.delta(Delta("synthetic-epoch-1", 2012, 2010, ())))
+        self.assertFalse(book.delta(Delta("synthetic-epoch-1", 2012, 2009, ())))
         self.assertEqual(book.view.status, BookStatus.GAP)
         self.assertFalse(book.snapshot(Snapshot("synthetic-epoch-1", 2010, ())))
         self.assertEqual(book.view.status, BookStatus.GAP)
