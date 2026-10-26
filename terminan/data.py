@@ -59,6 +59,10 @@ def grid_query(sql, params):
     import psycopg
     with psycopg.connect(dsn, connect_timeout=3, options="-c default_transaction_read_only=on -c statement_timeout=3000") as con:
         with con.cursor() as cur:
+            cur.execute("SHOW transaction_read_only")
+            state = cur.fetchone()
+            if not state or str(state[0]).lower() not in ("on", "true"):
+                raise RuntimeError("Grid transaction is not read-only")
             cur.execute(sql, params)
             return cur.fetchall()
 
