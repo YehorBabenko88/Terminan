@@ -23,6 +23,7 @@ def main():
             or u.path not in ("", "/") or u.query or u.fragment
             or u.username or u.password or u.port is None):
         parser.error("Only explicit http://127.0.0.1:PORT/ is allowed")
+    allowed_origin = "%s://%s:%s" % (u.scheme, u.hostname, u.port)
     out = pathlib.Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=True)
     if any(out.iterdir()):
@@ -30,6 +31,8 @@ def main():
     git = subprocess.run(["git", "-C", args.repo, "rev-parse", "HEAD"],
                          capture_output=True, text=True, check=False)
     source_sha = git.stdout.strip() if git.returncode == 0 else None
+    if not source_sha or len(source_sha) != 40 or any(c not in "0123456789abcdef" for c in source_sha):
+        parser.error("A valid pinned Git HEAD is required for provenance")
     evidence = {
         "classification": "OFFLINE_SYNTHETIC_BROWSER_NOT_LIVE",
         "physical_pass": False,
@@ -50,7 +53,9 @@ def main():
                 viewport={"width": 1280, "height": 800},
                 device_scale_factor=dpr, service_workers="block")
             context.route("**/*", lambda route: route.continue_()
-                          if urlsplit(route.request.url).hostname == "127.0.0.1"
+                          if ("%s://%s:%s" % (urlsplit(route.request.url).scheme,
+                              urlsplit(route.request.url).hostname,
+                              urlsplit(route.request.url).port)) == allowed_origin
                           else route.abort())
             page = context.new_page()
             errors = []
@@ -74,10 +79,14 @@ def main():
                     page.screenshot(path=str(out / name))
                 page.reload(wait_until="domcontentloaded", timeout=15000)
                 check["reload_ok"] = True
+                check["reload_controls_present"] = all(
+                    page.locator("#" + key).count() == 1
+                    for key in ("symbols", "selected", "tf", "refresh", "chart", "error"))
                 check["console_error_count"] = len(errors)
                 check["status"] = ("SYNTHETIC_SMOKE_PASS"
                     if check["http_status"] == 200 and not check["blank_screen"]
-                    and check["controls_present"] and not errors else "FAIL")
+                    and check["controls_present"] and check["reload_controls_present"]
+                    and not errors else "FAIL")
             except Exception as exc:
                 check["error_type"] = type(exc).__name__
             evidence["checks"].append(check)
