@@ -69,3 +69,19 @@ class R3EvidenceTests(unittest.TestCase):
                     with self.assertRaises(ValueError):bundle(Path('report.json'),Path('out'),SHA,'chromium')
                 self.assertEqual(json.loads(Path('out/summary.json').read_text())['result'],'FAIL')
             finally:os.chdir(repo)
+
+    def test_missing_disordered_quantiles(self):
+        for key in ('latencyMs','drawMs','frameIntervalMs'):
+            for q in ({},{'p95':2},{'p50':3,'p95':2,'p99':1}):
+                data=valid();data['results'][0][key]=q
+                with self.assertRaises(ValueError):check(data,SHA)
+    def test_malformed_cli_is_private_exit50(self):
+        import os,subprocess,sys
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'report.json').write_text('[]')
+            env=dict(os.environ,R3_INVOCATION='a'*32)
+            result=subprocess.run([sys.executable,'-m','terminan.r3_evidence','--sha',SHA,'--report',str(root/'report.json'),'--out',str(root/'out')],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,50)
+            self.assertEqual(result.stdout.strip(),'R3 evidence FAIL error_class=EVIDENCE_INVALID')
+            self.assertEqual(result.stderr,'')
+            self.assertEqual(json.loads((root/'out/summary.json').read_text())['result'],'FAIL')

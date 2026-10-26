@@ -2,7 +2,9 @@
 import argparse,hashlib,json,math,os,re,shutil,subprocess
 from pathlib import Path
 PROJECTS=[f'{b}-dpr{d}' for b in ('chromium','firefox') for d in ('1','1.5','2')]
-def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
+def read(p):
+    if p.stat().st_size>16*1024*1024:raise ValueError()
+    return json.loads(p.read_text(encoding='utf-8-sig'))
 def write(p,obj):p.write_text(json.dumps(obj,indent=2,allow_nan=False)+'\n',encoding='utf-8')
 def numeric(value,minimum=None):
     if type(value) not in (int,float) or not math.isfinite(value) or minimum is not None and value<minimum:raise ValueError()
@@ -15,7 +17,12 @@ def check(data,sha):
         for _ in range(count):checksum=(checksum*1664525+1013904223)&0xffffffff
         if (r['updates'],r['seed'],r['batch'],r['frames'],r['samples'],r['checksum'])!=(count,17,100,count//100,count//100,checksum):raise ValueError()
         if r['mode']!='SYNTHETIC' or r['authority']!='SYNTHETIC_ONLY':raise ValueError()
-        values=[r['elapsedMs'],r['renderCadenceFps'],r['updatesPerSecond']]+[q for key in ('latencyMs','drawMs','frameIntervalMs') for q in r[key].values()]
+        for key in ('latencyMs','drawMs','frameIntervalMs'):
+            q=r[key]
+            if not isinstance(q,dict) or set(q)!={'p50','p95','p99'}:raise ValueError()
+            for value in q.values():numeric(value,0)
+            if not q['p50']<=q['p95']<=q['p99']:raise ValueError()
+        values=[r['elapsedMs'],r['renderCadenceFps'],r['updatesPerSecond']]
         if any(type(v) not in (int,float) or not math.isfinite(v) or v<=0 for v in values):raise ValueError()
         if r['latencyMs']['p99']>=100 or r['drawMs']['p95']>=50 or r['renderCadenceFps']<=10:raise ValueError()
         m=r['metrics']
@@ -32,7 +39,9 @@ def check(data,sha):
         if any(memory[k]['state']!='AVAILABLE' for k in ('before','after')) or memory['after']['rss_bytes']>=2*1024**3 or memory['after']['rss_bytes']-memory['before']['rss_bytes']>=256*1024**2:raise ValueError()
     elif resources['state']!='UNAVAILABLE' or resources['reason']!='FIREFOX_CDP_UNSUPPORTED':raise ValueError()
     if any(data['disposed'][key]!=0 for key in ('listeners','rafPending','activeRequests','timerPending','retainedCandles')):raise ValueError()
-def report_invocation(raw):return raw.get('config',{}).get('metadata',{}).get('r3_invocation')
+def report_invocation(raw):
+    if not isinstance(raw,dict):raise ValueError()
+    return raw.get('config',{}).get('metadata',{}).get('r3_invocation')
 def bundle(report,out,sha,scope):
     invocation=os.getenv('R3_INVOCATION','')
     if not re.fullmatch('[0-9a-f]{32}',invocation):raise ValueError()
@@ -67,7 +76,7 @@ def bundle(report,out,sha,scope):
         write(out/'summary.json',summary)
         write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
     try:verify(out,sha)
-    except (ValueError,KeyError,TypeError,OSError):
+    except (ValueError,KeyError,TypeError,OSError,AttributeError,OverflowError,RecursionError):
         summary['result']='FAIL'
         write(out/'summary.json',summary)
         write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
@@ -91,6 +100,7 @@ def verify(root,sha):
     projects=PROJECTS if summary['scope']=='all' else PROJECTS[:3]
     required={'summary.json','tests.json','contract-pins.json','negative-fixtures.json'}|{p+ext for p in projects for ext in ('.json','.png')}
     if set(names)!=required:raise ValueError()
+    if read(root/'negative-fixtures.json')!=read(Path(__file__).with_name('fixtures')/'r3-negative-v1.json'):raise ValueError()
     if read(root/'contract-pins.json')!=read(Path(__file__).resolve().parents[1]/'contracts.lock.json'):raise ValueError()
     tests=read(root/'tests.json')
     if sorted(t['project'] for t in tests)!=sorted(projects) or any(t['status']!='passed' or t['attempts']!=1 for t in tests):raise ValueError()
@@ -103,4 +113,4 @@ def verify(root,sha):
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--verify',action='store_true');parser.add_argument('--report',type=Path,default=Path('reports/r3-browser.json'));parser.add_argument('--out',type=Path,required=True);parser.add_argument('--sha',required=True);parser.add_argument('--scope',choices=['all','chromium'],default='all');args=parser.parse_args()
     try:raise SystemExit(verify(args.out,args.sha) if args.verify else bundle(args.report,args.out,args.sha,args.scope))
-    except (ValueError,KeyError,TypeError,OSError):print('R3 evidence FAIL error_class=EVIDENCE_INVALID');raise SystemExit(50)
+    except (ValueError,KeyError,TypeError,OSError,AttributeError,OverflowError,RecursionError):print('R3 evidence FAIL error_class=EVIDENCE_INVALID');raise SystemExit(50)
