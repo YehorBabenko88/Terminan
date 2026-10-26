@@ -59,6 +59,9 @@ def main():
                           else route.abort())
             page = context.new_page()
             errors = []
+            candle_requests = []
+            page.on("request", lambda request: candle_requests.append(request.url)
+                    if urlsplit(request.url).path == "/api/candles" else None)
             page.on("pageerror", lambda err: errors.append("pageerror"))
             page.on("console", lambda msg: errors.append("console.error")
                     if msg.type == "error" else None)
@@ -78,9 +81,17 @@ def main():
                     expected = ("1m", "3m", "5m", "15m", "1h", "4h", "1d")
                     if all(value in choices for value in expected):
                         for value in expected:
+                            before = len(candle_requests)
                             tf.select_option(label=value)
-                            page.wait_for_timeout(50)
-                            if tf.input_value() != value:
+                            try:
+                                page.wait_for_event("request", predicate=lambda request, value=value:
+                                    urlsplit(request.url).path == "/api/candles"
+                                    and ("timeframe=" + value) in request.url,
+                                    timeout=3000) if len(candle_requests) == before else None
+                            except Exception:
+                                break
+                            if tf.input_value() != value or not any(
+                                    ("timeframe=" + value) in url for url in candle_requests[before:]):
                                 break
                         else:
                             check["timeframe_controls"] = "SYNTHETIC_CONTROL_PASS"
