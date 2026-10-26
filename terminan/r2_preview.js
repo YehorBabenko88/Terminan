@@ -83,7 +83,7 @@ function drawPanels(){
     const div=document.createElement('div');div.className='contract';
     const label=document.createElement('div'),title=document.createElement('strong'),sub=document.createElement('small'),state=document.createElement('span');
     title.textContent=(c.source||'Source')+' / '+(c.kind||'contract');
-    sub.textContent='SYNTHETIC · '+(c.provenance?.source_sha?.slice(0,10)||'rejected')+' · runtime NONE';
+    sub.textContent='SYNTHETIC fixture '+(c.symbol||'BTCUSDT')+' '+(c.timeframe||'research')+' · '+(c.provenance?.source_sha?.slice(0,10)||'rejected')+' · runtime NONE';
     label.append(title,sub);state.textContent=c.state;state.className='pill';div.append(label,state);contracts.append(div);
   }
   $('contracts').replaceChildren(contracts);
@@ -129,6 +129,7 @@ async function load(step=Number($('seek').value)){
   }catch(error){
     if(generation!==s.generation||s.disposed)return;
     controller.abort(); // Promise.all failure must also cancel its sibling.
+    text('source-state','ERROR');$('source-state').dataset.fault='true';text('book-state','DISCONNECTED');
     text('error',error.name==='AbortError'?'Synthetic request cancelled or timed out':error.message);
     text('chart-empty','Synthetic data unavailable');document.body.dataset.loading='false';s.playing=false;updatePlay();
   }finally{

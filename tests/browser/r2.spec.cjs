@@ -144,6 +144,7 @@ test('partial HTTP failure and in-flight disposal abort all requests',async({pag
   await page.route('**/api/synthetic/frame*',route=>route.fulfill({status:500,json:{error:'Synthetic test failure'}}));
   await page.locator('#step-once').click();
   await expect(page.locator('#error')).toHaveText('Synthetic test failure');
+  await expect(page.locator('#source-state')).toHaveText('ERROR');
   await expect.poll(()=>page.evaluate(()=>window.r2.metrics().activeRequests),{timeout:700}).toBe(0);
   await page.unrouteAll({behavior:'ignoreErrors'});
   await ready(page,labURL);
