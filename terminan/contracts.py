@@ -57,9 +57,17 @@ def align_trades(trades, start_ms, end_ms):
 def aggregate_footprint(rows):
     """One POC per minute, tie-break to lowest price for deterministic display."""
     minutes = {}
-    for r in rows:
+    seen=set()
+    for index,r in enumerate(rows):
+        if index>=10000:raise ValueError('footprint batch too large')
+        if type(r['t']) is not int or not 0<=r['t']<=2**53-1:raise ValueError('invalid timestamp')
+        for value in (r['price'],r['volume']):
+            try:valid=type(value) in (int,float) and math.isfinite(value)
+            except OverflowError:valid=False
+            if not valid:raise ValueError('nonfinite footprint')
         t, price, volume = int(r['t']), float(r['price']), float(r['volume'])
-        if volume < 0: raise ValueError('negative volume')
+        if volume < 0 or price<=0 or (t,price) in seen: raise ValueError('invalid footprint')
+        seen.add((t,price))
         bucket = minutes.setdefault(t, {'t':t, 'levels':[], 'poc':None, 'poc_volume':-1.0})
         bucket['levels'].append(r)
         if volume > bucket['poc_volume'] or (volume == bucket['poc_volume'] and (bucket['poc'] is None or price < bucket['poc'])):
@@ -67,7 +75,17 @@ def aggregate_footprint(rows):
     return [minutes[t] for t in sorted(minutes)]
 
 
-def poc_close_events(minutes, candles):
+def poc_close_events(minutes, candles, *, as_of_ms=None, period_ms=60000):
     """Diagnostic POC-close observations, NOT trading signals or backtest fills."""
-    closes = {int(c['t']): float(c['c']) for c in candles}
-    return [{'t':m['t'],'poc':m['poc'],'close':closes[m['t']], 'relation':'above' if closes[m['t']] > m['poc'] else 'below' if closes[m['t']] < m['poc'] else 'at'} for m in minutes if m['t'] in closes]
+    if type(period_ms) is not int or period_ms<=0:raise ValueError('invalid period')
+    if as_of_ms is not None and (type(as_of_ms) is not int or not 0<=as_of_ms<=2**53-1):raise ValueError('invalid observation')
+    closes={}
+    for candle in candles:
+        if candle.get('complete',True) is not True:continue
+        t=candle['t'];available=candle.get('available_at_ms',t+period_ms)
+        if type(t) is not int or type(available) is not int:raise ValueError('invalid timestamp')
+        if as_of_ms is not None and (t+period_ms>as_of_ms or available>as_of_ms):continue
+        close=float(candle['c'])
+        if not math.isfinite(close):raise ValueError('nonfinite close')
+        closes[t]=(close,available)
+    return [{'t':m['t'],'available_at_ms':closes[m['t']][1],'poc':m['poc'],'close':closes[m['t']][0], 'relation':'above' if closes[m['t']][0] > m['poc'] else 'below' if closes[m['t']][0] < m['poc'] else 'at'} for m in minutes if m['t'] in closes]

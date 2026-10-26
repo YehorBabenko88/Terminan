@@ -135,6 +135,7 @@ class BookEngine:
 
     def delta(self, msg: Delta):
         _validate_header(msg.epoch, msg.sequence)
+        if msg.epoch in self._retired_epochs:return False
         if type(msg.previous_sequence) is not int or msg.previous_sequence < 0:
             raise ValueError("invalid previous_sequence")
         changes = _changes(msg.levels)
@@ -186,6 +187,7 @@ def viewport(view: BookView, top_tick: int, rows: int, width: int = 1, anchor: i
     if type(top_tick) is not int or type(rows) is not int or not 0 < rows <= 10000:
         raise ValueError("invalid viewport")
     buckets = grouped(view, width, anchor)
+    top_tick=anchor+((top_tick-anchor)//width)*width
     lo = top_tick - (rows - 1) * width
     bids, asks = dict(buckets["bids"]), dict(buckets["asks"])
     return tuple(
