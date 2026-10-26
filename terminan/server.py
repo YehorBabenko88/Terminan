@@ -7,6 +7,8 @@ from urllib.parse import parse_qs, urlsplit
 
 MAX_TARGET_LENGTH = 2048
 MAX_QUERY_FIELDS = 12
+MAX_HEADER_LINE = 8192
+MAX_HEADERS = 64
 
 
 def valid_host(value, port):
@@ -20,6 +22,22 @@ from .levels import merge_levels
 from .monitor import fleet_snapshot
 
 class Handler(BaseHTTPRequestHandler):
+    # Bound header parsing before application dispatch.
+    maxline = MAX_HEADER_LINE
+    maxheaders = MAX_HEADERS
+
+    def do_OPTIONS(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_POST(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_PUT(self):
+        self.send_error(405, 'Method not allowed')
+
+    def do_DELETE(self):
+        self.send_error(405, 'Method not allowed')
+
     def do_GET(self):
         host_values = self.headers.get_all('Host', [])
         if len(host_values) != 1 or not valid_host(host_values[0], self.server.server_port):
@@ -31,7 +49,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(400, 'Invalid request target')
         if url.query.count('&') >= MAX_QUERY_FIELDS:
             return self.send_error(400, 'Too many query fields')
-        if url.path.startswith('/api/') and (';' in url.query or '\\x00' in url.query):
+        if url.path.startswith('/api/') and (';' in url.query or '\x00' in url.query):
             return self.send_error(400, 'Invalid query')
         if url.path in ("/", "/monitor"):
             body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
