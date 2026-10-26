@@ -12,3 +12,9 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q terminan
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tests/check_ui_script.cjs
+      - run: node tests/check_ui_refresh_race.cjs
+      - run: node tests/check_canvas_dpr_allocations.cjs
