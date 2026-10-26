@@ -45,7 +45,7 @@ class OwnedChild:
                         data=stream.read1(4096)
                         if not data:break
                         self.counts[index]=min(2**31-1,self.counts[index]+len(data))
-                except OSError:self.counts[index]=65537
+                except (OSError,ValueError):self.counts[index]=65537
             thread=threading.Thread(target=drain,daemon=True);thread.start();self.threads.append(thread)
     @property
     def stdout_bytes(self):return self.counts[0]

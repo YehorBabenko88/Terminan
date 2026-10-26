@@ -41,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '0ad0f36edce2ac7717c753d35ebe113dc6334fd0') { throw 'Frozen G0 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '7ff974b3b2db694e4b8e4d044cf0844b5d384fc4') { throw 'Frozen R2 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -50,6 +50,22 @@ jobs:
           $result=$LASTEXITCODE
           Get-Content reports/python.txt
           exit $result
+      - name: Windows native PS5.1 propagation regressions
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_harness_shells.py --shell powershell --report reports/harness-shell-ps51.json
+      - name: Windows native PS7 propagation regressions
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_harness_shells.py --shell pwsh --report reports/harness-shell-ps7.json
+      - name: Linux actual owned-child lifecycle
+        if: ${{ !cancelled() && runner.os == 'Linux' }}
+        shell: pwsh
+        run: |
+          python terminan/r2_harness.py --expected-sha (git rev-parse HEAD).Trim() --evidence-root .r2-evidence/linux --review-seconds 1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -m terminan.r2_evidence verify .r2-evidence/linux --sha (git rev-parse HEAD).Trim()
+          exit $LASTEXITCODE
       - name: UI syntax and cancellation contracts
         if: ${{ !cancelled() }}
         shell: pwsh
@@ -113,6 +129,7 @@ jobs:
           path: |
             candidate/reports/identity.json
             candidate/reports/python.txt
+            candidate/reports/harness-shell-*.json
             candidate/reports/r2-browser-evidence/
             candidate/.g0-evidence/
             candidate/.r2-evidence/

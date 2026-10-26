@@ -16,7 +16,7 @@ class Child:
         self.fault=fault;self.returncode=None;self.stdout_bytes=100;self.stderr_bytes=0;self.output_limit=False;self.killed=False
     def poll(self):return self.returncode
     def quit(self,timeout):
-        if self.fault=='shutdown_timeout':raise TimeoutError(SECRET)
+        if self.fault in ('shutdown_timeout','browser_and_shutdown'):raise TimeoutError(SECRET)
         self.returncode=0
         return 0
     def kill(self):self.killed=True;self.returncode=-9
@@ -33,7 +33,7 @@ class FakeRuntime(Runtime):
         if self.fault=='review_wait':raise RuntimeError(SECRET)
         self.now+=seconds
     def browser(self,url):
-        if self.fault=='browser_launch':raise OSError(SECRET)
+        if self.fault in ('browser_launch','browser_and_shutdown'):raise OSError(SECRET)
         if self.fault=='early_child':self.child.returncode=0
     def fetch(self,url):
         parsed=urlsplit(url);query={k:v[0] for k,v in parse_qs(parsed.query).items()}
@@ -47,6 +47,7 @@ class FakeRuntime(Runtime):
             for raw in fixtures():
                 raw['rows'][0]['available_at_ms']=raw['observed_at_ms']+1
                 views.append(validate_fixture(raw,raw['observed_at_ms']))
+            if self.fault=='empty_contracts':views=[]
             value=dict(mode='SYNTHETIC',candidate_sha=SHA,sources=views)
         else:return 200,b'SYNTHETIC R2 ASSET'
         return 200,json.dumps(value,allow_nan=False).encode()
@@ -105,3 +106,24 @@ class FailClosedHarness(unittest.TestCase):
     def test_finalization_failure_cannot_publish_pass(self):
         code,s,path,rt=self.run_case('finalize')
         self.assertEqual(code,50);self.assertIsNone(s);self.assertFalse(path.exists())
+    def test_cleanup_failure_preserves_primary_stage(self):
+        code,s,path,rt=self.run_case('browser_and_shutdown')
+        self.assertEqual(code,31);self.assertEqual(s['failure_stage'],'browser_launch')
+        self.assertTrue(any(v['exit_code']==40 for v in s['secondary_failures']))
+        self.assertTrue(rt.child.killed)
+    def test_empty_future_contracts_are_not_vacuously_successful(self):
+        code,s,path,rt=self.run_case('empty_contracts')
+        self.assertEqual(code,30);self.assertEqual(s['error_class'],'SMOKE_ASSERTION_FAILED')
+    def test_late_publish_failure_commits_only_failure(self):
+        temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
+        rt=FakeRuntime();publish=rt.publish
+        def once(pending,final):
+            if not hasattr(rt,'failed'):
+                rt.failed=True;raise OSError(SECRET)
+            publish(pending,final)
+        rt.publish=once
+        h=Harness(expected_sha=SHA,evidence_root=temp.name,runtime=rt)
+        self.assertEqual(h.run(),50)
+        summary=json.loads((h.final_dir/'summary.json').read_text())
+        self.assertEqual((summary['result'],summary['failure_stage']),('FAIL','evidence_finalize'))
+        self.assertEqual(inspect_run(h.final_dir,SHA),50)
