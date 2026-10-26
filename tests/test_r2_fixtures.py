@@ -32,3 +32,10 @@ class FixtureContracts(unittest.TestCase):
         self.assertEqual(validate_fixture(raw,now)['state'],'PARTIAL')
         raw['source_state']='UNAVAILABLE'
         self.assertEqual(validate_fixture(raw,now)['state'],'UNAVAILABLE')
+
+    def test_exact_dataset_symbol_and_closed_footprint_availability(self):
+        raw=fixtures()[3];raw['symbol']='ETHUSDT'
+        self.assertEqual(validate_fixture(raw,raw['observed_at_ms'])['state'],'INVALID_DATA')
+        raw=fixtures()[1]
+        for row in raw['rows']:row['available_at_ms']=row['t']
+        self.assertEqual(validate_fixture(raw,raw['observed_at_ms'])['state'],'FUTURE_LEAKAGE')

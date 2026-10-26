@@ -48,7 +48,9 @@
         "available_at_ms": 1767225600000,
         "poc": null
       }
-    ]
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT"
   },
   {
     "fixture_version": 1,
@@ -94,7 +96,9 @@
         "available_at_ms": 1767225600000
       }
     ],
-    "complete_price_levels": true
+    "complete_price_levels": true,
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT"
   },
   {
     "fixture_version": 1,
@@ -145,7 +149,9 @@
         "available_at_ms": 1767225600000,
         "poc": null
       }
-    ]
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT"
   },
   {
     "fixture_version": 1,
@@ -175,6 +181,8 @@
         },
         "publication_authority": "UNVERIFIED"
       }
-    ]
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT"
   }
 ]

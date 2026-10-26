@@ -48,6 +48,8 @@ class Replay(unittest.TestCase):
         candle=next(c for c in value['candles'] if c['t']==rows[0]['t'])
         self.assertEqual(sum(r['volume'] for r in rows),candle['v'])
         self.assertTrue(value['footprint']['complete_price_levels'])
+        expected=min(rows,key=lambda r:(-r['volume'],r['price']))['price']
+        self.assertEqual(value['footprint']['poc'],expected)
 
     def test_retired_delta_and_aligned_viewport(self):
         book=BookEngine();book.snapshot(Snapshot('old',10,()))

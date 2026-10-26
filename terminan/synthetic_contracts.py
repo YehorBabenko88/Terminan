@@ -40,14 +40,17 @@ def validate_fixture(raw,as_of_ms):
         if provenance.get('kind')!='SYNTHETIC' or provenance.get('source_sha')!=entry['sha'] or provenance.get('schema_sha256')!=entry['files'][path]:
             out['state']='INVALID_PROVENANCE';return out
         expected='pg18-structural-v1' if source=='grid' else 'research-structural-v1' if kind=='research' else 2
-        if raw.get('fixture_version')!=1 or raw.get('schema_version')!=expected or source=='grid' and raw.get('server_major')!=18:
+        if type(raw.get('fixture_version')) is not int or raw.get('fixture_version')!=1 or raw.get('schema_version')!=expected or source=='grid' and raw.get('server_major')!=18:
             out['state']='SCHEMA_MISMATCH';return out
         if raw['source_state']=='UNAVAILABLE':
             out['state']='UNAVAILABLE';return out
         symbol=raw['symbol'];tf=raw['timeframe'];rows=raw['rows']
         if symbol not in ('BTCUSDT','ETHUSDT','SOLUSDT') or not isinstance(rows,list) or len(rows)>300:raise ValueError()
+        seed=raw['seed'];dataset=raw['dataset_id']
+        if type(seed) is not int or not 0<=seed<=2**31-1 or dataset!=f'synthetic-v1:{seed}:{symbol}':raise ValueError()
+        if raw['source_state'] not in ('AVAILABLE','PARTIAL','UNAVAILABLE'):raise ValueError()
         period=PERIODS[tf] if kind!='research' else 0
-        stamps=[];keys=set();partial=False
+        stamps=[];keys=set();partial=raw['source_state']=='PARTIAL'
         for row in rows:
             _json_numbers(row)
             available=_stamp(row['available_at_ms'])
@@ -55,7 +58,8 @@ def validate_fixture(raw,as_of_ms):
                 out['state']='FUTURE_LEAKAGE';return out
             if kind=='research':
                 created=_stamp(row['created_at_ms']);end=_stamp(row['dataset_to_ms'])
-                if not end<=created<=available or not str(row['dataset_id']).startswith('synthetic-v1:'):
+                if row['dataset_id']!=dataset:raise ValueError()
+                if not end<=created<=available:
                     out['state']='FUTURE_LEAKAGE';return out
                 if not isinstance(row['metrics'],dict):raise ValueError()
                 continue
@@ -76,7 +80,7 @@ def validate_fixture(raw,as_of_ms):
             else:
                 for field in ('price','buy','sell','delta','volume'):_finite(row[field])
                 if row['price']<=0 or min(row['buy'],row['sell'],row['volume'])<0 or row['buy']+row['sell']!=row['volume'] or row['buy']-row['sell']!=row['delta']:raise ValueError()
-                if t+period>as_of_ms:out['state']='FUTURE_LEAKAGE';return out
+                if t+period>as_of_ms or available<t+period:out['state']='FUTURE_LEAKAGE';return out
                 partial|=not raw.get('complete_price_levels',False)
         unique=sorted(set(stamps))
         gaps=sum(max(0,(b-a)//period-1) for a,b in zip(unique,unique[1:])) if period else 0

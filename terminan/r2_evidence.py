@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import shutil
@@ -13,6 +14,20 @@ REPO=Path(__file__).resolve().parents[1]
 def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 def write(path,value):Path(path).write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8')
 def digest(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def check_report(report):
+    if report.get('errors'):raise ValueError('browser runner errors')
+
+def check_performance(perf):
+    metrics=perf['metrics']
+    for key in ('avgRenderMs','p95RenderMs','playRateHz','idleExtraRenders'):
+        if type(metrics[key]) not in (int,float) or not math.isfinite(metrics[key]):raise ValueError('invalid performance measurement')
+    if not 0<=metrics['avgRenderMs']<20 or not 0<=metrics['p95RenderMs']<50 or not 1.2<=metrics['playRateHz']<=5.5 or metrics['idleExtraRenders']!=0:
+        raise ValueError('render/cadence/idle budget exceeded')
+    engine=perf['enginePerformance']
+    if engine['available']:
+        cpu=engine['mainThreadCpuMs'];wall=perf['wallMs']
+        if not math.isfinite(cpu) or not math.isfinite(wall) or wall<=0 or not 0<=cpu/wall<.75:raise ValueError('CPU duty budget exceeded')
 
 def manifest(root):
     root=Path(root)
@@ -40,11 +55,13 @@ def verify(root,sha):
         for project in expected:required.update({project+'/performance.json',project+'/preview.png'})
         if not required.issubset(names) or summary['result']!='PASS':raise ValueError('incomplete browser evidence')
         tests=read(root/'tests.json')
-        if len(tests)!=len(expected)*4 or any(t['status']!='passed' or t['attempts']!=1 for t in tests):raise ValueError('browser failures/skips')
+        if len(tests)!=len(expected)*5 or any(t['status']!='passed' or t['attempts']!=1 for t in tests):raise ValueError('browser failures/skips')
         for project in expected:
-            if len({t['title'] for t in tests if t['project']==project})!=4:raise ValueError('missing browser assertions')
+            if len({t['title'] for t in tests if t['project']==project})!=5:raise ValueError('missing browser assertions')
             perf=read(root/project/'performance.json')
             if perf['candidate_sha']!=sha or not perf['source_clean'] or perf['mode']!='SYNTHETIC':raise ValueError('wrong browser source')
+            check_performance(perf)
+            if project.startswith('chromium') and not perf['enginePerformance']['available']:raise ValueError('Chromium CPU evidence missing')
             if perf['disposed']['listeners'] or perf['disposed']['rafPending'] or perf['disposed']['timerPending'] or perf['disposed']['activeRequests']:raise ValueError('retained lifecycle resource')
             if perf['metrics']['retainedCandles']>240 or perf['metrics']['retainedEvents']>20 or perf['metrics']['peakRequests']>4:raise ValueError('resource bounds violated')
             if (root/project/'preview.png').read_bytes()[:8]!=b'\x89PNG\r\n\x1a\n':raise ValueError('invalid screenshot')
@@ -59,7 +76,7 @@ def verify(root,sha):
         if not {'/api/status','/api/synthetic/frame?step=24&scenario=gap','/api/synthetic/contracts?scenario=future','/'}.issubset(routes):raise ValueError('missing required routes')
 
 def bundle(report,results,out,sha,scope='all'):
-    report=read(report);out=Path(out);out.mkdir(parents=True,exist_ok=False)
+    report=read(report);check_report(report);out=Path(out);out.mkdir(parents=True,exist_ok=False)
     tests=[]
     def visit(suite):
         for spec in suite.get('specs',[]):

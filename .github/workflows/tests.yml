@@ -10,6 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: candidate
@@ -64,9 +65,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm ci --ignore-scripts
       - name: Install browser engines (Linux)
+        timeout-minutes: 8
         if: ${{ !cancelled() && runner.os == 'Linux' }}
         run: npx playwright install --with-deps chromium firefox
       - name: Install browser engines (Windows)
+        timeout-minutes: 8
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: npx playwright install chromium firefox
       - name: Synthetic browser regressions (zero retries)

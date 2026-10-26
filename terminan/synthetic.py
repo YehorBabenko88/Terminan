@@ -108,18 +108,20 @@ def frame(*,seed=17,step=0,symbol='BTCUSDT',timeframe='1m',scenario='normal'):
                 timeframe=timeframe,period_ms=PERIODS[timeframe],as_of_ms=as_of,
                 scenario=scenario,dataset_id=f'synthetic-v1:{seed}:{symbol}',
                 candles=bars,footprint=dict(timeframe='1m',state='HISTORICAL_SYNTHETIC',
-                    complete_price_levels=True,rows=footprint),dom=dom,events=events,
+                    complete_price_levels=True,poc=min(footprint,key=lambda r:(-r['volume'],r['price']))['price'],rows=footprint),dom=dom,events=events,
                 counters=counters,source_state='SYNTHETIC',execution='DISABLED',
                 coverage=dict(scope='BOUNDED_SYNTHETIC_WINDOW',from_ms=bars[0]['t'],
                               to_ms=as_of,verified=False))
     if scenario=='unavailable':
         result.update(candles=[],source_state='UNAVAILABLE')
         result['footprint']['rows']=[]
+        result['footprint']['poc']=None
         result['dom'].update(status='DISCONNECTED',bids=[],asks=[])
     elif scenario=='partial':
         result['candles']=bars[::2];result['source_state']='PARTIAL'
     elif scenario in ('schema-mismatch','future','nan'):
         result.update(candles=[],source_state={'schema-mismatch':'SCHEMA_MISMATCH','future':'FUTURE_LEAKAGE','nan':'INVALID_DATA'}[scenario])
         result['footprint']['rows']=[]
+        result['footprint']['poc']=None
     result['frame_sha256']=hashlib.sha256(json.dumps(result,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
     return result

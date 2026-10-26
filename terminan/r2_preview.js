@@ -13,6 +13,7 @@ function clearPanels(){
   for(const id of ['book-body','footprint-body','contracts'])$(id).replaceChildren();
   text('book-state','AWAITING');text('source-state','LOADING');text('chart-empty','Loading selected synthetic identity…');
   text('book-meta','Previous data cleared');text('footprint-time','Waiting for selected data');
+  text('chart-inspect','Wheel to zoom · drag to pan · double-click to reset');
   ctx.clearRect(0,0,canvas.width,canvas.height);
 }
 function resetView(){
@@ -74,9 +75,9 @@ function drawPanels(){
   scroll.scrollTop=Math.max(0,(scroll.scrollHeight-scroll.clientHeight)/2);
   text('book-meta','epoch '+d.dom.epoch+' · sequence '+d.dom.sequence+' · '+prices.length+' bounded rows');
   const footprint=document.createDocumentFragment();
-  d.footprint.rows.forEach(r=>footprint.append(row([r.price.toFixed(2),r.buy,r.sell,r.delta,r.volume])));
+  d.footprint.rows.forEach(r=>{const tr=row([r.price.toFixed(2),r.buy,r.sell,r.delta,r.volume]);if(r.price===d.footprint.poc)tr.className='poc';footprint.append(tr);});
   $('footprint-body').replaceChildren(footprint);
-  text('footprint-time',d.footprint.rows.length?new Date(d.footprint.rows[0].t).toISOString()+' · closed minute · SYNTHETIC':'No available synthetic footprint');
+  text('footprint-time',d.footprint.rows.length?new Date(d.footprint.rows[0].t).toISOString()+' · closed minute · SYNTHETIC · POC '+d.footprint.poc.toFixed(2):'No available synthetic footprint');
   const contracts=document.createDocumentFragment();
   for(const c of s.contracts?.sources||[]){
     const div=document.createElement('div');div.className='contract';
@@ -127,6 +128,7 @@ async function load(step=Number($('seek').value)){
     schedule();
   }catch(error){
     if(generation!==s.generation||s.disposed)return;
+    controller.abort(); // Promise.all failure must also cancel its sibling.
     text('error',error.name==='AbortError'?'Synthetic request cancelled or timed out':error.message);
     text('chart-empty','Synthetic data unavailable');document.body.dataset.loading='false';s.playing=false;updatePlay();
   }finally{
@@ -148,13 +150,24 @@ on($('zoom-in'),'click',()=>zoom(.75));on($('zoom-out'),'click',()=>zoom(1.35));
 on(canvas,'dblclick',resetView);
 on(canvas,'wheel',event=>{event.preventDefault();const rect=canvas.getBoundingClientRect();zoom(event.deltaY<0?.85:1.18,Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)));},{passive:false});
 on(canvas,'pointerdown',event=>{if(!s.data)return;s.drag={x:event.clientX,start:s.start,end:s.end};canvas.setPointerCapture(event.pointerId);});
-on(canvas,'pointermove',event=>{if(!s.drag)return;const shift=(event.clientX-s.drag.x)/canvas.clientWidth*(s.drag.end-s.drag.start);s.start=s.drag.start-shift;s.end=s.drag.end-shift;clampView();schedule();});
+on(canvas,'pointermove',event=>{
+  if(!s.drag){
+    if(!s.data?.candles.length)return;
+    const rect=canvas.getBoundingClientRect(),stamp=s.start+(event.clientX-rect.left-8)/(rect.width-70)*(s.end-s.start);
+    const c=s.data.candles.find(c=>c.t<=stamp&&stamp<c.t+s.data.period_ms);
+    if(c)text('chart-inspect',new Date(c.t).toISOString().slice(11,16)+' UTC · O '+c.o.toFixed(2)+' H '+c.h.toFixed(2)+' L '+c.l.toFixed(2)+' C '+c.c.toFixed(2)+' V '+c.v+(c.complete?' · closed':' · partial'));
+    return;
+  }
+  const shift=(event.clientX-s.drag.x)/canvas.clientWidth*(s.drag.end-s.drag.start);s.start=s.drag.start-shift;s.end=s.drag.end-shift;clampView();schedule();
+});
 on(canvas,'pointerup',()=>{s.drag=null;});on(canvas,'pointercancel',()=>{s.drag=null;});
 on(window,'resize',schedule);
 const observer=new ResizeObserver(schedule);observer.observe(canvas);
 function metrics(){
   const n=s.renderTimes.length,elapsed=n>1?(s.renderTimes.at(-1)-s.renderTimes[0])/1000:0;
+  const sorted=[...s.samples].sort((a,b)=>a-b);
   return {renders:s.renders,avgRenderMs:s.samples.length?s.samples.reduce((a,b)=>a+b,0)/s.samples.length:0,
+    p95RenderMs:sorted.length?sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))]:0,
     effectiveRenderFps:elapsed?(n-1)/elapsed:0,renderSamples:s.samples.length,retainedCandles:s.data?.candles.length||0,
     retainedEvents:s.data?.events.length||0,activeRequests:s.active,peakRequests:s.peak,aborted:s.aborted,
     rafPending:Number(Boolean(s.raf)),timerPending:Number(Boolean(s.timer)),listeners:s.listeners.length,
