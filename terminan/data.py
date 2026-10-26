@@ -1,5 +1,6 @@
 """Read-only adapters; never mutate source databases."""
 import json
+import math
 import os
 import re
 import sqlite3
@@ -60,12 +61,34 @@ def grid_query(sql, params):
             cur.execute(sql, params)
             return cur.fetchall()
 
+def _grid_numeric_row(row, keys, *, timestamp_key="t"):
+    """Fail closed on malformed synthetic/PG numeric rows before JSON/UI."""
+    if len(row) != len(keys):
+        raise ValueError("invalid grid row shape")
+    result = {}
+    for key, raw in zip(keys, row):
+        if raw is None or isinstance(raw, (bool, str, bytes)):
+            raise ValueError("invalid grid numeric value")
+        try:
+            value = float(raw)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("invalid grid numeric value") from exc
+        if not math.isfinite(value):
+            raise ValueError("nonfinite grid numeric value")
+        result[key] = value
+    timestamp = result[timestamp_key]
+    if timestamp < 0 or timestamp > 9223372036854775807 or not timestamp.is_integer():
+        raise ValueError("invalid UTC millisecond timestamp")
+    result[timestamp_key] = int(timestamp)
+    return result
+
+
 def grid_candles(symbol, limit=300):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    return [_grid_numeric_row(r, ("t","o","h","l","c","buy","sell","delta","trades","poc")) for r in reversed(rows)]
 
 def footprint(symbol, limit=500):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,price,buy_volume,sell_volume,delta,volume FROM footprint_1m WHERE symbol=%s ORDER BY ts DESC,price DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","price","buy","sell","delta","volume"),map(float,r))) for r in rows]
+    return [_grid_numeric_row(r, ("t","price","buy","sell","delta","volume")) for r in rows]
