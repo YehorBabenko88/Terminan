@@ -120,6 +120,23 @@ class PinnedReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("LIMIT %s", sql)
         self.assertEqual(params, ("BTCUSDT", 1000))
 
+    def test_grid_numeric_rows_fail_closed(self):
+        good = (60000, 10, 12, 9, 11, 5, 3, 2, 4, 10)
+        for replacement in (None, float("nan"), float("inf"), True, "5"):
+            with self.subTest(replacement=repr(replacement)):
+                row = (good[0], replacement, *good[2:])
+                with patch.object(data, "grid_query", return_value=[row]):
+                    with self.assertRaises(ValueError):
+                        data.grid_candles("BTCUSDT")
+
+    def test_grid_millisecond_timestamp_validation(self):
+        good = (60000, 10, 12, 9, 11, 5, 3, 2, 4, 10)
+        for bad in (-1, 1000.5, float("inf"), None):
+            with self.subTest(timestamp=bad):
+                with patch.object(data, "grid_query", return_value=[(bad, *good[1:])]):
+                    with self.assertRaises(ValueError):
+                        data.grid_candles("BTCUSDT")
+
     def test_grid_footprint_is_not_l2_feed(self):
         import inspect
         source = inspect.getsource(data.footprint)
