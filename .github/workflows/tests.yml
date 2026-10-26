@@ -67,6 +67,10 @@ jobs:
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: pwsh
         run: ./scripts/Invoke-G0.ps1 -ExpectedSha (git rev-parse HEAD).Trim() -EvidenceRoot '.g0-evidence/ps7'
+      - name: Verify exact candidate evidence manifests
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python -m terminan.evidence .g0-evidence --sha (git rev-parse HEAD).Trim()
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -74,6 +74,12 @@ class SourceContracts(unittest.TestCase):
             con.execute("INSERT INTO candles(symbol,timeframe,open_time,open,high,low,close,volume,complete) VALUES('BTCUSDT','1m',60000,10,12,9,11,5,0)")
         self.assertEqual(sources.snapshot('strattester','BTCUSDT',now_ms=120000)['state'],'PARTIAL')
 
+    def test_source_timeframe_identity_is_explicit(self):
+        result=sources.all_sources('BTCUSDT',timeframe='1h')
+        self.assertEqual(result['sources']['strattester']['timeframe'],'1h')
+        self.assertEqual(result['sources']['grid']['timeframe'],'1m')
+        self.assertIsNone(result['sources']['research']['timeframe'])
+
     def test_partial_sources_and_no_credentials_in_errors(self):
         with patch.dict(os.environ,{'TERMINAN_GRID_DSN':'postgresql://secret:password@private/db'}):
             with patch.object(sources,'grid_rows',side_effect=RuntimeError('secret password private')):
@@ -82,9 +88,12 @@ class SourceContracts(unittest.TestCase):
         self.assertNotIn('password',json.dumps(result)); self.assertNotIn(str(self.path),json.dumps(result))
 
     def test_research_uses_seconds_to_utc_ms_and_no_live_authority(self):
-        with connection(self.path) as con:
-            con.execute('CREATE TABLE research_results(run_id TEXT,symbol TEXT,strategy_id TEXT,strategy_version TEXT,created_at REAL,metrics TEXT)')
-            con.execute("INSERT INTO research_results VALUES('r','BTCUSDT','s','1',123.5,'{}')")
+        upstream=Path(os.environ.get('STRATTESTER_REPO',ROOT.parent/'strattester'))
+        spec=importlib.util.spec_from_file_location('pinned_result_store',upstream/'strattester/persistence/result_store.py')
+        mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+        store=mod.ResultStore.open(self.path)
+        try:store.put('r','BTCUSDT','s','1',{},created_at=123.5)
+        finally:store.con.close()
         with patch.dict(os.environ,{'TERMINAN_RESULTS_DB':str(self.path)}):
             result=sources.snapshot('research','BTCUSDT',now_ms=200000)
             self.assertEqual(result['rows'][0]['created_at_ms'],123500)
@@ -98,4 +107,11 @@ class SourceContracts(unittest.TestCase):
         self.assertIsNone(result['rows'][0]['poc'])
         self.assertIs(type(result['rows'][0]['t']),int)
         self.assertEqual(result['authority'],'AGGREGATED_HISTORY_NOT_L2')
+
+    def test_grid_health_is_bounded_stale_and_redacted(self):
+        with patch.dict(os.environ,{'TERMINAN_GRID_DSN':'synthetic'}), patch.object(sources,'grid_rows',return_value=([dict(node_id='synthetic-node',t=60000,cpu=1,ram=None,disk=100,symbols=2)],'pg18-structural-v1')):
+            view=sources.snapshot('health','BTCUSDT',now_ms=300000)
+        self.assertEqual(view['state'],'STALE')
+        self.assertFalse(view['rows'][0]['online'])
+        self.assertNotIn('hostname',view['rows'][0])
 

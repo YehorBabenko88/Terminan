@@ -1,5 +1,9 @@
 # Windows G0 — read-only Terminan preflight (2026-10-26)
 
+The integrated executable harness and current acceptance/rollback procedure are
+in [physical-g0-release.md](physical-g0-release.md). The original manual procedure
+below is retained for PR #8 provenance; use the integrated harness for PR #9.
+
 This procedure is **physical evidence collection**, not production commissioning. It does not execute G1, install software, change services, change ACLs, connect databases or enable trading. Use only an isolated checkout of a pinned commit. All reported results are **NOT_RUN** until executed on the real Windows PC.
 
 ## Initial preflight (Windows PowerShell 5.1 / 7)

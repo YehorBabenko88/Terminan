@@ -10,9 +10,10 @@ from .data import validate
 
 PINS = {'grid':'d537d525296ef34f727996e240ae6c60102c6082',
         'strattester':'37ff7e9d12a4d2dccd788fc493c28557dbe8bcea'}
-ENV = {'grid':'TERMINAN_GRID_DSN','footprint':'TERMINAN_GRID_DSN',
+ENV = {'grid':'TERMINAN_GRID_DSN','footprint':'TERMINAN_GRID_DSN','health':'TERMINAN_GRID_DSN',
        'strattester':'TERMINAN_STRATTESTER_DB','research':'TERMINAN_RESULTS_DB'}
 GRID = {
+ 'nodes': {'node_id':'text','last_seen':'timestamp with time zone','cpu_pct':'double precision','ram_pct':'double precision','disk_free':'bigint','assigned_symbols':'integer'},
  'candles_1m': {'symbol':'text','ts':'timestamp with time zone','open':'numeric','high':'numeric','low':'numeric','close':'numeric','buy_volume':'numeric','sell_volume':'numeric','delta':'numeric','trade_count':'integer','poc_price':'numeric'},
  'footprint_1m': {'symbol':'text','ts':'timestamp with time zone','price':'numeric','buy_volume':'numeric','sell_volume':'numeric','delta':'numeric','volume':'numeric'},
 }
@@ -75,7 +76,7 @@ def sqlite_rows(kind,symbol,timeframe='1m'):
 
 def grid_rows(kind,symbol):
     import psycopg
-    table='footprint_1m' if kind=='footprint' else 'candles_1m'
+    table='nodes' if kind=='health' else 'footprint_1m' if kind=='footprint' else 'candles_1m'
     keys=('t','price','buy','sell','delta','volume') if kind=='footprint' else ('t','o','h','l','c','buy','sell','delta','trades','poc')
     fields='price,buy_volume,sell_volume,delta,volume' if kind=='footprint' else 'open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price'
     # Fixed identifiers only. DSN cannot override the read-only transaction.
@@ -88,6 +89,9 @@ def grid_rows(kind,symbol):
             cur.execute("SELECT column_name,data_type FROM information_schema.columns WHERE table_schema='public' AND table_name=%s",(table,))
             columns=dict(cur.fetchall())
             if any(columns.get(k)!=v for k,v in GRID[table].items()):raise SchemaMismatch()
+            if kind=='health':
+                cur.execute('SELECT node_id,(extract(epoch from last_seen)*1000)::bigint,cpu_pct,ram_pct,disk_free,assigned_symbols FROM public.nodes ORDER BY node_id LIMIT 200')
+                return [dict(node_id=r[0],t=int(r[1]),cpu=r[2],ram=r[3],disk=r[4],symbols=r[5]) for r in cur.fetchall()],'pg18-structural-v1'
             cur.execute(f'SELECT (extract(epoch from ts)*1000)::bigint,{fields} FROM public.{table} WHERE symbol=%s ORDER BY ts DESC'+(',price DESC' if kind=='footprint' else '')+' LIMIT %s',(symbol,300))
             result=[]
             for row in cur.fetchall():
@@ -99,15 +103,27 @@ def snapshot(kind,symbol,*,now_ms=None,timeframe='1m'):
     validate(symbol,timeframe)
     if kind not in ENV:raise ValueError('unknown source')
     now_ms=milliseconds(int(time.time()*1000) if now_ms is None else now_ms)
-    source='grid' if kind in ('grid','footprint') else 'strattester'
+    source='grid' if kind in ('grid','footprint','health') else 'strattester'
     out=dict(version=1,source=kind,symbol=symbol,observed_at_ms=now_ms,rows=[],
+             timeframe=None if kind in ('research','health') else '1m' if source=='grid' else timeframe,
              state='NOT_CONFIGURED',schema_version=None,
-             authority='AGGREGATED_HISTORY_NOT_L2' if source=='grid' else 'HISTORICAL_ONLY',
+             authority='TELEMETRY_ONLY' if kind=='health' else 'AGGREGATED_HISTORY_NOT_L2' if source=='grid' else 'HISTORICAL_ONLY',
              provenance={'contract_source_sha':PINS[source],'runtime_source_sha':'UNVERIFIED'},
              coverage={'scope':'BOUNDED_WINDOW','verified':False,'missing_intervals':None})
     if not os.environ.get(ENV[kind]):return out
     try:
         rows,schema=grid_rows(kind,symbol) if source=='grid' else sqlite_rows(kind,symbol,timeframe)
+        if kind=='health':
+            for row in rows:
+                if not isinstance(row['node_id'],str) or not 1<=len(row['node_id'])<=160:raise ValueError('node id')
+                stamp=milliseconds(row['t'])
+                if stamp>now_ms:raise ValueError('future telemetry')
+                for key in ('cpu','ram','disk','symbols'):
+                    if row[key] is not None:number(row[key],nonnegative=True)
+                row['age_seconds']=(now_ms-stamp)/1000
+                row['online']=row['age_seconds']<=120
+            out.update(rows=rows,schema_version=schema,state='NO_DATA' if not rows else 'STALE' if any(not r['online'] for r in rows) else 'FRESH')
+            return out
         times=[]
         for row in rows:
             if kind=='research':
@@ -138,8 +154,9 @@ def snapshot(kind,symbol,*,now_ms=None,timeframe='1m'):
     out['rows']=[]
     return out
 
-def all_sources(symbol):
-    views={kind:snapshot(kind,symbol) for kind in ENV}
+def all_sources(symbol,timeframe='1m'):
+    validate(symbol,timeframe)
+    views={kind:snapshot(kind,symbol,timeframe=timeframe if kind=='strattester' else '1m') for kind in ENV}
     states={v['state'] for v in views.values()}
     state='NOT_CONFIGURED' if states=={'NOT_CONFIGURED'} else 'PARTIAL' if len(states)>1 else next(iter(states))
     return dict(version=1,mode='READ_ONLY',state=state,sources=views,l2='UNAVAILABLE',execution='DISABLED')

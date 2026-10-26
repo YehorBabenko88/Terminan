@@ -17,6 +17,7 @@ class PostgreSQL18Contract(unittest.TestCase):
             con.execute(ddl)
             con.execute("INSERT INTO candles_1m VALUES('BTCUSDT',to_timestamp(60),10,12,9,11,3,2,1,4,NULL)")
             con.execute("INSERT INTO footprint_1m VALUES('BTCUSDT',to_timestamp(60),10,3,2,1,5,2,2)")
+            con.execute("INSERT INTO nodes(node_id,last_seen) VALUES('synthetic-node',to_timestamp(60))")
         os.environ['TERMINAN_GRID_DSN']=DSN
         try:
             view=snapshot('grid','BTCUSDT',now_ms=120000)
@@ -24,6 +25,7 @@ class PostgreSQL18Contract(unittest.TestCase):
             self.assertEqual(view['rows'][0]['t'],60000)
             self.assertIsNone(view['rows'][0]['poc'])
             self.assertEqual(snapshot('footprint','BTCUSDT',now_ms=120000)['rows'][0]['volume'],5)
+            self.assertEqual(snapshot('health','BTCUSDT',now_ms=120000)['state'],'FRESH')
             with psycopg.connect(DSN) as con:
                 con.read_only=True
                 with self.assertRaises(psycopg.errors.ReadOnlySqlTransaction):con.execute('DELETE FROM candles_1m')

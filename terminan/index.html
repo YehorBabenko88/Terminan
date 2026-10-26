@@ -19,7 +19,7 @@ let symbol='BTCUSDT', all=[], currentLevels=[], refreshGeneration=0, refreshCont
  }catch(e){if(!current())return;draw([]);el('error').textContent=e.message}
  try{const f=await request('/api/grid/footprint?symbol='+selectedSymbol);if(!current())return;el('footprint').textContent=f.length?f.slice(0,25).map(r=>r.price+' | Buy '+r.buy+' | Sell '+r.sell+' | Δ '+r.delta).join('\n'):'Нет доступных footprint данных';el('footprint').style.whiteSpace='pre-wrap'}catch{if(!current())return;el('footprint').textContent='Grid недоступен'}
  try{const r=await request('/api/research?symbol='+selectedSymbol);if(!current())return;el('research').textContent=r.length?JSON.stringify(r,null,2):'Нет результатов'}catch{if(!current())return;el('research').textContent='Research DB недоступна'}
- try{const health=await request('/api/sources?symbol='+selectedSymbol);if(!current())return;el('status').textContent=JSON.stringify(health,null,2)}catch{if(current())el('status').textContent='Sources unavailable'}
+ try{const health=await request('/api/sources?symbol='+selectedSymbol+'&timeframe='+selectedTimeframe);if(!current())return;el('status').textContent=JSON.stringify(health,null,2)}catch{if(current())el('status').textContent='Sources unavailable'}
 }
 el('search').oninput=list;el('refresh').onclick=refresh;el('tf').onchange=refresh;el('showlevels').onchange=refresh;(async()=>{try{el('status').textContent=JSON.stringify(await api('/api/status'),null,2);all=await api('/api/instruments');if(!all.length)all=['BTCUSDT'];symbol=all[0];list();await refresh()}catch(e){el('error').textContent=e.message}})();
 </script></html>

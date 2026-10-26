@@ -23,7 +23,7 @@ vm.runInContext('draw = rows => { document.getElementById("chartmsg").textConten
   await reply('/api/candles?symbol=ETHUSDT&timeframe=1m', [{symbol:'ETHUSDT'}]);
   await reply('/api/grid/footprint?symbol=ETHUSDT', []);
   await reply('/api/research?symbol=ETHUSDT', []);
-  await reply('/api/sources?symbol=ETHUSDT', {state:'NOT_CONFIGURED'});
+  await reply('/api/sources?symbol=ETHUSDT&timeframe=1m', {state:'NOT_CONFIGURED'});
   await newer;
   await reply('/api/levels?symbol=BTCUSDT', [{price:100,timeframe:'1h',side:'high'}]);
   assert.equal(vm.runInContext('currentLevels.length', ctx), 0, 'stale BTC refresh must not overwrite ETH levels');
