@@ -1,0 +1,255 @@
+[
+  {
+    "source": "grid",
+    "kind": "candles",
+    "schema_version": "pg18-structural-v1",
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "observed_at_ms": 1767225600000,
+    "source_state": "AVAILABLE",
+    "rows": [
+      {
+        "t": 1767225420000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225480000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225480000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225540000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225540000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225600000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      }
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT",
+    "version": 1,
+    "mode": "SYNTHETIC",
+    "source_id": "grid.pg18.candles_1m",
+    "server_major": 18,
+    "epoch": 1,
+    "sequence": 1,
+    "complete_price_levels": false,
+    "provenance": {
+      "kind": "SYNTHETIC",
+      "source_sha": "d537d525296ef34f727996e240ae6c60102c6082",
+      "schema_sha256": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495",
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
+    },
+    "coverage": {
+      "from_ms": 1767225420000,
+      "to_ms": 1767225600000,
+      "verified": false
+    },
+    "data_sha256": "907259309b1f1e2865d5363986db86fbbf8b662eb0e7d31f4891cae231c0c606"
+  },
+  {
+    "source": "grid",
+    "kind": "footprint",
+    "schema_version": "pg18-structural-v1",
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "observed_at_ms": 1767225600000,
+    "source_state": "AVAILABLE",
+    "rows": [
+      {
+        "t": 1767225540000,
+        "price": 100,
+        "buy": 3,
+        "sell": 2,
+        "delta": 1,
+        "volume": 5,
+        "available_at_ms": 1767225600000,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225540000,
+        "price": 101,
+        "buy": 3,
+        "sell": 2,
+        "delta": 1,
+        "volume": 5,
+        "available_at_ms": 1767225600000,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225540000,
+        "price": 102,
+        "buy": 3,
+        "sell": 2,
+        "delta": 1,
+        "volume": 5,
+        "available_at_ms": 1767225600000,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      }
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT",
+    "version": 1,
+    "mode": "SYNTHETIC",
+    "source_id": "grid.pg18.footprint_1m",
+    "server_major": 18,
+    "epoch": 1,
+    "sequence": 1,
+    "complete_price_levels": true,
+    "provenance": {
+      "kind": "SYNTHETIC",
+      "source_sha": "d537d525296ef34f727996e240ae6c60102c6082",
+      "schema_sha256": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495",
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
+    },
+    "coverage": {
+      "from_ms": 1767225540000,
+      "to_ms": 1767225600000,
+      "verified": false
+    },
+    "data_sha256": "2dca4203571ffd16411eb8fdb871443d62a1c2f5eaf19998aadfb12353a92dd5"
+  },
+  {
+    "source": "strattester",
+    "kind": "candles",
+    "schema_version": 2,
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "observed_at_ms": 1767225600000,
+    "source_state": "AVAILABLE",
+    "rows": [
+      {
+        "t": 1767225420000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225480000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225480000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225540000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      },
+      {
+        "t": 1767225540000,
+        "o": 100,
+        "h": 102,
+        "l": 99,
+        "c": 101,
+        "v": 10,
+        "complete": true,
+        "available_at_ms": 1767225600000,
+        "poc": null,
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      }
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT",
+    "version": 1,
+    "mode": "SYNTHETIC",
+    "source_id": "strattester.sqlite2.candles",
+    "server_major": null,
+    "epoch": 1,
+    "sequence": 1,
+    "complete_price_levels": false,
+    "provenance": {
+      "kind": "SYNTHETIC",
+      "source_sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
+      "schema_sha256": "4f1dc03d3c445cf87940b9228b7acfdd64a4cda68b50352ff1e46083a2e23175",
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
+    },
+    "coverage": {
+      "from_ms": 1767225420000,
+      "to_ms": 1767225600000,
+      "verified": false
+    },
+    "data_sha256": "1e2f8af7ef6dc6bb506bc4eb6c6ec5c3b723e9bc34a8324981417915d6d28d85"
+  },
+  {
+    "source": "strattester",
+    "kind": "research",
+    "schema_version": "research-structural-v1",
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "observed_at_ms": 1767225600000,
+    "source_state": "AVAILABLE",
+    "rows": [
+      {
+        "run_id": "synthetic-run-1",
+        "dataset_id": "synthetic-v1:17:BTCUSDT",
+        "created_at_ms": 1767225599000,
+        "dataset_to_ms": 1767225540000,
+        "available_at_ms": 1767225599000,
+        "metrics": {
+          "sample_count": 12,
+          "pnl": null
+        },
+        "publication_authority": "UNVERIFIED",
+        "symbol": "BTCUSDT",
+        "timeframe": "1m"
+      }
+    ],
+    "seed": 17,
+    "dataset_id": "synthetic-v1:17:BTCUSDT",
+    "version": 1,
+    "mode": "SYNTHETIC",
+    "source_id": "strattester.sqlite.research_results",
+    "server_major": null,
+    "epoch": 1,
+    "sequence": 1,
+    "complete_price_levels": false,
+    "provenance": {
+      "kind": "SYNTHETIC",
+      "source_sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
+      "schema_sha256": "41cbed94f11e8bee9eba8b37b449992286067ffbf029077d3471dca9427d1c62",
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
+    },
+    "coverage": {
+      "from_ms": 1767225480000,
+      "to_ms": 1767225540000,
+      "verified": false
+    },
+    "data_sha256": "3e396ebab3a6633dc1c0ef5fbc530e394a7b7cfa14d4fb8e155c7192c5d90141"
+  }
+]

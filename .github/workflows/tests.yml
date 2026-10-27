@@ -1,4 +1,4 @@
-name: R3 exact synthetic candidate
+name: R4 exact offline session candidate
 on: [push, pull_request]
 permissions:
   contents: read
@@ -10,7 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 55
     defaults:
       run:
         working-directory: candidate
@@ -41,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '3ed51d908b80a0fa9fee5d72999ca2184f309bec') { throw 'Frozen R3 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '40c3d0f0c3ae75a0cf08a58cfc04239d0c8353dd') { throw 'Frozen R3 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -90,6 +90,30 @@ jobs:
         if: ${{ !cancelled() }}
         shell: pwsh
         run: python -m terminan.r2_evidence verify .r3-reliability-evidence --sha (git rev-parse HEAD).Trim()
+      - name: R4 protocol finite retry contracts
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: node tests/check_r4_protocol.cjs
+      - name: R4 Windows PS5.1 native gate regressions
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_r4_shells.py --shell powershell --report reports/r4-shell-ps51.json
+      - name: R4 PS7 native gate regressions
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python scripts/test_r4_shells.py --shell pwsh --report reports/r4-shell-ps7.json
+      - name: R4 actual Windows console cancellation
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_r4_console_cancel.py --report reports/r4-console-cancel.json
+      - name: R4 real15 session lifecycle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r4_harness --expected-sha (git rev-parse HEAD).Trim() --review-seconds 15 --evidence-root .r4-reliability-evidence/short
+      - name: R4 real600 session lifecycle
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r4_harness --expected-sha (git rev-parse HEAD).Trim() --review-seconds 600 --evidence-root .r4-reliability-evidence/long
       - name: UI syntax and cancellation contracts
         if: ${{ !cancelled() }}
         shell: pwsh
@@ -134,6 +158,18 @@ jobs:
         if: ${{ !cancelled() }}
         shell: pwsh
         run: python -m terminan.r3_evidence --sha (git rev-parse HEAD).Trim() --out reports/r3-browser-evidence
+      - name: R4 browser contracts performance and session stop
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          $env:R4_INVOCATION=[Guid]::NewGuid().ToString('N')
+          "R4_INVOCATION=$env:R4_INVOCATION" >> $env:GITHUB_ENV
+          node node_modules/@playwright/test/cli.js test --config=playwright.r4.config.cjs
+          exit $LASTEXITCODE
+      - name: R4 strict browser SHA256 evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.r4_evidence --sha (git rev-parse HEAD).Trim() --out reports/r4-browser-evidence
       - name: R2 Windows PowerShell 5.1 harness
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: powershell
@@ -168,6 +204,11 @@ jobs:
             candidate/reports/harness-shell-*.json
             candidate/reports/r3-shell-*.json
             candidate/reports/r3-console-cancel.json
+            candidate/reports/r4-shell-*.json
+            candidate/reports/r4-console-cancel.json
+            candidate/reports/r4-browser-evidence/
+            candidate/reports/r4-browser.json
+            candidate/.r4-reliability-evidence/
             candidate/reports/r2-browser-evidence/
             candidate/reports/r3-browser-evidence/
             candidate/reports/r3-browser.json
