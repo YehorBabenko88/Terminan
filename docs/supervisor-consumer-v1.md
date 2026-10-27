@@ -1,0 +1,2 @@
+# Supervisor status consumer v1 (Draft)
+An opt-in loopback-only GET consumer for the Unified Supervisor v1 health envelope. It never sends commands or grants trading authority. Default is UNAVAILABLE when not configured. This implementation is a candidate and does not yet integrate into the main Terminan dashboard. Socket timeouts are per-operation, not a hard whole-request deadline; slow peers and long-running workers require further bounded-transport review before deployment. No physical G0/G1, services, DB writes or exchange access.
