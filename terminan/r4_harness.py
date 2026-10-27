@@ -1,8 +1,15 @@
 """R4 lifecycle atop proven R2 ownership/stderr guards; explicit owner end receipt."""
 import argparse,hashlib,json,os,subprocess,sys,time
 from pathlib import Path
-from .r2_harness import Runtime,OwnedChild,Harness,Fault,inspect_run as inspect_r2
+from .r2_harness import Runtime,OwnedChild,Harness,Fault,PrivateParser,inspect_run as inspect_r2
 from .r4_session import validate_receipt
+from urllib.request import build_opener,ProxyHandler
+
+def fetch_receipt(url,timeout):
+ with build_opener(ProxyHandler({})).open(url,timeout=timeout) as response:
+  body=response.read(8193)
+  if len(body)>8192:raise ValueError()
+  return response.status,body
 class R4Child(OwnedChild):
  def quit(self,timeout):
   deadline=time.monotonic()+timeout
@@ -10,7 +17,7 @@ class R4Child(OwnedChild):
   self.end_seen=False
   while time.monotonic()<deadline and self.poll() is None:
    try:
-    status,body=Runtime().fetch(self.url+'/api/session?session_id='+self.receipt['session_id']);value=validate_receipt(json.loads(body),self.receipt['candidate_sha'],self.receipt)
+    status,body=fetch_receipt(self.url+'/api/session?session_id='+self.receipt['session_id'],min(.5,max(.001,deadline-time.monotonic())));value=validate_receipt(json.loads(body),self.receipt['candidate_sha'],self.receipt)
     if status==200 and value['state']=='SESSION_ENDED':self.end_seen=True;break
    except Exception:pass # Still require receipt and native exit below; no waiver.
    time.sleep(.05)
@@ -53,7 +60,7 @@ def inspect(root,sha):
  except Exception:return 50
 
 def main():
- p=argparse.ArgumentParser();p.add_argument('--expected-sha',required=True);p.add_argument('--evidence-root',required=True);p.add_argument('--review-seconds',default='15');p.add_argument('--run-id');p.add_argument('--shell-version');p.add_argument('--open-browser',action='store_true');p.add_argument('--inspect-run',action='store_true');a=p.parse_args()
+ p=PrivateParser();p.add_argument('--expected-sha',required=True);p.add_argument('--evidence-root',required=True);p.add_argument('--review-seconds',default='15');p.add_argument('--run-id');p.add_argument('--shell-version');p.add_argument('--open-browser',action='store_true');p.add_argument('--inspect-run',action='store_true');a=p.parse_args()
  if a.inspect_run:code=inspect(Path(a.evidence_root)/a.run_id,a.expected_sha)
  else:
   h=R4Harness(expected_sha=a.expected_sha,evidence_root=a.evidence_root,review_seconds=a.review_seconds,open_browser=a.open_browser,run_id=a.run_id,shell_version=a.shell_version);code=h.run()

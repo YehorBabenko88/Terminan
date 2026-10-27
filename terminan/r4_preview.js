@@ -172,7 +172,7 @@ function metrics(){
   const n=s.renderTimes.length,elapsed=n>1?(s.renderTimes.at(-1)-s.renderTimes[0])/1000:0;
   const sorted=[...s.samples].sort((a,b)=>a-b);
   const percentile=(v,p)=>{const a=[...v].sort((x,y)=>x-y);return a[Math.max(0,Math.ceil(a.length*p)-1)]||0;};
-  return {session:sessionClient?.metrics(),fetchLatencyMs:{p50:percentile(s.fetchSamples,.5),p95:percentile(s.fetchSamples,.95),p99:percentile(s.fetchSamples,.99)},fetchSamples:s.fetchSamples.length,fetchClock:'PERFORMANCE_NOW_REQUEST_TO_JSON_COMPLETE',retryPending:Number(Boolean(s.retryTimer)),renders:s.renders,avgRenderMs:s.samples.length?s.samples.reduce((a,b)=>a+b,0)/s.samples.length:0,
+  return {session:sessionClient?.metrics(),fetchLatencyMs:{p50:percentile(s.fetchSamples,.5),p95:percentile(s.fetchSamples,.95),p99:percentile(s.fetchSamples,.99)},fetchSamples:s.fetchSamples.length,fetchClock:'PERFORMANCE_NOW_REQUEST_TO_SETTLED',retryPending:Number(Boolean(s.retryTimer)),renders:s.renders,avgRenderMs:s.samples.length?s.samples.reduce((a,b)=>a+b,0)/s.samples.length:0,
     p95RenderMs:sorted.length?sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))]:0,
     effectiveRenderFps:elapsed?(n-1)/elapsed:0,renderSamples:s.samples.length,retainedCandles:s.data?.candles.length||0,
     retainedEvents:s.data?.events.length||0,activeRequests:s.active,peakRequests:s.peak,aborted:s.aborted,

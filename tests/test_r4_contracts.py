@@ -35,3 +35,22 @@ class R4Contracts(unittest.TestCase):
  def test_hash_mismatch_and_unknown_fields(self):
   raw=fixtures()[0];raw['rows'][0]['c']=100.5;self.assertEqual(self.check(raw)['state'],'INVALID_PROVENANCE')
   raw=fixtures()[0];raw['dsn']='PRIVATE_NEVER_EXPORT';seal(raw);r=self.check(raw);self.assertEqual(r['rows'],[]);self.assertNotIn('PRIVATE_NEVER_EXPORT',str(r))
+
+ def test_canonical_pins_and_versioned_negatives(self):
+  import json,hashlib,tempfile
+  from pathlib import Path
+  from unittest.mock import patch
+  import terminan.r4_contracts as module
+  values=module.fixtures()
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td)
+   for name in ('r4-contract-v1.json','r4-contract-lock-v1.json'):(root/name).write_bytes((module.ROOT/name).read_bytes().replace(b'\r\n',b'\n'))
+   with patch.object(module,'ROOT',root):self.assertEqual(module.fixtures(),values)
+   (root/'r4-contract-v1.json').write_bytes((root/'r4-contract-v1.json').read_bytes().replace(b'\n',b'\r\n'))
+   with patch.object(module,'ROOT',root):self.assertEqual(module.fixtures(),values)
+  spec=json.loads((module.ROOT/'r4-negative-v1.json').read_text());self.assertEqual(spec['pins'],module.LOCK)
+  for case in spec['cases']:
+   raw=copy.deepcopy(values[0]);raw.update(case['patch']);module.seal(raw)
+   with self.subTest(case=case['name']):self.assertEqual(self.check(raw)['state'],case['state'])
+ def test_gap_and_nullable_poc(self):
+  raw=fixtures()[0];self.assertIsNone(raw['rows'][0]['poc']);raw['rows'].pop(1);seal(raw);self.assertEqual(self.check(raw)['state'],'GAP')
