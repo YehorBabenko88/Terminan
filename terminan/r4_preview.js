@@ -133,7 +133,7 @@ async function load(step=Number($('seek').value)){
     controller.abort(); // Promise.all failure must also cancel its sibling.
     if(error.message?.startsWith('RECEIPT_')||error.message==='Synthetic identity mismatch'){terminal('UNVERIFIED');return;}
     text('source-state','ERROR');$('source-state').dataset.fault='true';text('book-state','DISCONNECTED');
-    text('error','Synthetic fetch unavailable · bounded retry '+(s.retry+1)+' / 5');
+    text('error','Synthetic fetch unavailable  -  bounded retry '+(s.retry+1)+' / 5');
     if(++s.retry<5&&sessionClient.state==='ACTIVE'){const retryGeneration=s.generation;s.retryTimer=setTimeout(()=>{s.retryTimer=0;if(retryGeneration===s.generation&&!s.disposed)load(step);},[250,500,1000,2000][s.retry-1]);}
     text('chart-empty','Synthetic data unavailable');document.body.dataset.loading='false';s.playing=false;updatePlay();
   }finally{
@@ -219,7 +219,7 @@ async function benchmark({updates=10000,batch=100,seed=17}={}){
   }finally{benchmarkRunning=false;}
 }
 function terminal(state){
- terminalState=state;dispose();text('session-state',state);text('source-state',state);text('book-state',state);text('error','');text('chart-empty',state==='SESSION_ENDED'?'Synthetic session ended normally':'View stopped · reload to start a new view');document.body.dataset.loading='false';
+ terminalState=state;dispose();text('session-state',state);text('source-state',state);text('book-state',state);text('error','');text('chart-empty',state==='SESSION_ENDED'?'Synthetic session ended normally':'View stopped  -  reload to start a new view');document.body.dataset.loading='false';
  for(const input of document.querySelectorAll('.toolbar input,.toolbar select,.toolbar button,#seek'))input.disabled=true;
 }
 on($('close-view'),'click',()=>terminal('VIEW_CLOSED'));on(window,'pagehide',()=>terminal('VIEW_CLOSED'));

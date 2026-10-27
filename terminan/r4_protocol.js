@@ -2,7 +2,7 @@
 'use strict';
 (function(root){
 class R4SessionClient {
- constructor({fetcher=fetch,clock=()=>performance.now(),later=setTimeout,cancel=clearTimeout,onState=()=>{}}={}){Object.assign(this,{fetcher,clock,later,cancel,onState});this.closed=false;this.generation=0;this.timer=0;this.controller=null;this.receipt=null;this.failures=0;this.requests=0;this.active=0;this.lastSeen=0;this.state='UNVERIFIED';}
+ constructor({fetcher=fetch,clock=()=>performance.now(),later=setTimeout,cancel=clearTimeout,onState=()=>{}}={}){Object.assign(this,{fetcher:(...args)=>fetcher.apply(root,args),clock:()=>clock(),later:(...args)=>later.apply(root,args),cancel:(...args)=>cancel.apply(root,args),onState});this.closed=false;this.generation=0;this.timer=0;this.controller=null;this.receipt=null;this.failures=0;this.requests=0;this.active=0;this.lastSeen=0;this.state='UNVERIFIED';}
  validate(value){
   const keys=['version','mode','session_id','candidate_sha','epoch','revision','state','lease_ms','poll_ms','end_grace_ms','authority','sources'];
   if(!value||Object.keys(value).sort().join()!==keys.sort().join()||value.version!==1||value.mode!=='SYNTHETIC'||value.authority!=='SYNTHETIC_ONLY'||value.sources!=='DISABLED'||value.candidate_sha!==this.sha||!/^[a-f0-9]{40}$/.test(this.sha)||!/^[a-f0-9]{32}$/.test(value.session_id)||value.epoch!==1||value.lease_ms!==5000||value.poll_ms!==500||value.end_grace_ms!==3000||!((value.state==='ACTIVE'&&value.revision===1)||(value.state==='SESSION_ENDED'&&value.revision===2)))throw Error('RECEIPT_INVALID');

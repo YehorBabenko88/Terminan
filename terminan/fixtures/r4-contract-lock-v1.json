@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "fixture_sha256": "789bb348d74125c7795aac853e9d7f338393d27214a112a7ffc6ffece371a1b5",
+  "fixture_sha256": "a97c0ffcac06b0bae2a7c6b9ad927c46e4793a74f140540d1c7e6d2fcacae656",
   "source_pins": {
     "grid": {
       "sha": "d537d525296ef34f727996e240ae6c60102c6082",
@@ -15,5 +15,6 @@
         "strattester/persistence/result_store.py": "41cbed94f11e8bee9eba8b37b449992286067ffbf029077d3471dca9427d1c62"
       }
     }
-  }
+  },
+  "hash_scope": "CANONICAL_JSON_SORTED_UTF8"
 }

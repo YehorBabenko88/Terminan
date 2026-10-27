@@ -10,7 +10,7 @@ def encoded(raw):return json.dumps(raw,sort_keys=True,separators=(',',':'),allow
 def seal(raw):raw['data_sha256']=hashlib.sha256(encoded({k:v for k,v in raw.items() if k!='data_sha256'})).hexdigest();return raw
 def fixtures():
  path=ROOT/'r4-contract-v1.json';lock=json.loads((ROOT/'r4-contract-lock-v1.json').read_text())
- if hashlib.sha256(path.read_bytes()).hexdigest()!=lock['fixture_sha256'] or lock['source_pins']!=LOCK:raise ValueError()
+ if hashlib.sha256(encoded(json.loads(path.read_text(encoding='utf8')))).hexdigest()!=lock['fixture_sha256'] or lock['source_pins']!=LOCK:raise ValueError()
  return json.loads(path.read_text())
 def stamp(v):
  if type(v) is not int or not 946684800000<=v<=2**53-1:raise ValueError()
@@ -27,7 +27,7 @@ def validate(raw,*,symbol,timeframe,as_of_ms,previous=None):
   if pair not in IDS or raw['source_id']!=IDS[pair] or type(raw['version']) is not int or raw['version']!=1 or raw['mode']!='SYNTHETIC':return out
   out.update(source=source,kind=kind,source_id=raw['source_id'],symbol=symbol if symbol in SYMBOLS else 'UNVERIFIED',timeframe=raw['timeframe'] if raw['timeframe'] in PERIODS else 'UNVERIFIED')
   path='grid/schema.sql' if source=='grid' else 'strattester/persistence/result_store.py' if kind=='research' else 'strattester/marketdata/schema.py'
-  provenance=raw['provenance'];template=hashlib.sha256((ROOT/'r2-contract-v1.json').read_bytes()).hexdigest()
+  provenance=raw['provenance'];template=hashlib.sha256(encoded(json.loads((ROOT/'r2-contract-v1.json').read_text(encoding='utf8')))).hexdigest()
   if provenance!=dict(kind='SYNTHETIC',source_sha=LOCK[source]['sha'],schema_sha256=LOCK[source]['files'][path],template_sha256=template) or seal(copy.deepcopy(raw))['data_sha256']!=raw['data_sha256']:
    out['state']='INVALID_PROVENANCE';return out
   expected='pg18-structural-v1' if source=='grid' else 'research-structural-v1' if kind=='research' else 2

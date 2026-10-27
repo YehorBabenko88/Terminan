@@ -61,14 +61,14 @@
       "kind": "SYNTHETIC",
       "source_sha": "d537d525296ef34f727996e240ae6c60102c6082",
       "schema_sha256": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495",
-      "template_sha256": "dc77cbf0c99b130c966fa9282ff61b98d5d4f938d541e00416753b16d55940dd"
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
     },
     "coverage": {
       "from_ms": 1767225420000,
       "to_ms": 1767225600000,
       "verified": false
     },
-    "data_sha256": "78851e373427526379a7040a7e75346cae02b1cff7d362d76d33c958e706f0d4"
+    "data_sha256": "907259309b1f1e2865d5363986db86fbbf8b662eb0e7d31f4891cae231c0c606"
   },
   {
     "source": "grid",
@@ -126,14 +126,14 @@
       "kind": "SYNTHETIC",
       "source_sha": "d537d525296ef34f727996e240ae6c60102c6082",
       "schema_sha256": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495",
-      "template_sha256": "dc77cbf0c99b130c966fa9282ff61b98d5d4f938d541e00416753b16d55940dd"
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
     },
     "coverage": {
       "from_ms": 1767225540000,
       "to_ms": 1767225600000,
       "verified": false
     },
-    "data_sha256": "9c66cc7997ec663070c399b7796c8488bec982e731dbdce15d5792d157fe0f96"
+    "data_sha256": "2dca4203571ffd16411eb8fdb871443d62a1c2f5eaf19998aadfb12353a92dd5"
   },
   {
     "source": "strattester",
@@ -197,14 +197,14 @@
       "kind": "SYNTHETIC",
       "source_sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
       "schema_sha256": "4f1dc03d3c445cf87940b9228b7acfdd64a4cda68b50352ff1e46083a2e23175",
-      "template_sha256": "dc77cbf0c99b130c966fa9282ff61b98d5d4f938d541e00416753b16d55940dd"
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
     },
     "coverage": {
       "from_ms": 1767225420000,
       "to_ms": 1767225600000,
       "verified": false
     },
-    "data_sha256": "4ebe7eb88ea4cc9813d5ca466b689b7ae6c7ed1f7c7030ad9f87a3d5b5bb238c"
+    "data_sha256": "1e2f8af7ef6dc6bb506bc4eb6c6ec5c3b723e9bc34a8324981417915d6d28d85"
   },
   {
     "source": "strattester",
@@ -243,13 +243,13 @@
       "kind": "SYNTHETIC",
       "source_sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
       "schema_sha256": "41cbed94f11e8bee9eba8b37b449992286067ffbf029077d3471dca9427d1c62",
-      "template_sha256": "dc77cbf0c99b130c966fa9282ff61b98d5d4f938d541e00416753b16d55940dd"
+      "template_sha256": "9dbced6d18678f1db00de82d1c35f8e772fcd32571436492785aa0e085ee0df7"
     },
     "coverage": {
       "from_ms": 1767225480000,
       "to_ms": 1767225540000,
       "verified": false
     },
-    "data_sha256": "411fdecb760e89c23cbbd7bd9c48ff4f0b981b3ca45f303874a5bb5a1ac6a873"
+    "data_sha256": "3e396ebab3a6633dc1c0ef5fbc530e394a7b7cfa14d4fb8e155c7192c5d90141"
   }
 ]
