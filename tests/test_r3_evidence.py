@@ -61,8 +61,8 @@ class R3EvidenceTests(unittest.TestCase):
                 folder=root/'r3-test-results'/project;folder.mkdir(parents=True)
                 (folder/'r3-performance.json').write_text(json.dumps(d))
                 (folder/'r3-preview.png').write_bytes(b'INVALID PNG')
-                tests.append(dict(projectName=project,status='expected',results=[dict(status='passed')]))
-            (root/'report.json').write_text(json.dumps(dict(config=dict(metadata=dict(r3_invocation=nonce)),suites=[dict(specs=[dict(tests=tests)])])))
+                tests.append(dict(projectName=project,projectId=project,expectedStatus='passed',status='expected',results=[dict(status='passed',retry=0,errors=[])]))
+            (root/'report.json').write_text(json.dumps(dict(config=dict(metadata=dict(r3_invocation=nonce,r3_source_sha=SHA)),errors=[],stats=dict(expected=3,unexpected=0,skipped=0,flaky=0),suites=[dict(specs=[dict(title='R3 bounded 10k 100k renderer workloads and cancellation',file='r3.spec.cjs',ok=True,tests=tests)])])))
             try:
                 os.chdir(root)
                 with patch.dict(os.environ,{'R3_INVOCATION':nonce,'GITHUB_RUN_ID':'LOCAL','GITHUB_RUN_ATTEMPT':'1'}):
