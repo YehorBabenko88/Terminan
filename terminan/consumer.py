@@ -1,5 +1,6 @@
 """Presentation of versioned read-only views; never grants execution authority."""
 from .g0_sources import all_sources
+from .supervisor_consumer import supervisor_status
 import http.client
 import json
 import os
@@ -117,7 +118,5 @@ def dashboard(symbol, timeframe='1m'):
     return {'version': 1, 'mode': 'READ_ONLY',
             'sources': {name: present_source(view) for name, view in views['sources'].items()},
             'source_contracts': {name: source_contract(name) for name in ('strattester', 'grid')},
-            'supervisor': {'state': 'UNAVAILABLE', 'provenance': 'SYNTHETIC_ONLY',
-                           'reason': 'VERSIONED_SUPERVISOR_CONTRACT_NOT_PUBLISHED',
-                           'contract_source_sha': UNIFIED_SHA},
+            'supervisor': supervisor_status(),
             'trading_authorized': False, 'physical_acceptance': 'NOT_RUN'}
