@@ -2,6 +2,9 @@
 import http.client
 import json
 import os
+import socket
+import threading
+import time
 
 def supervisor_status():
     unavailable={"state":"UNAVAILABLE","reason":"SUPERVISOR_NOT_CONFIGURED",
@@ -12,15 +15,37 @@ def supervisor_status():
     if not raw.isascii() or not raw.isdecimal() or len(raw)>5 or not 1<=int(raw)<=65535:
         return dict(unavailable,reason="INVALID_LOOPBACK_PORT")
     connection=None
+    timer=None
     try:
+        deadline=time.monotonic()+5.0
         connection=http.client.HTTPConnection("127.0.0.1",int(raw),timeout=0.25)
+        def expire():
+            sock=connection.sock
+            if sock is not None:
+                try:sock.shutdown(socket.SHUT_RDWR)
+                except OSError:pass
+                try:sock.close()
+                except OSError:pass
+        timer=threading.Timer(max(0,deadline-time.monotonic()),expire)
+        timer.daemon=True
+        timer.start()
         connection.request("GET","/internal/v1/health",headers={"Accept":"application/json"})
+        if time.monotonic()>=deadline:raise ValueError("deadline")
         response=connection.getresponse()
+        if time.monotonic()>=deadline:raise ValueError("deadline")
         if response.status not in (200,503):
             raise ValueError("invalid status")
         if response.getheader("Content-Length") and int(response.getheader("Content-Length"))>8192:
             raise ValueError("oversized")
-        body=response.read(8193)
+        body=bytearray()
+        while True:
+            remaining=deadline-time.monotonic()
+            if remaining<=0:raise ValueError("deadline")
+            if connection.sock is not None:connection.sock.settimeout(min(0.25,remaining))
+            chunk=response.read1(min(4096,8193-len(body)))
+            if not chunk:break
+            body.extend(chunk)
+            if len(body)>8192:raise ValueError("oversized")
         if len(body)>8192:
             raise ValueError("oversized")
         payload=json.loads(body,parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
@@ -40,4 +65,7 @@ def supervisor_status():
     except (OSError,ValueError,TypeError,AttributeError,http.client.HTTPException):
         return dict(unavailable,reason="SUPERVISOR_CONTRACT_INVALID_OR_UNAVAILABLE")
     finally:
+        if timer is not None:
+            timer.cancel()
+            timer.join()
         if connection is not None:connection.close()
