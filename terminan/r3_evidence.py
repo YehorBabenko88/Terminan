@@ -1,5 +1,5 @@
 """R3 strict browser benchmark evidence; never grants physical authority."""
-import argparse,hashlib,json,math,os,re,shutil,subprocess
+import argparse,hashlib,json,math,os,re,shutil,subprocess,uuid
 from pathlib import Path
 PROJECTS=[f'{b}-dpr{d}' for b in ('chromium','firefox') for d in ('1','1.5','2')]
 def read(p):
@@ -42,25 +42,45 @@ def check(data,sha):
 def report_invocation(raw):
     if not isinstance(raw,dict):raise ValueError()
     return raw.get('config',{}).get('metadata',{}).get('r3_invocation')
+
+def report_tests(raw,sha,invocation,projects):
+    if not isinstance(raw,dict) or report_invocation(raw)!=invocation:raise ValueError()
+    if raw['config']['metadata'].get('r3_source_sha')!=sha or raw.get('errors')!=[]:raise ValueError()
+    stats=raw.get('stats')
+    if not isinstance(stats,dict):raise ValueError()
+    if any(type(stats.get(k)) is not int or stats[k]!=v for k,v in dict(expected=len(projects),skipped=0,unexpected=0,flaky=0).items()):raise ValueError()
+    tests=[]
+    def walk(suites):
+        if not isinstance(suites,list):raise ValueError()
+        for suite in suites:
+            for spec in suite.get('specs',[]):
+                if spec.get('title')!='R3 bounded 10k 100k renderer workloads and cancellation' or spec.get('file')!='r3.spec.cjs' or spec.get('ok') is not True:raise ValueError()
+                tests.extend(spec['tests'])
+            walk(suite.get('suites',[]))
+    walk(raw['suites'])
+    if len(tests)!=len(projects) or sorted(t['projectName'] for t in tests)!=sorted(projects):raise ValueError()
+    for t in tests:
+        if t.get('expectedStatus')!='passed' or t.get('status')!='expected' or len(t['results'])!=1:raise ValueError()
+        result=t['results'][0]
+        if result.get('status')!='passed' or type(result.get('retry')) is not int or result['retry']!=0 or result.get('errors')!=[]:raise ValueError()
+        if t.get('projectId')!=t['projectName']:raise ValueError()
+    return tests
+
+def work_root():return Path(os.environ.get('R3_WORK_ROOT','.'))
 def bundle(report,out,sha,scope):
     invocation=os.getenv('R3_INVOCATION','')
     if not re.fullmatch('[0-9a-f]{32}',invocation):raise ValueError()
+    if out.exists():raise ValueError()
+    final=out;out=out.with_name('.pending-'+out.name+'-'+uuid.uuid4().hex)
     out.mkdir(parents=True,exist_ok=False);projects=PROJECTS if scope=='all' else [p for p in PROJECTS if p.startswith('chromium')]
-    summary=dict(version=1,invocation=invocation,candidate_sha=sha,result='FAIL',physical='PENDING',scope=scope,run_id=os.getenv('GITHUB_RUN_ID','LOCAL'),attempt=os.getenv('GITHUB_RUN_ATTEMPT','1'))
+    summary=dict(version=2,invocation=invocation,candidate_sha=sha,result='FAIL',physical='PENDING',scope=scope,run_id=os.getenv('GITHUB_RUN_ID','LOCAL'),attempt=os.getenv('GITHUB_RUN_ATTEMPT','1'))
     try:
         raw=read(report)
-        if report_invocation(raw)!=invocation:raise ValueError()
-        if raw.get('errors'):raise ValueError()
-        tests=[]
-        def walk(suites):
-            for suite in suites:
-                for spec in suite.get('specs',[]):tests.extend(spec['tests'])
-                walk(suite.get('suites',[]))
-        walk(raw['suites'])
-        if len(tests)!=len(projects) or sorted(t['projectName'] for t in tests)!=sorted(projects):raise ValueError()
-        if any(t['status']!='expected' or len(t['results'])!=1 or t['results'][0]['status']!='passed' for t in tests):raise ValueError()
+        tests=report_tests(raw,sha,invocation,projects)
+        # Keep only typed, privacy-safe report facts. Never copy raw exceptions/paths.
+        write(out/'browser-report.json',dict(version=1,candidate_sha=sha,invocation=invocation,stats={k:raw['stats'][k] for k in ('expected','skipped','unexpected','flaky')},projects=projects,report_sha256=hashlib.sha256(report.read_bytes()).hexdigest()))
         for project in projects:
-            files=list(Path('r3-test-results').glob('**/r3-performance.json'))
+            files=list((work_root()/'r3-test-results').glob('**/r3-performance.json'))
             found=[p for p in files if read(p)['project']==project]
             if len(found)!=1:raise ValueError()
             record=read(found[0])
@@ -75,12 +95,16 @@ def bundle(report,out,sha,scope):
     finally:
         write(out/'summary.json',summary)
         write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
+        # Only complete verified bundles are published under the requested name.
+        if summary['result']=='FAIL':os.replace(out,final)
     try:verify(out,sha)
     except (ValueError,KeyError,TypeError,OSError,AttributeError,OverflowError,RecursionError):
         summary['result']='FAIL'
         write(out/'summary.json',summary)
         write(out/'manifest.json',[dict(path=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(out.iterdir()) if p.is_file() and p.name!='manifest.json'])
+        os.replace(out,final)
         raise
+    os.replace(out,final)
     return 0
 
 def verify(root,sha):
@@ -95,11 +119,15 @@ def verify(root,sha):
         if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=entry['sha256']:raise ValueError()
     if set(names)!={p.name for p in root.iterdir() if p.name!='manifest.json'}:raise ValueError()
     summary=read(root/'summary.json')
-    if summary['candidate_sha']!=sha or summary['result']!='AUTOMATED_SYNTHETIC_BENCHMARK_PASS' or summary['physical']!='PENDING':raise ValueError()
+    if summary.get('version')!=2 or not re.fullmatch('[0-9a-f]{32}',summary.get('invocation','')) or summary['candidate_sha']!=sha or summary['result']!='AUTOMATED_SYNTHETIC_BENCHMARK_PASS' or summary['physical']!='PENDING':raise ValueError()
     if summary['scope'] not in ('all','chromium'):raise ValueError()
     projects=PROJECTS if summary['scope']=='all' else PROJECTS[:3]
-    required={'summary.json','tests.json','contract-pins.json','negative-fixtures.json'}|{p+ext for p in projects for ext in ('.json','.png')}
+    required={'summary.json','tests.json','browser-report.json','contract-pins.json','negative-fixtures.json'}|{p+ext for p in projects for ext in ('.json','.png')}
     if set(names)!=required:raise ValueError()
+    report=read(root/'browser-report.json')
+    if report.get('version')!=1 or report.get('candidate_sha')!=sha or report.get('invocation')!=summary['invocation'] or report.get('projects')!=projects or not re.fullmatch('[0-9a-f]{64}',report.get('report_sha256','')):raise ValueError()
+    stats=report['stats']
+    if set(stats)!={'expected','skipped','unexpected','flaky'} or any(type(stats[k]) is not int or stats[k]!=v for k,v in dict(expected=len(projects),skipped=0,unexpected=0,flaky=0).items()):raise ValueError()
     if read(root/'negative-fixtures.json')!=read(Path(__file__).with_name('fixtures')/'r3-negative-v1.json'):raise ValueError()
     if read(root/'contract-pins.json')!=read(Path(__file__).resolve().parents[1]/'contracts.lock.json'):raise ValueError()
     tests=read(root/'tests.json')

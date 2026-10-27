@@ -41,7 +41,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'f401c2dda46ff38ee14004bdbb566fe0a3881014') { throw 'Frozen R3 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '3ed51d908b80a0fa9fee5d72999ca2184f309bec') { throw 'Frozen R3 base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -58,6 +58,14 @@ jobs:
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: pwsh
         run: python scripts/test_harness_shells.py --shell pwsh --report reports/harness-shell-ps7.json
+      - name: R3 Windows PS5.1 cancellation and false zero
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_r3_shells.py --shell powershell --report reports/r3-shell-ps51.json
+      - name: R3 PS7 cancellation and false zero
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python scripts/test_r3_shells.py --shell pwsh --report reports/r3-shell-ps7.json
       - name: Linux actual owned-child lifecycle
         if: ${{ !cancelled() && runner.os == 'Linux' }}
         shell: pwsh
@@ -154,6 +162,7 @@ jobs:
             candidate/reports/identity.json
             candidate/reports/python.txt
             candidate/reports/harness-shell-*.json
+            candidate/reports/r3-shell-*.json
             candidate/reports/r2-browser-evidence/
             candidate/reports/r3-browser-evidence/
             candidate/reports/r3-browser.json
