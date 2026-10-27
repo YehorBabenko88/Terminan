@@ -1,0 +1,29 @@
+name: Supervisor consumer focused acceptance
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  supervisor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.13']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Exact source SHA
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Syntax validation
+        run: python -m compileall -q terminan
+      - name: Focused Supervisor regressions
+        run: python -m unittest discover -s tests -p "test_supervisor*.py" -v
