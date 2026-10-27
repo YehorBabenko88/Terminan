@@ -10,6 +10,7 @@ from . import data
 from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .g0_sources import all_sources, snapshot
+from .consumer import dashboard
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -64,7 +65,8 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/sources': result=all_sources(symbol,timeframe)
+                if url.path == '/api/consumer/v1/status': result=dashboard(symbol,timeframe)
+                elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = source_rows('strattester',symbol,timeframe)
