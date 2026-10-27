@@ -21,7 +21,8 @@ Optional `TERMINAN_STRATTESTER_CONTRACT_PORT` and
 `TERMINAN_GRID_CONTRACT_PORT` enable GET-only capabilities/health consumption
 on numeric `127.0.0.1` ports. No URLs, redirects, proxy, credentials or exchange
 connections are accepted. Responses are bounded to 64 KiB and socket timeout
-two seconds per socket operation and a five second response body budget per source.
+250 milliseconds per socket operation and a five second socket shutdown watchdog
+covering request, response headers and body across both endpoints per source.
 These source-owned v1 APIs currently advertise no
 qualified data: status stays UNAVAILABLE. A reachable API is not provenance
 qualification. No results/candles/footprint API is requested. This is a bounded

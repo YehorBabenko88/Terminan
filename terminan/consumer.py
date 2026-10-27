@@ -4,10 +4,14 @@ import http.client
 import json
 import os
 import time
+import socket
+import threading
 
 UNIFIED_SHA = '50e6e63cb183f6dcf1dee3c753f966717ee3b110'
 SOURCE_CONTRACT_SHAS = {'strattester': 'ef1c53861998188bdd03b9f037dc45573b3c2acb',
                         'grid': '4ad202996ac06116e336b66851beb6e97beffa26'}
+OPERATION_SECONDS = 5
+SOCKET_SECONDS = 0.25
 
 
 def source_contract(name):
@@ -20,11 +24,31 @@ def source_contract(name):
         return dict(unavailable, reason='INVALID_LOOPBACK_PORT')
     producer = 'strattester' if name == 'strattester' else 'bybit-cluster-grid'
     try:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + OPERATION_SECONDS
         for endpoint in ('capabilities', 'health'):
-            con = http.client.HTTPConnection('127.0.0.1', int(raw), timeout=2)
+            con = http.client.HTTPConnection('127.0.0.1', int(raw), timeout=SOCKET_SECONDS)
+            active_socket = [None]
+            def expire(connection=con, captured=active_socket):
+                sock = captured[0] or connection.sock
+                if sock is not None:
+                    try:
+                        sock.shutdown(socket.SHUT_RDWR)
+                    except OSError:
+                        pass
+                    try:
+                        sock.close()
+                    except OSError:
+                        pass
+            timer = threading.Timer(max(0, deadline-time.monotonic()), expire)
+            timer.daemon = True
+            timer.start()
             try:
+                if time.monotonic() >= deadline:
+                    raise ValueError('request deadline')
                 con.request('GET', '/internal/v1/' + endpoint, headers={'Accept': 'application/json'})
+                active_socket[0] = con.sock
+                if time.monotonic() >= deadline:
+                    raise ValueError('response deadline')
                 response = con.getresponse()
                 if response.status not in (200, 503):
                     raise ValueError('http status')
@@ -34,7 +58,7 @@ def source_contract(name):
                     if remaining <= 0:
                         raise ValueError('response deadline')
                     if con.sock is not None:
-                        con.sock.settimeout(min(2, remaining))
+                        con.sock.settimeout(min(SOCKET_SECONDS, remaining))
                     chunk = response.read1(min(4096, 65537-len(body)))
                     if not chunk:
                         break
@@ -51,6 +75,8 @@ def source_contract(name):
                 if endpoint == 'health' and value.get('status') != 'UNAVAILABLE':
                     raise ValueError('unsupported qualified source')
             finally:
+                timer.cancel()
+                timer.join()
                 con.close()
         # Both source-owned v1 contracts currently withhold all qualified data.
         return {'state': 'UNAVAILABLE', 'reason': 'SOURCE_PROVENANCE_UNQUALIFIED',
