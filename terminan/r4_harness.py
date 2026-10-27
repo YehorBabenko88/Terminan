@@ -1,5 +1,5 @@
 """R4 lifecycle atop proven R2 ownership/stderr guards; explicit owner end receipt."""
-import argparse,hashlib,json,os,subprocess,sys,time
+import argparse,hashlib,json,os,re,subprocess,sys,time
 from pathlib import Path
 from .r2_harness import Runtime,OwnedChild,Harness,Fault,PrivateParser,inspect_run as inspect_r2
 from .r4_session import validate_receipt
@@ -55,7 +55,9 @@ def inspect(root,sha):
  if code:return code
  try:
   root=Path(root);s=json.loads((root/'summary.json').read_text());d=json.loads((root/'child-diagnostics.json').read_text())['r4_session'];r=s['r4']
-  if r['version']!=1 or r['end_receipt_seen'] is not True or d['state']!='SESSION_ENDED' or d['end_receipts']<1 or d['session_sha256']!=r['session_sha256'] or r['contract_probe']['states']!=['UNSUPPORTED_TIMEFRAME','UNSUPPORTED_TIMEFRAME','HISTORICAL_ONLY','HISTORICAL_ONLY']:raise ValueError()
+  if type(r['version']) is not int or r['version']!=1 or type(d['version']) is not int or d['version']!=1 or type(d['end_receipts']) is not int or d['end_receipts']>2**31-1 or r['end_receipt_seen'] is not True or d['state']!='SESSION_ENDED' or d['end_receipts']<1 or d['session_sha256']!=r['session_sha256'] or r['contract_probe']['states']!=['UNSUPPORTED_TIMEFRAME','UNSUPPORTED_TIMEFRAME','HISTORICAL_ONLY','HISTORICAL_ONLY']:raise ValueError()
+  probe=r['contract_probe']
+  if set(probe)!={'symbol','timeframe','states','sha256'} or probe['symbol']!='ETHUSDT' or probe['timeframe']!='5m' or not re.fullmatch('[a-f0-9]{64}',probe['sha256']) or not re.fullmatch('[a-f0-9]{64}',r['session_sha256']):raise ValueError()
   return 0
  except Exception:return 50
 

@@ -11,23 +11,29 @@ def numeric(value,minimum=None):
     return value
 from .r3_evidence import check as check_r3
 
+def exact(a,b):
+    if type(a) is not type(b):return False
+    if isinstance(b,dict):return set(a)==set(b) and all(exact(a[k],v) for k,v in b.items())
+    if isinstance(b,list):return len(a)==len(b) and all(exact(x,y) for x,y in zip(a,b))
+    return a==b
+
 def check(data,sha):
     check_r3(data,sha) # Original measured renderer/CPU/RSS budgets retained verbatim.
     extra=data['r4']
-    if extra.get('version')!=1 or extra['contractStates']!=['UNSUPPORTED_TIMEFRAME','UNSUPPORTED_TIMEFRAME','HISTORICAL_ONLY','HISTORICAL_ONLY']:raise ValueError()
-    if extra['startupClose']!=dict(state='VIEW_CLOSED',sessionRequests=0) or data['disposed']['startupPending']!=0:raise ValueError()
+    if type(data['version']) is not int or not exact(extra.get('version'),1) or extra['contractStates']!=['UNSUPPORTED_TIMEFRAME','UNSUPPORTED_TIMEFRAME','HISTORICAL_ONLY','HISTORICAL_ONLY']:raise ValueError()
+    if not exact(extra['startupClose'],dict(state='VIEW_CLOSED',sessionRequests=0)) or not exact(data['disposed']['startupPending'],0):raise ValueError()
     f=extra['fetch']
     if f['clock']!='PERFORMANCE_NOW_REQUEST_TO_SETTLED' or type(f['samples']) is not int or not 4<=f['samples']<=240:raise ValueError()
     q=f['quantiles']
     if set(q)!={'p50','p95','p99'}:raise ValueError()
     for v in q.values():numeric(v,0)
     if not q['p50']<=q['p95']<=q['p99'] or q['p95']>=2000 or q['p99']>=5000:raise ValueError()
-    if extra['normalStop']!=dict(state='SESSION_ENDED',closed=True,requestsStable=True,childExit=0,consoleErrorsAfterEnd=0):raise ValueError()
+    if not exact(extra['normalStop'],dict(state='SESSION_ENDED',closed=True,requestsStable=True,childExit=0,consoleErrorsAfterEnd=0)):raise ValueError()
     u=extra['unexpectedStop']
     if set(u)!={'state','bounded','requests','retries','noRevival'} or u['state']!='DISCONNECTED' or u['bounded'] is not True or u['noRevival'] is not True or type(u['requests']) is not int or not 1<=u['requests']<=8 or type(u['retries']) is not int or not 1<=u['retries']<=5:raise ValueError()
     if extra['limitations']!=['RENDER_CADENCE_NOT_PRESENTATION_FPS','MAIN_THREAD_CPU_NOT_HOST_TOTAL','RSS_SUM_MAY_COUNT_SHARED_PAGES','OFFLINE_FIXTURES_NO_RUNTIME_AUTHORITY']:raise ValueError()
     session=data['disposed']['session']
-    if session['state']!='SESSION_ENDED' or session['closed'] is not True or session['pending']!=0 or session['active']!=0 or data['disposed']['retryPending']!=0:raise ValueError()
+    if session['state']!='SESSION_ENDED' or session['closed'] is not True or not exact(session['pending'],0) or not exact(session['active'],0) or not exact(data['disposed']['retryPending'],0):raise ValueError()
 
 def report_invocation(raw):
     if not isinstance(raw,dict):raise ValueError()

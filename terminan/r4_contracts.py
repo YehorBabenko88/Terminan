@@ -10,6 +10,7 @@ def encoded(raw):return json.dumps(raw,sort_keys=True,separators=(',',':'),allow
 def seal(raw):raw['data_sha256']=hashlib.sha256(encoded({k:v for k,v in raw.items() if k!='data_sha256'})).hexdigest();return raw
 def fixtures():
  path=ROOT/'r4-contract-v1.json';lock=json.loads((ROOT/'r4-contract-lock-v1.json').read_text())
+ if set(lock)!={'version','fixture_sha256','source_pins','hash_scope'} or type(lock['version']) is not int or lock['version']!=1 or lock['hash_scope']!='CANONICAL_JSON_SORTED_UTF8':raise ValueError()
  if hashlib.sha256(encoded(json.loads(path.read_text(encoding='utf8')))).hexdigest()!=lock['fixture_sha256'] or lock['source_pins']!=LOCK:raise ValueError()
  return json.loads(path.read_text())
 def stamp(v):

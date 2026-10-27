@@ -16,11 +16,11 @@ def source(sha):
 def begin(root,sha,invocation):
     if not re.fullmatch('[0-9a-f]{32}',invocation):raise ValueError()
     root.mkdir(parents=True,exist_ok=False)
-    atomic(root/'summary.json',dict(version=1,candidate_sha=sha,invocation=invocation,result='FAIL',exit_code=50,error_class='INCOMPLETE',failure_stage='preflight',physical='PENDING',run_id=os.getenv('GITHUB_RUN_ID','LOCAL'),attempt=os.getenv('GITHUB_RUN_ATTEMPT','1')))
+    atomic(root/'summary.json',dict(version=1,candidate_sha=sha,invocation=invocation,result='FAIL',exit_code=50,error_class='INCOMPLETE',failure_stage='preflight',physical='PENDING',mode='SYNTHETIC',authority='SYNTHETIC_ONLY',sources='DISABLED',run_id=os.getenv('GITHUB_RUN_ID','LOCAL'),attempt=os.getenv('GITHUB_RUN_ATTEMPT','1')))
     source(sha)
 def bindings(root,sha,invocation):
     summary=read(root/'summary.json')
-    if summary.get('version')!=1 or summary.get('candidate_sha')!=sha or summary.get('invocation')!=invocation or not re.fullmatch('[0-9a-f]{32}',invocation) or summary.get('physical')!='PENDING':raise ValueError()
+    if type(summary.get('version')) is not int or summary.get('version')!=1 or summary.get('mode')!='SYNTHETIC' or summary.get('authority')!='SYNTHETIC_ONLY' or summary.get('sources')!='DISABLED' or summary.get('candidate_sha')!=sha or summary.get('invocation')!=invocation or not re.fullmatch('[0-9a-f]{32}',invocation) or summary.get('physical')!='PENDING':raise ValueError()
     life=list((root/'lifecycle').iterdir())
     if len(life)!=1 or not life[0].is_dir() or inspect_run(life[0],sha)!=0:raise ValueError()
     browser_verify(root/'browser',sha)
@@ -44,7 +44,7 @@ def fail(root,kind):
     atomic(root/'summary.json',summary);atomic(root/'manifest.json',entries(root))
 def verify(root,sha,invocation):
     summary=bindings(root,sha,invocation)
-    if summary.get('result')!='AUTOMATED_R4_PASS' or summary.get('exit_code')!=0 or summary.get('error_class')!='NONE' or summary.get('failure_stage')!='NONE':raise ValueError()
+    if type(summary.get('exit_code')) is not int or summary.get('result')!='AUTOMATED_R4_PASS' or summary.get('exit_code')!=0 or summary.get('error_class')!='NONE' or summary.get('failure_stage')!='NONE':raise ValueError()
     manifest=read(root/'manifest.json')
     if manifest!=entries(root):raise ValueError()
     # Only these three aggregate children are permitted; no workspace/raw reports.

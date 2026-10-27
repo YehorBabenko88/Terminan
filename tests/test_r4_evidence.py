@@ -18,3 +18,12 @@ class R4Evidence(unittest.TestCase):
    elif fault=='latency':d['r4']['fetch']['quantiles']['p99']=float('nan')
    else:d['disposed']['session']['pending']=1
    with self.subTest(fault=fault),self.assertRaises((ValueError,KeyError,TypeError)):check(d,SHA)
+
+ def test_boolean_is_not_numeric_evidence(self):
+  for field in ('version','childExit','sessionRequests','startupPending','retryPending'):
+   d=valid()
+   if field=='version':d['r4']['version']=True
+   elif field=='childExit':d['r4']['normalStop']['childExit']=False
+   elif field=='sessionRequests':d['r4']['startupClose']['sessionRequests']=False
+   else:d['disposed'][field]=False
+   with self.subTest(field=field),self.assertRaises(ValueError):check(d,SHA)
