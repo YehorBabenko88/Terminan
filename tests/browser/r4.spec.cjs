@@ -52,7 +52,7 @@ test('R4 bounded workloads contracts and session lifecycle',async({page,browserN
  await page.route('**/api/synthetic/frame?*',()=>{});
  await page.evaluate(()=>window.r2.seek(101));await expect(page.locator('#source-state')).toHaveText('ERROR');
  await page.unroute('**/api/synthetic/frame?*');await page.evaluate(()=>window.r2.seek(100));
- const exclusive=await page.evaluate(async()=>{const first=window.r2.benchmark({updates:10000});const second=await window.r2.benchmark({updates:10000}).then(()=>false,()=>true);await window.r2.seek(110);await first.catch(()=>{});return second;});expect(exclusive).toBe(true);
+ const exclusive=await page.evaluate(async()=>{const first=window.r2.benchmark({updates:10000}).then(()=> 'completed',error=>error.message);const second=await window.r2.benchmark({updates:10000}).then(()=>false,()=>true);await window.r2.seek(110);if(await first!=='Benchmark cancelled')throw Error('EXPECTED_CANCEL_NOT_OBSERVED');return second;});expect(exclusive).toBe(true);
  const cancelled=await page.evaluate(async()=>{const pending=window.r2.benchmark({updates:100000}).then(()=>false,()=>true);await window.r2.seek(120);return pending;});expect(cancelled).toBe(true);
  // Unplanned loss is bounded DISCONNECTED, never inferred SESSION_ENDED.
  const other=launch();let otherPage,unexpectedStop;
