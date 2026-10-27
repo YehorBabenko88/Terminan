@@ -33,6 +33,7 @@ def supervisor_status():
         if time.monotonic()>=deadline:raise ValueError("deadline")
         response=connection.getresponse()
         if time.monotonic()>=deadline:raise ValueError("deadline")
+        if time.monotonic()>=deadline:raise ValueError("deadline")
         if response.status not in (200,503):
             raise ValueError("invalid status")
         if response.getheader("Content-Length") and int(response.getheader("Content-Length"))>8192:
@@ -48,6 +49,7 @@ def supervisor_status():
             if len(body)>8192:raise ValueError("oversized")
         if len(body)>8192:
             raise ValueError("oversized")
+        if time.monotonic()>=deadline:raise ValueError("deadline")
         payload=json.loads(body,parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
         version=payload.get("api_version")
         if not isinstance(version,dict) or type(version.get("major")) is not int or type(version.get("minor")) is not int or version!={"major":1,"minor":0}:
