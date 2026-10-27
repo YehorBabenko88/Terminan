@@ -66,6 +66,10 @@ jobs:
         if: ${{ !cancelled() }}
         shell: pwsh
         run: python scripts/test_r3_shells.py --shell pwsh --report reports/r3-shell-ps7.json
+      - name: Actual Windows Ctrl+C cannot produce native zero
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/test_r3_console_cancel.py --report reports/r3-console-cancel.json
       - name: Linux actual owned-child lifecycle
         if: ${{ !cancelled() && runner.os == 'Linux' }}
         shell: pwsh
@@ -163,6 +167,7 @@ jobs:
             candidate/reports/python.txt
             candidate/reports/harness-shell-*.json
             candidate/reports/r3-shell-*.json
+            candidate/reports/r3-console-cancel.json
             candidate/reports/r2-browser-evidence/
             candidate/reports/r3-browser-evidence/
             candidate/reports/r3-browser.json

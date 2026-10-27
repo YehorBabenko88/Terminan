@@ -14,7 +14,17 @@ $savedPython=$env:R2_PYTHON
 $savedInvocation=$env:R3_INVOCATION
 $savedWork=$env:R3_WORK_ROOT
 $pushed=$false
+# A direct process exit is safe only in the dedicated -File host we own.
+$dedicated=$false
+$hostArguments=[Environment]::GetCommandLineArgs()
+for($i=0;$i -lt ($hostArguments.Length-1);$i++){
+ if($hostArguments[$i] -ieq '-File'){
+  try {$dedicated=[String]::Equals([IO.Path]::GetFullPath($hostArguments[$i+1]),[IO.Path]::GetFullPath($PSCommandPath),[StringComparison]::OrdinalIgnoreCase)} catch {}
+  break
+ }
+}
 try {
+ if(-not $dedicated){throw 'DEDICATED_FILE_HOST_REQUIRED'}
  $repo=[IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,'..'))
  $root=if([IO.Path]::IsPathRooted($EvidenceRoot)){[IO.Path]::GetFullPath($EvidenceRoot)}else{[IO.Path]::Combine($repo,$EvidenceRoot)}
  $env:R3_INVOCATION=[Guid]::NewGuid().ToString('N')
@@ -62,10 +72,16 @@ try {
 } finally {
  # PipelineStoppedException (Ctrl+C) bypasses catch and code after try/finally.
  # Exit INSIDE finally: lifecycle's native0 can never escape as aggregate PASS.
- $env:R2_PYTHON=$savedPython
- $env:R3_INVOCATION=$savedInvocation
- $env:R3_WORK_ROOT=$savedWork
- if($pushed){Pop-Location}
- $global:LASTEXITCODE=$code
- exit $code
+ try {
+  $env:R2_PYTHON=$savedPython
+  $env:R3_INVOCATION=$savedInvocation
+  $env:R3_WORK_ROOT=$savedWork
+  if($pushed){Pop-Location}
+ } finally {
+  $global:LASTEXITCODE=$code
+  # Console Ctrl+C can turn PowerShell's language exit50 into native0.
+  # Direct OS process termination preserves50; embedded calls are refused.
+  if($dedicated){[Environment]::Exit([int]$code)}
+  exit $code
+ }
 }
