@@ -1,7 +1,7 @@
 const {test,expect}=require('@playwright/test');
 test('consumer renders unavailable supervisor without granting authority',async({page})=>{
   await page.goto('http://127.0.0.1:18765');
-  await expect(page.locator('#consumer')).toContainText('VERSIONED_SUPERVISOR_CONTRACT_NOT_PUBLISHED');
+  await expect(page.locator('#consumer')).toContainText('SUPERVISOR_NOT_CONFIGURED');
   await expect(page.locator('#consumer')).toContainText('UNAVAILABLE');
   await expect(page.locator('#consumer')).toContainText('"trading_authorized": false');
 });
