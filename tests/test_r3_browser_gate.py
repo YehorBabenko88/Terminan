@@ -67,7 +67,7 @@ class AggregateGateTests(unittest.TestCase):
         from terminan import r3_gate as gate
         from terminan.r2_harness import Harness
         from test_harness_failclosed import FakeRuntime
-        with patch.object(gate,'source'):
+        with patch.object(gate,'source'),patch.dict(os.environ,dict(GITHUB_RUN_ID='LOCAL',GITHUB_RUN_ATTEMPT='1')):
             gate.begin(root,SHA,NONCE)
         h=Harness(expected_sha=SHA,evidence_root=root/'lifecycle',runtime=FakeRuntime())
         self.assertEqual(h.run(),0)
@@ -109,3 +109,10 @@ class AggregateGateTests(unittest.TestCase):
         with patch.object(r3_evidence,'verify',side_effect=observe):
             self.assertEqual(BrowserGateTests().run_bundle(report()),0)
         self.assertEqual(len(seen),1)
+
+    def test_cross_attempt_provenance_cannot_pass(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)/'run';gate=self.make(root)
+            value=json.loads((root/'summary.json').read_text());value['attempt']='2'
+            (root/'summary.json').write_text(json.dumps(value))
+            with patch.object(gate,'source'),self.assertRaises(ValueError):gate.complete(root,SHA,NONCE)
