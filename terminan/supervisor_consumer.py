@@ -57,7 +57,9 @@ def supervisor_status():
         if payload.get("status") not in ("AVAILABLE","UNAVAILABLE") or (response.status==503 and payload["status"]!="UNAVAILABLE"):
             raise ValueError("status mismatch")
         state=payload.get("state","UNAVAILABLE")
-        if (response.status==200 and payload["status"]!="AVAILABLE") or (response.status==503 and state!="UNAVAILABLE"):\n            raise ValueError("HTTP status/state mismatch")\n        if state not in ("INSTALLED","INFRA_READY","HANDOFF_VERIFIED","OBSERVING","DEGRADED","BLOCKED","UNAVAILABLE"):
+        if (response.status==200 and payload["status"]!="AVAILABLE") or (response.status==503 and state!="UNAVAILABLE"):
+            raise ValueError("HTTP status/state mismatch")
+        if state not in ("INSTALLED","INFRA_READY","HANDOFF_VERIFIED","OBSERVING","DEGRADED","BLOCKED","UNAVAILABLE"):
             raise ValueError("unknown state")
         return {"state":state if response.status==200 else "UNAVAILABLE",
                 "reason":"SOURCE_PROVENANCE_UNVERIFIED",
