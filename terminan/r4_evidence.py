@@ -15,6 +15,7 @@ def check(data,sha):
     check_r3(data,sha) # Original measured renderer/CPU/RSS budgets retained verbatim.
     extra=data['r4']
     if extra.get('version')!=1 or extra['contractStates']!=['UNSUPPORTED_TIMEFRAME','UNSUPPORTED_TIMEFRAME','HISTORICAL_ONLY','HISTORICAL_ONLY']:raise ValueError()
+    if extra['startupClose']!=dict(state='VIEW_CLOSED',sessionRequests=0) or data['disposed']['startupPending']!=0:raise ValueError()
     f=extra['fetch']
     if f['clock']!='PERFORMANCE_NOW_REQUEST_TO_SETTLED' or type(f['samples']) is not int or not 4<=f['samples']<=240:raise ValueError()
     q=f['quantiles']

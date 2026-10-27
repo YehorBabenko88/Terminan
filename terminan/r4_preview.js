@@ -3,7 +3,7 @@
 (()=>{
 const $=id=>document.getElementById(id), canvas=$('chart'), ctx=canvas.getContext('2d');
 let sessionClient=null,terminalState='';
-const s={fetchSamples:[],retry:0,retryTimer:0,data:null,contracts:null,generation:0,controller:null,playing:false,timer:0,raf:0,disposed:false,
+const s={startupController:null,fetchSamples:[],retry:0,retryTimer:0,data:null,contracts:null,generation:0,controller:null,playing:false,timer:0,raf:0,disposed:false,
   start:0,end:0,identity:'',modelDirty:true,drag:null,active:0,peak:0,aborted:0,renders:0,samples:[],renderTimes:[],listeners:[],firstRender:performance.now()};
 function on(target,event,fn,opts){target.addEventListener(event,fn,opts);s.listeners.push(()=>target.removeEventListener(event,fn,opts));}
 function schedule(){if(!s.disposed&&!s.raf)s.raf=requestAnimationFrame(render);}
@@ -172,7 +172,7 @@ function metrics(){
   const n=s.renderTimes.length,elapsed=n>1?(s.renderTimes.at(-1)-s.renderTimes[0])/1000:0;
   const sorted=[...s.samples].sort((a,b)=>a-b);
   const percentile=(v,p)=>{const a=[...v].sort((x,y)=>x-y);return a[Math.max(0,Math.ceil(a.length*p)-1)]||0;};
-  return {session:sessionClient?.metrics(),fetchLatencyMs:{p50:percentile(s.fetchSamples,.5),p95:percentile(s.fetchSamples,.95),p99:percentile(s.fetchSamples,.99)},fetchSamples:s.fetchSamples.length,fetchClock:'PERFORMANCE_NOW_REQUEST_TO_SETTLED',retryPending:Number(Boolean(s.retryTimer)),renders:s.renders,avgRenderMs:s.samples.length?s.samples.reduce((a,b)=>a+b,0)/s.samples.length:0,
+  return {session:sessionClient?.metrics()||{state:terminalState||'UNVERIFIED',closed:s.disposed,pending:0,active:0,requests:0,retries:0},startupPending:Number(Boolean(s.startupController&&!s.startupController.signal.aborted)),fetchLatencyMs:{p50:percentile(s.fetchSamples,.5),p95:percentile(s.fetchSamples,.95),p99:percentile(s.fetchSamples,.99)},fetchSamples:s.fetchSamples.length,fetchClock:'PERFORMANCE_NOW_REQUEST_TO_SETTLED',retryPending:Number(Boolean(s.retryTimer)),renders:s.renders,avgRenderMs:s.samples.length?s.samples.reduce((a,b)=>a+b,0)/s.samples.length:0,
     p95RenderMs:sorted.length?sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))]:0,
     effectiveRenderFps:elapsed?(n-1)/elapsed:0,renderSamples:s.samples.length,retainedCandles:s.data?.candles.length||0,
     retainedEvents:s.data?.events.length||0,activeRequests:s.active,peakRequests:s.peak,aborted:s.aborted,
@@ -180,7 +180,7 @@ function metrics(){
     dpr:devicePixelRatio,spanMs:s.end-s.start,windowEnd:s.end,bookRows:$('book-body').children.length,fixtureCount:s.contracts?.sources.length||0};
 }
 function dispose(){
-  if(s.disposed)return;stop();sessionClient?.close();s.disposed=true;++s.generation;s.controller?.abort();
+  if(s.disposed)return;stop();sessionClient?.close();s.startupController?.abort();s.disposed=true;++s.generation;s.controller?.abort();
   if(s.raf)cancelAnimationFrame(s.raf);s.raf=0;observer.disconnect();
   s.listeners.forEach(remove=>remove());s.listeners=[];clearPanels();s.samples=[];s.renderTimes=[];
 }
@@ -228,13 +228,15 @@ window.r4={metrics,close:()=>terminal('VIEW_CLOSED')};
 async function start(){
  try{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),1500);
-  let status;try{const response=await fetch('/api/status',{signal:controller.signal});status=await response.json();if(!response.ok)throw Error();}finally{clearTimeout(timeout);}
+  s.startupController=controller;let status;try{const response=await fetch('/api/status',{signal:controller.signal});status=await response.json();if(!response.ok)throw Error();}finally{clearTimeout(timeout);s.startupController=null;}
+  if(s.disposed)return;
   if(status.mode!=='SYNTHETIC'||status.sources!=='DISABLED'||status.execution!=='DISABLED'||status.source_clean!==true)throw Error();
   let initialized=false,previousSessionState='UNVERIFIED';
   sessionClient=new R4SessionClient({onState:(state,ended)=>{text('session-state',state);if(ended)terminal(state);else if(state==='DISCONNECTED'){stop();++s.generation;s.controller?.abort();clearPanels();text('source-state','DISCONNECTED');text('book-state','DISCONNECTED');document.body.dataset.loading='false';}else if(initialized&&previousSessionState==='DISCONNECTED'&&s.retry<5)load(Number($('seek').value));previousSessionState=state;}});
   await sessionClient.start(status.candidate_sha);
+  if(s.disposed)return;
   initialized=true;if(sessionClient.state==='ACTIVE')load(0);else if(!s.disposed)text('source-state','DISCONNECTED');
- }catch{terminal('UNVERIFIED');}
+ }catch{if(!s.disposed)terminal('UNVERIFIED');}
 }
 start();
 })();

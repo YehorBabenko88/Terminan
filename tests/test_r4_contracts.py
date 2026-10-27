@@ -54,3 +54,9 @@ class R4Contracts(unittest.TestCase):
    with self.subTest(case=case['name']):self.assertEqual(self.check(raw)['state'],case['state'])
  def test_gap_and_nullable_poc(self):
   raw=fixtures()[0];self.assertIsNone(raw['rows'][0]['poc']);raw['rows'].pop(1);seal(raw);self.assertEqual(self.check(raw)['state'],'GAP')
+
+ def test_timeout_and_non_object_rows(self):
+  raw=fixtures()[0];raw['source_state']='TIMEOUT';seal(raw);self.assertEqual(self.check(raw)['state'],'TIMEOUT');self.assertEqual(self.check(raw)['rows'],[])
+  for value in (None,[],True,42):
+   raw=fixtures()[0];raw['rows'][0]=value;seal(raw)
+   with self.subTest(value=value):self.assertEqual(self.check(raw)['state'],'INVALID_DATA')

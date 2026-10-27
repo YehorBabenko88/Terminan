@@ -50,6 +50,7 @@ def validate(raw,*,symbol,timeframe,as_of_ms,previous=None):
   rows=raw['rows']
   if not isinstance(rows,list) or len(rows)>300:raise ValueError()
   for row in rows:
+   if not isinstance(row,dict):raise ValueError()
    if row.get('symbol')!=symbol or row.get('timeframe')!=timeframe:raise ValueError()
    if stamp(row['available_at_ms'])>as_of_ms or row['available_at_ms']>observed:out['state']='FUTURE_LEAKAGE';return out
    if kind=='research':
@@ -64,6 +65,7 @@ def validate(raw,*,symbol,timeframe,as_of_ms,previous=None):
   if kind!='research' and rows and (min(r['t'] for r in rows)!=cover['from_ms'] or max(r['t'] for r in rows)+period!=cover['to_ms']):raise ValueError()
   if kind=='research' and len({r['run_id'] for r in rows})!=len(rows):raise ValueError()
   legacy=copy.deepcopy(raw);legacy['fixture_version']=1
+  if raw['source_state']=='TIMEOUT':legacy['source_state']='AVAILABLE'
   inner=validate_fixture(legacy,as_of_ms)
   if inner['state'] in ('INVALID_DATA','INVALID_PROVENANCE','SCHEMA_MISMATCH','FUTURE_LEAKAGE'):out['state']=inner['state'];return out
   state='UNAVAILABLE' if raw['source_state']=='UNAVAILABLE' else 'TIMEOUT' if raw['source_state']=='TIMEOUT' else 'NO_DATA' if not rows else 'STALE' if as_of_ms-observed>120000 or inner['state']=='STALE' else 'GAP' if inner['coverage'].get('missing_intervals',0) else 'PARTIAL' if raw['source_state']=='PARTIAL' or inner['state']=='PARTIAL' else 'HISTORICAL_ONLY'
