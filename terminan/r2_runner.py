@@ -13,13 +13,17 @@ def write_new(path,value):
 class PrivateParser(argparse.ArgumentParser):
     def error(self,message):raise ValueError()
 
-def main():
+def main(argv=None):
     server=None;thread=None;serving_started=False;code=0;args=None;shutdown_started=None
     try:
-        parser=PrivateParser();parser.add_argument('--ready');parser.add_argument('--diagnostics');args=parser.parse_args()
+        parser=PrivateParser();parser.add_argument('--ready');parser.add_argument('--diagnostics');parser.add_argument('--r4',action='store_true');args=parser.parse_args(argv)
         for key in list(os.environ):
             if key.startswith('TERMINAN_'):os.environ.pop(key,None)
-        server=R2Server(('127.0.0.1',0),R2Handler)
+        server_type,handler=R2Server,R2Handler
+        if args.r4:
+            from .r4_server import R4Server,R4Handler
+            server_type,handler=R4Server,R4Handler
+        server=server_type(('127.0.0.1',0),handler)
         repo=Path(__file__).resolve().parents[1]
         server.candidate_sha=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True,stderr=subprocess.DEVNULL,timeout=5).strip()
         server.source_clean=not subprocess.check_output(['git','-C',str(repo),'status','--porcelain','--untracked-files=normal'],text=True,stderr=subprocess.DEVNULL,timeout=5).strip()
@@ -38,6 +42,8 @@ def main():
         if server:
             try:
                 shutdown_started=time.monotonic()
+                if hasattr(server,'session'):
+                    server.session.end();time.sleep(3) # Bounded explicit receipt grace, never inferred from refusal.
                 if serving_started:server.shutdown()
                 # Non-daemon bounded request workers are joined by server_close.
                 # Parent owns the hard shutdown deadline and kills this child on timeout.
@@ -48,7 +54,7 @@ def main():
                 from .r2_diagnostics import FATAL
                 if any(server.diagnostics.snapshot()['counters'][kind] for kind in FATAL):code=1
                 if args and args.diagnostics:
-                    write_new(args.diagnostics,dict(version=1,mode='SYNTHETIC',candidate_sha=server.candidate_sha,shutdown_complete=True,shutdown_elapsed_ms=round((time.monotonic()-shutdown_started)*1000,3),diagnostics=server.diagnostics.snapshot()))
+                    write_new(args.diagnostics,dict(version=1,mode='SYNTHETIC',candidate_sha=server.candidate_sha,shutdown_complete=True,shutdown_elapsed_ms=round((time.monotonic()-shutdown_started)*1000,3),diagnostics=server.diagnostics.snapshot(),**({'r4_session':server.session.diagnostics()} if hasattr(server,'session') else {})))
             except (Exception,KeyboardInterrupt):code=1;sys.stderr.write('R2_DIAGNOSTIC RUNNER_FAILURE\n');sys.stderr.flush()
     return code
 if __name__=='__main__':raise SystemExit(main())

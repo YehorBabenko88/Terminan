@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "fixture_sha256": "789bb348d74125c7795aac853e9d7f338393d27214a112a7ffc6ffece371a1b5",
+  "source_pins": {
+    "grid": {
+      "sha": "d537d525296ef34f727996e240ae6c60102c6082",
+      "files": {
+        "grid/schema.sql": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495"
+      }
+    },
+    "strattester": {
+      "sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
+      "files": {
+        "strattester/marketdata/schema.py": "4f1dc03d3c445cf87940b9228b7acfdd64a4cda68b50352ff1e46083a2e23175",
+        "strattester/persistence/result_store.py": "41cbed94f11e8bee9eba8b37b449992286067ffbf029077d3471dca9427d1c62"
+      }
+    }
+  }
+}
