@@ -73,6 +73,24 @@ class CacheMonitorTests(unittest.TestCase):
   self.assertEqual(lookup_exact_cache(self.path,"c"*64,"BTCUSDT","5m",1767225600000,1767225840000)["state"],"MISS")
   self.assertEqual(lookup_exact_cache(self.path,"a"*64,"BTCUSDT","15m",1767225600000,1767225840000)["state"],"MISS")
   self.assertEqual(lookup_exact_cache(self.path,"a"*64,"BTCUSDT","5m",1767225600000,1767225900000)["state"],"MISS")
+ def test_unrelated_ready_jobs_do_not_hide_exact_hit(self):
+  identity=dict(source="grid",source_revision="a"*64,dataset="candles_1m",
+   symbol="BTCUSDT",timeframe="5m",from_ms=1767225600000,to_ms=1767225840000,
+   algorithm=ALGORITHM,parameters_hash="b"*64)
+  candles=[dict(symbol="BTCUSDT",ts=1767225600000+i*60000,
+   open=100+i,high=102+i,low=99+i,close=101+i,buy_volume=2,sell_volume=1) for i in range(5)]
+  source=dict(source_revision="a"*64,candles=candles,
+   footprint=[dict(symbol="BTCUSDT",ts=c["ts"],price=100,buy_volume=2,sell_volume=1) for c in candles])
+  job=submit(self.con,identity,source)
+  self.assertEqual(run_once(self.con)["state"],"FINISHED")
+  for i in range(140):
+   other=dict(identity,symbol="OTHER"+str(i))
+   self.con.execute("""INSERT INTO cache_jobs
+    (job_id,cache_key,identity_json,source_json,state,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?)""",("%032x"%(i+1),"unrelated"+str(i),
+    json.dumps(other),"{}","READY",100,100))
+  result=lookup_exact_cache(self.path,"a"*64,"BTCUSDT","5m",1767225600000,1767225840000)
+  self.assertEqual(result["state"],"READY")
  def test_bad_job_id(self):
   with self.assertRaises(ValueError):
    read_job_result(self.path,"../secret")
