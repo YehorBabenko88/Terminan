@@ -10,7 +10,7 @@ class SavedServer(R4Server):
 class SavedHandler(R4Handler):
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page','/api/saved/cache-status'):return super().do_GET()
+  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page','/api/saved/cache-status','/api/saved/cache-result'):return super().do_GET()
   host=self.headers.get('Host','')
   if host not in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'} or self.headers.get('Origin') not in (None,'http://'+host):return self.send(403,dict(error='LOCAL_ORIGIN_REQUIRED'))
   if len(self.path)>8192:return self.send(414,dict(error='REQUEST_LIMIT'))
@@ -33,6 +33,16 @@ class SavedHandler(R4Handler):
      return self.send(503,dict(error='CACHE_UNAVAILABLE',authority='OFFLINE_ONLY',jobs=[]))
     except __import__('sqlite3').Error:
      return self.send(503,dict(error='CACHE_UNAVAILABLE',authority='OFFLINE_ONLY',jobs=[]))
+   if path=='/api/saved/cache-result':
+    if set(q)!={'job_id'} or not isinstance(q['job_id'],str) or len(q['job_id'])!=32 or any(c not in '0123456789abcdef' for c in q['job_id']):
+     raise SourceError()
+    if self.server.cache_db is None:
+     return self.send(503,dict(state='DISABLED',authority='OFFLINE_ONLY'))
+    try:
+     from .cache_monitor import read_job_result
+     return self.send(200,read_job_result(self.server.cache_db,q['job_id']))
+    except (__import__('sqlite3').Error,OSError,ValueError):
+     return self.send(503,dict(state='UNAVAILABLE',authority='OFFLINE_ONLY'))
    if path.endswith('/catalog'):
     if q:raise SourceError()
     return self.send(200,dict(**self.server.saved.catalog(),candidate_sha=self.server.candidate_sha))

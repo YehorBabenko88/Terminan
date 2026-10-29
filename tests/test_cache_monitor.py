@@ -6,9 +6,9 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from http.server import ThreadingHTTPServer
-from terminan.saved_cache import open_cache
-from terminan.cache_queue import init_queue
-from terminan.cache_monitor import read_status
+from terminan.saved_cache import open_cache, ALGORITHM
+from terminan.cache_queue import init_queue, submit, run_once
+from terminan.cache_monitor import read_status, read_job_result
 
 class CacheMonitorTests(unittest.TestCase):
  def setUp(self):
@@ -40,5 +40,27 @@ class CacheMonitorTests(unittest.TestCase):
   result=read_status(self.path)
   self.assertEqual(result["jobs"][0]["job_id"],"j1")
   self.assertEqual(result["jobs"][0]["state"],"QUEUED")
+
+ def test_verified_cache_result(self):
+  identity=dict(source="grid",source_revision="a"*64,dataset="candles_1m",
+   symbol="BTCUSDT",timeframe="5m",from_ms=1767225600000,to_ms=1767225840000,
+   algorithm=ALGORITHM,parameters_hash="b"*64)
+  candles=[dict(symbol="BTCUSDT",ts=1767225600000+i*60000,
+   open=100+i,high=102+i,low=99+i,close=101+i,buy_volume=2,sell_volume=1) for i in range(5)]
+  source=dict(source_revision="a"*64,candles=candles,
+   footprint=[dict(symbol="BTCUSDT",ts=c["ts"],price=100,buy_volume=2,sell_volume=1) for c in candles])
+  job=submit(self.con,identity,source)
+  self.assertEqual(run_once(self.con)["state"],"FINISHED")
+  result=read_job_result(self.path,job["job_id"])
+  self.assertEqual(result["state"],"READY")
+  self.assertEqual(result["total_candles"],1)
+  self.assertEqual(result["candles"][0]["volume"],15)
+  self.assertNotIn("levels",result["candles"][0])
+  self.assertNotIn("source_json",result)
+  self.con.execute("UPDATE cache_entries SET payload=?",(b"tampered",))
+  self.assertEqual(read_job_result(self.path,job["job_id"])["state"],"CORRUPT")
+ def test_bad_job_id(self):
+  with self.assertRaises(ValueError):
+   read_job_result(self.path,"../secret")
 
 if __name__=="__main__":unittest.main()

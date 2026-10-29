@@ -5,6 +5,9 @@ Open only an explicitly selected SQLite file in immutable read-only mode.
 """
 from __future__ import annotations
 import argparse
+import hashlib
+import math
+import time
 import json
 import sqlite3
 import sys
@@ -59,6 +62,48 @@ def read_status(db):
         entries=con.execute("SELECT count(*) FROM cache_entries").fetchone()[0]
         return {"mode":"READ_ONLY","authority":"OFFLINE_ONLY","entries":entries,
                 "jobs":[dict(job_id=j[0],state=j[1],attempt=j[2],error_code=j[3]) for j in jobs]}
+    finally:
+        con.close()
+
+def read_job_result(db, job_id, now=None):
+    """Return only bounded, integrity-checked, completed offline cache results."""
+    if not isinstance(job_id,str) or len(job_id)!=32 or any(c not in "0123456789abcdef" for c in job_id):
+        raise ValueError("INVALID_JOB_ID")
+    now=int(time.time()) if now is None else int(now)
+    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
+    try:
+        con.execute("PRAGMA query_only=ON")
+        row=con.execute("""SELECT j.state,j.identity_json,e.identity_json,
+            e.content_hash,e.payload,e.expires_at
+            FROM cache_jobs j LEFT JOIN cache_entries e ON e.cache_key=j.cache_key
+            WHERE j.job_id=?""",(job_id,)).fetchone()
+        if row is None:return {"state":"NOT_FOUND"}
+        state,job_identity,entry_identity,expected,raw,expires=row
+        if state!="READY":return {"state":state}
+        if raw is None:return {"state":"MISSING"}
+        if expires<=now:return {"state":"EXPIRED"}
+        if len(raw)>4*1024*1024 or hashlib.sha256(raw).hexdigest()!=expected:
+            return {"state":"CORRUPT"}
+        try:
+            identity=json.loads(job_identity)
+            if identity!=json.loads(entry_identity):return {"state":"STALE"}
+            data=json.loads(raw)
+            if data.get("state")!="HISTORICAL_ONLY" or data.get("complete") is not True or data.get("source_revision")!=identity["source_revision"]:
+                return {"state":"STALE"}
+            candles=data.get("candles")
+            if not isinstance(candles,list) or len(candles)>10000:return {"state":"CORRUPT"}
+            if any(not isinstance(c,dict) or not isinstance(c.get("ts"),int) or
+                   not all(type(c.get(k)) in (int,float) and math.isfinite(c[k]) for k in ("open","high","low","close","volume","delta"))
+                   for c in candles):return {"state":"CORRUPT"}
+        except (ValueError,TypeError,KeyError,AttributeError):
+            return {"state":"CORRUPT"}
+        # Deliberately do not return raw footprint, source payload, paths or identity.
+        return {"state":"READY","authority":"OFFLINE_ONLY","dataset":identity["dataset"],
+                "symbol":identity["symbol"],"timeframe":identity["timeframe"],
+                "source_revision":identity["source_revision"],"sha256":expected,
+                "total_candles":len(candles),
+                "candles":[{k:c[k] for k in ("ts","open","high","low","close","volume","delta")}
+                           for c in candles[:64]]}
     finally:
         con.close()
 
