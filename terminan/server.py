@@ -10,6 +10,7 @@ from . import data
 from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .g0_sources import all_sources, snapshot
+from . import math_bridge
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -41,6 +42,34 @@ class ThreadingHTTPServer(BaseHTTPServer):
         finally:self.slots.release()
 
 class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        host=self.headers.get('Host','')
+        allowed={f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}
+        origin=self.headers.get('Origin')
+        if host not in allowed or origin!='http://'+host:
+            return self.send_error(403,'Local origin required')
+        if self.path!='/api/math/evaluate':
+            return self.send_error(404)
+        if self.headers.get('Content-Type')!='application/json':
+            return self.send_error(415)
+        rawlen=self.headers.get('Content-Length','')
+        if not rawlen.isascii() or not rawlen.isdecimal() or not 2<=int(rawlen)<=262144:
+            return self.send_error(413)
+        try:
+            result=math_bridge.evaluate(self.rfile.read(int(rawlen)))
+            body=json.dumps(result,allow_nan=False).encode()
+            code=200
+        except (ValueError, TypeError):
+            body=b'{"error":"MATH_RESEARCH_UNAVAILABLE","trading_authorized":false}'
+            code=422
+        self.send_response(code)
+        self.send_header("Content-Type","application/json")
+        self.send_header("Cache-Control","no-store")
+        self.send_header("X-Content-Type-Options","nosniff")
+        self.send_header("Content-Length",str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self,*args):
         pass  # Request paths/queries may contain private identifiers.
     def do_GET(self):
@@ -64,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/math/health': result={'schema':'terminan.math-health.v1','state':'NOT_CONNECTED','source':'MATH_ENGINE_NOT_ATTESTED','research_enabled':False,'trading_authorized':False}
+                if url.path == '/api/math/health': result=math_bridge.check()
                 elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
