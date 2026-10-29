@@ -67,17 +67,54 @@ function drawPanels(){
   text('identity',d.dataset_id+' · step '+d.step);
   text('book-state',d.dom.status);$('book-state').dataset.fault=String(d.dom.status!=='COHERENT');
   text('source-state',d.source_state);$('source-state').dataset.fault=String(d.source_state!=='SYNTHETIC');
-  const bids=new Map(d.dom.bids),asks=new Map(d.dom.asks);
-  const prices=[...new Set([...bids.keys(),...asks.keys()])].sort((a,b)=>b-a);
+  // Visual-only ladder: one quantity/price pair per row, asks above bids.
+  // Keep the original source ordering/quantities and never synthesize missing levels.
+  const asks=[...d.dom.asks].sort((a,b)=>b[0]-a[0]);
+  const bids=[...d.dom.bids].sort((a,b)=>b[0]-a[0]);
   const book=document.createDocumentFragment();
-  prices.forEach(price=>book.append(row([bids.get(price)||'',(price*d.dom.tick_size).toFixed(2),asks.get(price)||''],['bid','','ask'])));
+  for(const [price,quantity] of asks){
+    const tr=row([quantity,(price*d.dom.tick_size).toFixed(2)],['ask','ask-price']);
+    tr.className='ladder-ask';book.append(tr);
+  }
+  if(asks.length&&bids.length){
+    const tr=document.createElement('tr');tr.className='ladder-spread';
+    const cell=document.createElement('td');cell.colSpan=2;cell.textContent='SPREAD';tr.append(cell);book.append(tr);
+  }
+  for(const [price,quantity] of bids){
+    const tr=row([quantity,(price*d.dom.tick_size).toFixed(2)],['bid','bid-price']);
+    tr.className='ladder-bid';book.append(tr);
+  }
   $('book-body').replaceChildren(book);
   const scroll=$('book-body').closest('.book-scroll');
-  scroll.scrollTop=Math.max(0,(scroll.scrollHeight-scroll.clientHeight)/2);
-  text('book-meta','epoch '+d.dom.epoch+' · sequence '+d.dom.sequence+' · '+prices.length+' bounded rows');
+  const divider=book=>book.querySelector('.ladder-spread');
+  const spread=divider($('book-body'));
+  if(spread)scroll.scrollTop=Math.max(0,spread.offsetTop-scroll.offsetTop-scroll.clientHeight/2);
+  else scroll.scrollTop=0;
+  text('book-meta','epoch '+d.dom.epoch+' · sequence '+d.dom.sequence+' · '+(asks.length+bids.length)+' bounded levels');
+  // Compact footprint boxes use ONLY the supplied latest closed minute rows.
+  // They are not historical candle clusters or a fabricated trade tape.
   const footprint=document.createDocumentFragment();
-  d.footprint.rows.forEach(r=>{const tr=row([r.price.toFixed(2),r.buy,r.sell,r.delta,r.volume]);if(r.price===d.footprint.poc)tr.className='poc';footprint.append(tr);});
-  $('footprint-body').replaceChildren(footprint);
+  const cluster=document.createElement('div');cluster.className='footprint-cluster';
+  const levels=[...d.footprint.rows].sort((a,b)=>b.price-a.price);
+  for(const r of levels){
+    const cell=document.createElement('div');
+    cell.className='footprint-cell'+(r.price===d.footprint.poc?' footprint-poc':'');
+    cell.dataset.side=r.delta>0?'buy':r.delta<0?'sell':'neutral';
+    const pair=document.createElement('span');pair.className='footprint-pair';
+    pair.textContent=r.sell+' × '+r.buy;
+    const price=document.createElement('span');price.className='footprint-price';
+    price.textContent=r.price.toFixed(2);
+    cell.title='Sell '+r.sell+' · Buy '+r.buy+' · Delta '+r.delta+' · Volume '+r.volume;
+    cell.append(pair,price);cluster.append(cell);
+  }
+  if(levels.length){
+    const totals=document.createElement('div');totals.className='footprint-totals';
+    const volume=levels.reduce((sum,r)=>sum+r.volume,0);
+    const delta=levels.reduce((sum,r)=>sum+r.delta,0);
+    totals.textContent='V '+volume+' · Δ '+(delta>0?'+':'')+delta;
+    cluster.append(totals);
+  }
+  footprint.append(cluster);$('footprint-body').replaceChildren(footprint);
   text('footprint-time',d.footprint.rows.length?new Date(d.footprint.rows[0].t).toISOString()+' · closed minute · SYNTHETIC · POC '+d.footprint.poc.toFixed(2):'No available synthetic footprint');
   const contracts=document.createDocumentFragment();
   for(const c of s.contracts?.sources||[]){
