@@ -10,7 +10,7 @@ class SavedServer(R4Server):
 class SavedHandler(R4Handler):
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page','/api/saved/cache-status','/api/saved/cache-result'):return super().do_GET()
+  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page','/api/saved/cache-status','/api/saved/cache-result','/api/saved/cache-lookup'):return super().do_GET()
   host=self.headers.get('Host','')
   if host not in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'} or self.headers.get('Origin') not in (None,'http://'+host):return self.send(403,dict(error='LOCAL_ORIGIN_REQUIRED'))
   if len(self.path)>8192:return self.send(414,dict(error='REQUEST_LIMIT'))
@@ -42,6 +42,19 @@ class SavedHandler(R4Handler):
      from .cache_monitor import read_job_result
      return self.send(200,read_job_result(self.server.cache_db,q['job_id']))
     except (__import__('sqlite3').Error,OSError,ValueError):
+     return self.send(503,dict(state='UNAVAILABLE',authority='OFFLINE_ONLY'))
+   if path=='/api/saved/cache-lookup':
+    if set(q)!={'revision','symbol','timeframe','from_ms','to_ms'}:
+     raise SourceError()
+    if self.server.cache_db is None:
+     return self.send(200,dict(state='DISABLED',authority='OFFLINE_ONLY'))
+    try:
+     if any(not q[k].isascii() or not q[k].isdigit() or len(q[k])>16 for k in ('from_ms','to_ms')):
+      raise SourceError()
+     from .cache_monitor import lookup_exact_cache
+     result=lookup_exact_cache(self.server.cache_db,q['revision'],q['symbol'],q['timeframe'],int(q['from_ms']),int(q['to_ms']))
+     return self.send(200,result)
+    except (OSError,ValueError,__import__('sqlite3').Error):
      return self.send(503,dict(state='UNAVAILABLE',authority='OFFLINE_ONLY'))
    if path.endswith('/catalog'):
     if q:raise SourceError()
