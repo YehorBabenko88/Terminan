@@ -26,7 +26,7 @@ document.getElementById('checkMath').onclick=async()=>{const target=document.get
 document.getElementById('loadDemo').onclick=()=>{document.getElementById('closeValues').value=Array.from({length:500},(_,i)=>(70000+20*Math.sin(i/10)+i*.03).toFixed(5)).join(' ');document.getElementById('mathEvaluation').textContent='SYNTHETIC_INPUT_NOT_MARKET_DATA'};
 document.getElementById('evaluateMath').onclick=async()=>{
  const status=document.getElementById('mathEvaluation');status.textContent='CHECKING';
- const raw=document.getElementById('closeValues').value.trim().split(/\\s+/);
+ const raw=document.getElementById('closeValues').value.trim().split(/\s+/);
  const values=raw.map(Number);
  if(values.length<500||values.length>2000||values.some(x=>!Number.isFinite(x)||x<=0)){status.textContent='INVALID_PRICE_SERIES';return}
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),7000);
