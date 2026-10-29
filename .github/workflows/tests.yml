@@ -1,5 +1,8 @@
 name: R4 exact offline session candidate
 on: [push, pull_request]
+concurrency:
+  group: terminan-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -41,7 +44,7 @@ jobs:
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne '40c3d0f0c3ae75a0cf08a58cfc04239d0c8353dd') { throw 'Frozen R3 base drift' }
+          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'a2019e83d456ef2b6b2d52608b26322b36d402e3') { throw 'Saved-data stack base drift' }
           @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
@@ -170,6 +173,21 @@ jobs:
         if: ${{ !cancelled() }}
         shell: pwsh
         run: python -m terminan.r4_evidence --sha (git rev-parse HEAD).Trim() --out reports/r4-browser-evidence
+      - name: Saved workspace browser regressions
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: |
+          $env:SAVED_INVOCATION=[guid]::NewGuid().ToString('N')
+          $env:SAVED_STARTED_MS=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          $env:R2_PYTHON=(Get-Command python).Source
+          $env:SAVED_INVOCATION | Set-Content reports/saved-invocation.txt
+          $env:SAVED_STARTED_MS | Set-Content reports/saved-started.txt
+          node node_modules/@playwright/test/cli.js test --config=playwright.saved.config.cjs
+          exit $LASTEXITCODE
+      - name: Strict saved workspace evidence
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: python -m terminan.saved_evidence --report reports/saved-browser.json --sha (git rev-parse HEAD).Trim() --invocation (Get-Content reports/saved-invocation.txt).Trim() --started-ms (Get-Content reports/saved-started.txt).Trim() --out reports/saved-browser-evidence
       - name: R2 Windows PowerShell 5.1 harness
         if: ${{ !cancelled() && runner.os == 'Windows' }}
         shell: powershell
@@ -208,6 +226,10 @@ jobs:
             candidate/reports/r4-console-cancel.json
             candidate/reports/r4-browser-evidence/
             candidate/reports/r4-browser.json
+            candidate/reports/saved-browser.json
+            candidate/reports/saved-invocation.txt
+            candidate/reports/saved-started.txt
+            candidate/reports/saved-browser-evidence/
             candidate/.r4-reliability-evidence/
             candidate/reports/r2-browser-evidence/
             candidate/reports/r3-browser-evidence/
