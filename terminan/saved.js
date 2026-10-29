@@ -75,8 +75,10 @@
    const seen=new Set();
    for(const r of x.rows){
     if(r.symbol!==p.symbol||!Number.isSafeInteger(r.ts)||r.ts<min||r.ts>max||
-       seen.has(r.ts)||!['open','high','low','close','volume'].every(k=>typeof r[k]==='number'&&Number.isFinite(r[k]))||
-       r.low>Math.min(r.open,r.close)||r.high<Math.max(r.open,r.close)||r.volume<0)
+       seen.has(r.ts)||!['open','high','low','close','buy_volume','sell_volume'].every(k=>typeof r[k]==='number'&&Number.isFinite(r[k]))||
+       r.low>Math.min(r.open,r.close)||r.high<Math.max(r.open,r.close)||
+       Math.min(r.buy_volume,r.sell_volume)<=-1e-12||
+       (r.volume!=null&&(!Number.isFinite(r.volume)||r.volume<0)))
        throw Error('COMPANION_INVALID');
     seen.add(r.ts);
    }
