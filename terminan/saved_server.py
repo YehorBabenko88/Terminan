@@ -10,7 +10,7 @@ class SavedServer(R4Server):
 class SavedHandler(R4Handler):
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path not in ('/saved','/saved.js','/saved.css','/api/saved/catalog','/api/saved/page'):return super().do_GET()
+  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page'):return super().do_GET()
   host=self.headers.get('Host','')
   if host not in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'} or self.headers.get('Origin') not in (None,'http://'+host):return self.send(403,dict(error='LOCAL_ORIGIN_REQUIRED'))
   if len(self.path)>8192:return self.send(414,dict(error='REQUEST_LIMIT'))
@@ -19,7 +19,7 @@ class SavedHandler(R4Handler):
    q=parse_qs(urlsplit(self.path).query,keep_blank_values=True,max_num_fields=8)
    if any(len(v)!=1 for v in q.values()):raise SourceError()
    q={k:v[0] for k,v in q.items()}
-   if path in ('/saved','/saved.js','/saved.css'):
+   if path in ('/saved','/saved.js','/saved_mtf.js','/saved.css'):
     if q:raise SourceError()
     file=Path(__file__).with_name('saved.html' if path=='/saved' else path[1:]);return self.send(200,file.read_bytes(),('text/html' if path=='/saved' else 'text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8')
    if path.endswith('/catalog'):
