@@ -25,5 +25,10 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
       - name: Syntax validation
         run: python -m compileall -q terminan
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: UI button handlers
+        run: node tests/check_ui_buttons.cjs
       - name: Focused Supervisor regressions
         run: python -m unittest discover -s tests -p "test_supervisor*.py" -v
