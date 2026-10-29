@@ -39,7 +39,7 @@
    if(d.match!=='EXACT_SOURCE_REVISION_AND_RANGE'||d.source_revision!==p.source_sha||
       d.symbol!==p.symbol||d.timeframe!==displayTF()||!/^[a-f0-9]{64}$/.test(d.sha256)||
       !Array.isArray(d.candles)||d.candles.length>64||!Number.isSafeInteger(d.total_candles)||
-      d.total_candles<d.candles.length)throw Error('UNVERIFIED_CACHE');
+      d.total_candles!==d.candles.length)throw Error('UNVERIFIED_CACHE');
    for(const c of d.candles){
     if(!Number.isSafeInteger(c.ts)||c.ts<from||c.ts>to||
        !['open','high','low','close','volume','delta'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]))||
