@@ -1,0 +1,1782 @@
+{
+  "version": 1,
+  "source": "strattester",
+  "schema_id": "market2",
+  "source_sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
+  "as_of_ms": 1767229200000,
+  "mode": "SYNTHETIC",
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT"
+  ],
+  "datasets": {
+    "candles": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "volume": 10,
+        "turnover": 10,
+        "complete": 1
+      }
+    ],
+    "mark_prices": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      }
+    ],
+    "index_prices": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      }
+    ],
+    "premium_index": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "open": 100,
+        "high": 102,
+        "low": 99,
+        "close": 100,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "open": 101,
+        "high": 103,
+        "low": 100,
+        "close": 101,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "open": 102,
+        "high": 104,
+        "low": 101,
+        "close": 102,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "open": 103,
+        "high": 105,
+        "low": 102,
+        "close": 103,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "open": 104,
+        "high": 106,
+        "low": 103,
+        "close": 104,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "open": 105,
+        "high": 107,
+        "low": 104,
+        "close": 105,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "open": 106,
+        "high": 108,
+        "low": 105,
+        "close": 106,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "open": 107,
+        "high": 109,
+        "low": 106,
+        "close": 107,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "open": 108,
+        "high": 110,
+        "low": 107,
+        "close": 108,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "open": 109,
+        "high": 111,
+        "low": 108,
+        "close": 109,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "open": 110,
+        "high": 112,
+        "low": 109,
+        "close": 110,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "open": 111,
+        "high": 113,
+        "low": 110,
+        "close": 111,
+        "complete": 1
+      }
+    ],
+    "open_interest": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "value": 10,
+        "complete": 1
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "value": 10,
+        "complete": 1
+      }
+    ],
+    "funding": [
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225600000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225660000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225720000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225780000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225840000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225900000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767225960000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767226020000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767226080000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767226140000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767226200000,
+        "rate": 0
+      },
+      {
+        "symbol": "BTCUSDT",
+        "funding_time": 1767226260000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225600000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225660000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225720000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225780000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225840000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225900000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767225960000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767226020000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767226080000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767226140000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767226200000,
+        "rate": 0
+      },
+      {
+        "symbol": "ETHUSDT",
+        "funding_time": 1767226260000,
+        "rate": 0
+      }
+    ],
+    "long_short_ratio": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "buy_ratio": null,
+        "sell_ratio": null,
+        "long_short_ratio": null
+      }
+    ],
+    "public_trade_aggregates": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225600000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225660000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225720000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225780000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225840000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225900000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767225960000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226020000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226080000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226140000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226200000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "timeframe": "1m",
+        "open_time": 1767226260000,
+        "buy_volume": 10,
+        "sell_volume": 10,
+        "turnover": 10,
+        "trade_count": 10,
+        "vwap": null,
+        "max_trade": null
+      }
+    ]
+  }
+}

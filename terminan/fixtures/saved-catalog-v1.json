@@ -1,0 +1,5636 @@
+{
+  "grid": {
+    "sha": "d537d525296ef34f727996e240ae6c60102c6082",
+    "files": {
+      "grid/control_plane.py": "113fa50e95e474802974c75cc874bc7885c76db295ebc77d474e6ede8fedc52e",
+      "grid/db.py": "5eb11360921800d12eb6ba4f62d4d034dc084c5406d37a30784d98ec3a588f1c",
+      "grid/enrollment.py": "6e2d943cd88d45bdfa6783c30d50ca2c510d76b881afd87d0523a4b0b7889791",
+      "grid/fleet_control.py": "a1b41494e107e4ab6f7a52cef99896c9937a81c23c0959ab807a1ed4e61681d7",
+      "grid/instrument_lifecycle.py": "a63a8a32a9a33fa940545bc51454981e785e09da0f4e3512d80c62ee5c802464",
+      "grid/retention.py": "27dc69e4a08a1737b67095e3fd11bc1c7dbe91b342cc9d77268a4eb051e4cb66",
+      "grid/rollout.py": "cfc523f5e043f51d231fcf2252d7735820a9b37e501decd7bdd244549c4f4947",
+      "grid/runtime_gate.py": "c517e58dba1446dd5ed2c6babcfbd267ca37f4dfccbe8a70e56eebd2d16db3f0",
+      "grid/strategy_jobs.py": "4565d3cb3bab207f218c09fc45ec370e1c3c8a4a9e733c26255a06cf422e37ec",
+      "grid/strategy_plugins.py": "d468b9d486713072bcbf52c16baadb1fe649d04b45f2cc6821a6313fd9baefdc",
+      "grid/update_protocol.py": "a355f4f2ccd51bc0c5be752282becbea160b4c5a8e4769e1cde0b6c3d3af6b8f",
+      "grid/schema.sql": "8ce552a00a805ce32be6592ae1983b568c0529693b157f8df58cd0925d65e495",
+      "grid/migrations.py": "b65cf37d0016cc068074daf2e0f79fbbaba9a66cfff1172b328d81958c734322",
+      "grid/terminan_gateway.py": "8d94d7f318f547f337808695c254b6d2622cbac6faf82a9070714d2a103d88d9"
+    },
+    "datasets": {
+      "nodes": {
+        "columns": {
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "hostname": {
+            "type": "text",
+            "nullable": true
+          },
+          "last_seen": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "cpu_pct": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "ram_pct": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "disk_free": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "assigned_symbols": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "key": [
+          "node_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "node_id",
+          "last_seen",
+          "cpu_pct",
+          "ram_pct",
+          "disk_free"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "candles_1m": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "open": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "high": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "low": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "close": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "buy_volume": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "sell_volume": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "delta": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "trade_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "poc_price": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "extra": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "quality_status": {
+            "type": "text",
+            "nullable": false
+          },
+          "quality_reasons": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "open",
+          "high",
+          "low",
+          "close",
+          "buy_volume",
+          "sell_volume",
+          "delta",
+          "trade_count",
+          "poc_price",
+          "quality_status",
+          "quality_reasons"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": "1m"
+      },
+      "footprint_1m": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "price": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "buy_volume": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "sell_volume": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "delta": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "volume": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "buy_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "sell_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "extra": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts",
+          "price"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "price",
+          "buy_volume",
+          "sell_volume",
+          "delta",
+          "volume",
+          "buy_count",
+          "sell_count"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": "1m"
+      },
+      "orderbook_snapshots": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "best_bid": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "best_ask": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "spread": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "bid_depth": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "ask_depth": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "imbalance": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "walls": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "book": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "extra": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "best_bid",
+          "best_ask",
+          "spread",
+          "bid_depth",
+          "ask_depth",
+          "imbalance"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "derivatives_metrics": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "open_interest": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "funding_rate": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "mark_price": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "index_price": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "basis": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "extra": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "open_interest",
+          "funding_rate",
+          "mark_price",
+          "index_price",
+          "basis"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "market_features_1m": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "eligible": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "quality_status": {
+            "type": "text",
+            "nullable": false
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "capabilities": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "built_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "regime": {
+            "type": "text",
+            "nullable": false
+          },
+          "regime_score": {
+            "type": "double precision",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "eligible",
+          "quality_status",
+          "features",
+          "capabilities",
+          "built_at",
+          "regime",
+          "regime_score"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": "1m"
+      },
+      "poc_lifecycle": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "poc_price": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "source_close": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "source_regime": {
+            "type": "text",
+            "nullable": true
+          },
+          "source_features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "first_touch_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "first_touch_minutes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "first_touch_kind": {
+            "type": "text",
+            "nullable": true
+          },
+          "cross_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "acceptance_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "touch_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "max_distance_pct": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "last_checked_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "symbol",
+          "source_ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "source_ts",
+          "poc_price",
+          "source_close",
+          "source_regime",
+          "source_features",
+          "status",
+          "first_touch_ts",
+          "first_touch_minutes",
+          "first_touch_kind",
+          "cross_ts",
+          "acceptance_ts",
+          "touch_count",
+          "max_distance_pct",
+          "last_checked_ts"
+        ],
+        "time_column": "source_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "historical_levels": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "level_kind": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "price": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "active": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "first_cross_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "test_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "available_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "level_kind",
+          "source_ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "level_kind",
+          "source_ts",
+          "price",
+          "active",
+          "first_cross_ts",
+          "test_count",
+          "available_ts"
+        ],
+        "time_column": "source_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "level_events": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "level_kind": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "level_price": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "event_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "direction": {
+            "type": "text",
+            "nullable": true
+          },
+          "pre_features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "event_features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "outcome": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "quality_status": {
+            "type": "text",
+            "nullable": false
+          },
+          "completeness": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "ml_eligible": {
+            "type": "boolean",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "symbol",
+          "timeframe",
+          "level_kind",
+          "source_ts",
+          "level_price",
+          "event_ts",
+          "event_type",
+          "direction",
+          "pre_features",
+          "event_features",
+          "outcome",
+          "quality_status",
+          "completeness",
+          "ml_eligible"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "observer_checkpoints": {
+        "columns": {
+          "observer": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "last_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "state": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "observer",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "observer",
+          "symbol",
+          "last_ts",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "ml_event_samples": {
+        "columns": {
+          "sample_id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_id": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "sample_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "feature_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "instrument_features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "target": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "target_ready": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "quality_status": {
+            "type": "text",
+            "nullable": false
+          },
+          "split_group": {
+            "type": "text",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "label_end_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "sample_id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "sample_id",
+          "symbol",
+          "event_id",
+          "sample_type",
+          "feature_ts",
+          "event_ts",
+          "features",
+          "instrument_features",
+          "target",
+          "target_ready",
+          "quality_status",
+          "split_group",
+          "created_at",
+          "label_end_ts"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "ml_jobs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "job_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "priority": {
+            "type": "integer",
+            "nullable": false
+          },
+          "lease_owner": {
+            "type": "text",
+            "nullable": true
+          },
+          "lease_until": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "dataset_cutoff": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "error": {
+            "type": "text",
+            "nullable": true
+          },
+          "lease_generation": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "max_attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "not_before": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "dedupe_key": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "job_type",
+          "status",
+          "priority",
+          "attempts",
+          "dataset_cutoff",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "max_attempts",
+          "not_before",
+          "dedupe_key"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "dataset_snapshots": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "purpose": {
+            "type": "text",
+            "nullable": false
+          },
+          "cutoff_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "created_by": {
+            "type": "text",
+            "nullable": false
+          },
+          "criteria": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "dataset_hash": {
+            "type": "text",
+            "nullable": true
+          },
+          "sample_count": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "feature_version": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "purpose",
+          "cutoff_ts",
+          "created_at",
+          "created_by",
+          "criteria",
+          "status",
+          "dataset_hash",
+          "sample_count",
+          "feature_version"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "service_leases": {
+        "columns": {
+          "service_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "owner": {
+            "type": "text",
+            "nullable": false
+          },
+          "lease_until": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "heartbeat_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "metadata": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "service_key"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "service_key",
+          "owner",
+          "heartbeat_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "ml_artifacts": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "artifact_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "owner_job": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "storage_uri": {
+            "type": "text",
+            "nullable": false
+          },
+          "bytes": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "reusable": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "expires_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "metadata": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "artifact_type",
+          "owner_job",
+          "bytes",
+          "status",
+          "reusable",
+          "expires_at",
+          "last_used_at",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "model_registry": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "model_family": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol_scope": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "parent_model_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "artifact_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "code_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "feature_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "hyperparameters": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "promoted_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "model_family",
+          "symbol_scope",
+          "dataset_id",
+          "parent_model_id",
+          "status",
+          "artifact_id",
+          "code_version",
+          "feature_version",
+          "hyperparameters",
+          "created_at",
+          "promoted_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "model_evaluations": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "model_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "stage": {
+            "type": "text",
+            "nullable": false
+          },
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "metrics": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "passed": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "evaluator_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "model_id",
+          "stage",
+          "dataset_id",
+          "metrics",
+          "passed",
+          "evaluator_version",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "shadow_predictions": {
+        "columns": {
+          "model_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "setup_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "prediction": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "outcome": {
+            "type": "jsonb",
+            "nullable": true
+          },
+          "evaluated_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "model_id",
+          "symbol",
+          "event_ts",
+          "setup_type"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "model_id",
+          "symbol",
+          "event_ts",
+          "setup_type",
+          "prediction",
+          "outcome",
+          "evaluated_at"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "dataset_samples": {
+        "columns": {
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "sample_id": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "ordinal": {
+            "type": "bigint",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset_id",
+          "sample_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "dataset_id",
+          "sample_id",
+          "ordinal"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "consumer_watermarks": {
+        "columns": {
+          "dataset": {
+            "type": "text",
+            "nullable": false
+          },
+          "consumer": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "consumed_through": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "required": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset",
+          "consumer",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "dataset",
+          "consumer",
+          "symbol",
+          "consumed_through",
+          "required",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "retention_holds": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "dataset": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": true
+          },
+          "from_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "through_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "reason": {
+            "type": "text",
+            "nullable": false
+          },
+          "owner_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "owner_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "expires_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "dataset",
+          "symbol",
+          "from_ts",
+          "through_ts",
+          "reason",
+          "owner_type",
+          "owner_id",
+          "expires_at",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "replicated_control_state": {
+        "columns": {
+          "state_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "value": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "version": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "updated_by": {
+            "type": "text",
+            "nullable": false
+          }
+        },
+        "key": [
+          "state_key"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "state_key",
+          "value",
+          "version",
+          "updated_at",
+          "updated_by"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "integrity_repairs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "target_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "required_health_acks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "health_acks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "previous_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "files": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "deadline": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "node_id",
+          "target_version",
+          "status",
+          "required_health_acks",
+          "health_acks",
+          "previous_version",
+          "files",
+          "created_at",
+          "deadline"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "dataset_sample_payloads": {
+        "columns": {
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "sample_id": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "ordinal": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "payload_hash": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "feature_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "label_end_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "split_group": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "dataset_id",
+          "sample_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "dataset_id",
+          "sample_id",
+          "ordinal",
+          "payload_hash",
+          "event_ts",
+          "feature_ts",
+          "label_end_ts",
+          "split_group"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "ml_resource_reservations": {
+        "columns": {
+          "job_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "cpu": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "ram_gb": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "scratch_gb": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "gpu": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "lease_generation": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "expires_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "job_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "job_id",
+          "node_id",
+          "cpu",
+          "ram_gb",
+          "scratch_gb",
+          "gpu",
+          "expires_at",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "markov_transition_edges": {
+        "columns": {
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "model_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "strategy_name": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "setup_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "state_from": {
+            "type": "text",
+            "nullable": false
+          },
+          "state_to": {
+            "type": "text",
+            "nullable": false
+          },
+          "trades": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "net_pnl": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "expectancy": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "hit_rate": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset_id",
+          "model_id",
+          "strategy_name",
+          "symbol",
+          "setup_type",
+          "state_from",
+          "state_to"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "dataset_id",
+          "model_id",
+          "strategy_name",
+          "symbol",
+          "setup_type",
+          "state_from",
+          "state_to",
+          "trades",
+          "net_pnl",
+          "expectancy",
+          "hit_rate",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "strategy_comparison_results": {
+        "columns": {
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": true
+          },
+          "strategy_name": {
+            "type": "text",
+            "nullable": false
+          },
+          "variant": {
+            "type": "text",
+            "nullable": false
+          },
+          "comparison_group": {
+            "type": "text",
+            "nullable": false
+          },
+          "metrics": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "incremental": {
+            "type": "jsonb",
+            "nullable": true
+          },
+          "uncertainty": {
+            "type": "jsonb",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset_id",
+          "strategy_name",
+          "variant",
+          "comparison_group"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "dataset_id",
+          "strategy_name",
+          "variant",
+          "comparison_group",
+          "metrics",
+          "incremental",
+          "uncertainty",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "historical_experiment_runs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "dataset_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "strategy_name": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "config": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "total_symbols": {
+            "type": "integer",
+            "nullable": false
+          },
+          "completed_symbols": {
+            "type": "integer",
+            "nullable": false
+          },
+          "failed_symbols": {
+            "type": "integer",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "dataset_id",
+          "strategy_name",
+          "status",
+          "config",
+          "total_symbols",
+          "completed_symbols",
+          "failed_symbols",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "historical_experiment_checkpoints": {
+        "columns": {
+          "run_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "run_id",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "run_id",
+          "symbol",
+          "status",
+          "attempts",
+          "started_at",
+          "finished_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "ohlcv_1m": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "open": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "high": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "low": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "close": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "volume": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "turnover": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "source": {
+            "type": "text",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ts",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "turnover",
+          "source"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": "1m"
+      },
+      "market_backfill_state": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "oldest_loaded_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "newest_loaded_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "next_end_ms": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "symbol",
+          "timeframe",
+          "status",
+          "oldest_loaded_ts",
+          "newest_loaded_ts",
+          "next_end_ms",
+          "attempts",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "market_data_capabilities": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ohlcv_history": {
+            "type": "text",
+            "nullable": false
+          },
+          "trade_history": {
+            "type": "text",
+            "nullable": false
+          },
+          "live_trades": {
+            "type": "text",
+            "nullable": false
+          },
+          "live_orderbook": {
+            "type": "text",
+            "nullable": false
+          },
+          "footprint_history": {
+            "type": "text",
+            "nullable": false
+          },
+          "orderbook_history": {
+            "type": "text",
+            "nullable": false
+          },
+          "trade_history_from": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "trade_history_through": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "ohlcv_history",
+          "trade_history",
+          "live_trades",
+          "live_orderbook",
+          "footprint_history",
+          "orderbook_history",
+          "trade_history_from",
+          "trade_history_through",
+          "updated_at",
+          "details"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "trade_archive_backfill": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "archive_date": {
+            "type": "date",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_uri": {
+            "type": "text",
+            "nullable": true
+          },
+          "bytes": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "rows": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "sha256": {
+            "type": "text",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "archive_date"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "symbol",
+          "archive_date",
+          "status",
+          "source_uri",
+          "bytes",
+          "rows",
+          "sha256",
+          "attempts",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "archive_compaction_manifests": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "archive_date": {
+            "type": "date",
+            "nullable": false
+          },
+          "source_sha256": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_rows": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "derived_candles": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "derived_footprint_rows": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "min_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "max_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "verified_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "raw_deleted_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "archive_date"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "archive_date",
+          "source_sha256",
+          "source_rows",
+          "derived_candles",
+          "derived_footprint_rows",
+          "min_ts",
+          "max_ts",
+          "status",
+          "verified_at",
+          "raw_deleted_at",
+          "details"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "trade_archive_discovery": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "mode": {
+            "type": "text",
+            "nullable": true
+          },
+          "earliest_date": {
+            "type": "date",
+            "nullable": true
+          },
+          "latest_date": {
+            "type": "date",
+            "nullable": true
+          },
+          "discovered_files": {
+            "type": "integer",
+            "nullable": false
+          },
+          "last_scan_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "symbol",
+          "status",
+          "mode",
+          "earliest_date",
+          "latest_date",
+          "discovered_files",
+          "last_scan_at",
+          "details"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "legacy_bootstrap_imports": {
+        "columns": {
+          "source_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_path": {
+            "type": "text",
+            "nullable": false
+          },
+          "research_path": {
+            "type": "text",
+            "nullable": true
+          },
+          "research_cutoff": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "coverage_symbols": {
+            "type": "integer",
+            "nullable": false
+          },
+          "imported_candles": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "imported_levels": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "imported_samples": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "manifest": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "verified_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "source_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "source_id",
+          "source_path",
+          "research_path",
+          "research_cutoff",
+          "status",
+          "coverage_symbols",
+          "imported_candles",
+          "imported_levels",
+          "imported_samples",
+          "manifest",
+          "created_at",
+          "verified_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "legacy_symbol_coverage": {
+        "columns": {
+          "source_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "min_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "max_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "candles": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "gap_minutes": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "coverage_fingerprint": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "imported_candles": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "verified_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "source_id",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "source_id",
+          "symbol",
+          "min_ts",
+          "max_ts",
+          "candles",
+          "gap_minutes",
+          "coverage_fingerprint",
+          "status",
+          "imported_candles",
+          "verified_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "imported_historical_levels": {
+        "columns": {
+          "source_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "level_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_start": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "available_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "price": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "trigger": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "broken": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "broken_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "entries": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "source_id",
+          "symbol",
+          "timeframe",
+          "level_type",
+          "source_start",
+          "price"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "source_id",
+          "symbol",
+          "timeframe",
+          "level_type",
+          "source_start",
+          "available_at",
+          "price",
+          "trigger",
+          "broken",
+          "broken_at",
+          "entries"
+        ],
+        "time_column": "source_start",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "legacy_research_samples": {
+        "columns": {
+          "source_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "sample_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "sample_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "split": {
+            "type": "text",
+            "nullable": true
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "source_id",
+          "symbol",
+          "sample_key"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "source_id",
+          "symbol",
+          "sample_key",
+          "sample_type",
+          "event_ts",
+          "split"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "retention_consumers": {
+        "columns": {
+          "dataset": {
+            "type": "text",
+            "nullable": false
+          },
+          "consumer": {
+            "type": "text",
+            "nullable": false
+          },
+          "required": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "active": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset",
+          "consumer"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "dataset",
+          "consumer",
+          "required",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "derived_minute_state": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "processed_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "symbol",
+          "ts",
+          "status",
+          "processed_at"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "pilot_bootstrap_state": {
+        "columns": {
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "mode": {
+            "type": "text",
+            "nullable": false
+          },
+          "phase": {
+            "type": "text",
+            "nullable": false
+          },
+          "paused": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "progress": {
+            "type": "numeric",
+            "nullable": false
+          },
+          "source_path": {
+            "type": "text",
+            "nullable": true
+          },
+          "research_path": {
+            "type": "text",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "expansion_notified_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "node_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "node_id",
+          "mode",
+          "phase",
+          "paused",
+          "progress",
+          "source_path",
+          "research_path",
+          "details",
+          "updated_at",
+          "completed_at",
+          "expansion_notified_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "telegram_updates": {
+        "columns": {
+          "update_id": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "chat_id": {
+            "type": "text",
+            "nullable": true
+          },
+          "command": {
+            "type": "text",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "claimed_by": {
+            "type": "text",
+            "nullable": false
+          },
+          "claimed_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "update_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "update_id",
+          "chat_id",
+          "command",
+          "status",
+          "claimed_by",
+          "claimed_at",
+          "completed_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "setup_candidates": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "setup_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "direction": {
+            "type": "text",
+            "nullable": false
+          },
+          "detected_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "reference_price": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "state": {
+            "type": "text",
+            "nullable": false
+          },
+          "invalidated_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "symbol",
+          "setup_type",
+          "direction",
+          "detected_at",
+          "reference_price",
+          "confidence",
+          "features",
+          "invalidated_at",
+          "outcome",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "micro_agent_signals": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "agent": {
+            "type": "text",
+            "nullable": false
+          },
+          "state": {
+            "type": "text",
+            "nullable": false
+          },
+          "score": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "direction": {
+            "type": "smallint",
+            "nullable": false
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "source_event_id": {
+            "type": "bigint",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "symbol",
+          "event_ts",
+          "agent",
+          "score",
+          "direction",
+          "features",
+          "created_at",
+          "source_event_id"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "micro_pattern_candidates": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "pattern_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "direction": {
+            "type": "smallint",
+            "nullable": false
+          },
+          "strength": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "agents": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "outcome": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "outcome_ready": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "research_only": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "symbol",
+          "event_ts",
+          "pattern_key",
+          "direction",
+          "strength",
+          "agents",
+          "features",
+          "outcome",
+          "outcome_ready",
+          "research_only",
+          "created_at"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_hypotheses": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "fingerprint": {
+            "type": "text",
+            "nullable": false
+          },
+          "method": {
+            "type": "text",
+            "nullable": false
+          },
+          "pattern": {
+            "type": "text",
+            "nullable": false
+          },
+          "horizon_ms": {
+            "type": "integer",
+            "nullable": false
+          },
+          "direction": {
+            "type": "smallint",
+            "nullable": false
+          },
+          "feature_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "definition": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "research_only": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "first_seen_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "validated_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "rejected_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "fingerprint",
+          "method",
+          "pattern",
+          "horizon_ms",
+          "direction",
+          "feature_version",
+          "definition",
+          "status",
+          "research_only",
+          "first_seen_at",
+          "updated_at",
+          "validated_at",
+          "rejected_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_hypothesis_evidence": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "hypothesis_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "experiment_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "regime": {
+            "type": "text",
+            "nullable": false
+          },
+          "split_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "sample_count": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "mean_return_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "hit_rate": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "cost_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "dataset_cutoff": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "passed": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "metrics": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "p_value": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "corrected_p_value": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "effect_z": {
+            "type": "double precision",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "hypothesis_id",
+          "experiment_key",
+          "symbol",
+          "regime",
+          "split_key",
+          "sample_count",
+          "mean_return_bps",
+          "hit_rate",
+          "cost_bps",
+          "dataset_cutoff",
+          "passed",
+          "metrics",
+          "created_at",
+          "p_value",
+          "corrected_p_value",
+          "effect_z"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_negative_memory": {
+        "columns": {
+          "fingerprint": {
+            "type": "text",
+            "nullable": false
+          },
+          "reason": {
+            "type": "text",
+            "nullable": false
+          },
+          "evidence_count": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "cooldown_until": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "fingerprint"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "fingerprint",
+          "reason",
+          "evidence_count",
+          "cooldown_until",
+          "details",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_outcome_requests": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "event_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "hypothesis_fingerprint": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts_ms": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "due_ts_ms": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "horizon_ms": {
+            "type": "integer",
+            "nullable": false
+          },
+          "reference_price": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "event_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "observed_ts_ms": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "outcome_price": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "log_return": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "return_bps": {
+            "type": "double precision",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "event_id",
+          "hypothesis_fingerprint",
+          "symbol",
+          "event_ts_ms",
+          "due_ts_ms",
+          "horizon_ms",
+          "reference_price",
+          "event_type",
+          "status",
+          "created_at",
+          "completed_at",
+          "observed_ts_ms",
+          "outcome_price",
+          "log_return",
+          "return_bps"
+        ],
+        "time_column": "event_ts_ms",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_outcome_clock": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "last_observed_ts_ms": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "symbol",
+          "last_observed_ts_ms",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_mining_families": {
+        "columns": {
+          "family_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "method": {
+            "type": "text",
+            "nullable": false
+          },
+          "horizon_ms": {
+            "type": "integer",
+            "nullable": false
+          },
+          "feature_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "hypotheses_tested": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "last_run_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "family_key"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "family_key",
+          "method",
+          "horizon_ms",
+          "feature_version",
+          "hypotheses_tested",
+          "last_run_at",
+          "details",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_mining_runs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "family_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "split_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "dataset_cutoff": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "candidate_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "accepted_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "family_key",
+          "split_key",
+          "dataset_cutoff",
+          "candidate_count",
+          "accepted_count",
+          "status",
+          "details",
+          "started_at",
+          "completed_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_simulation_runs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "hypothesis_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "simulation_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "config": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "dataset_cutoff": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "metrics": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "stress_metrics": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "reason": {
+            "type": "text",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "oos_start": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "attempt_id": {
+            "type": "uuid",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "hypothesis_id",
+          "simulation_version",
+          "config",
+          "dataset_cutoff",
+          "status",
+          "metrics",
+          "stress_metrics",
+          "reason",
+          "created_at",
+          "started_at",
+          "completed_at",
+          "oos_start",
+          "attempt_id"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_simulation_trades": {
+        "columns": {
+          "run_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "ordinal": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts_ms": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "split_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "raw_return_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "net_return_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "fill_fraction": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "fee_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "slippage_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "latency_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "funding_bps": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "equity_after": {
+            "type": "double precision",
+            "nullable": false
+          },
+          "spread_bps": {
+            "type": "double precision",
+            "nullable": false
+          }
+        },
+        "key": [
+          "run_id",
+          "ordinal"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "run_id",
+          "ordinal",
+          "symbol",
+          "event_ts_ms",
+          "split_key",
+          "raw_return_bps",
+          "net_return_bps",
+          "fill_fraction",
+          "fee_bps",
+          "slippage_bps",
+          "latency_bps",
+          "funding_bps",
+          "equity_after",
+          "spread_bps"
+        ],
+        "time_column": "event_ts_ms",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "historical_scientific_bundles": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "source": {
+            "type": "text",
+            "nullable": false
+          },
+          "sha256": {
+            "type": "text",
+            "nullable": false
+          },
+          "capabilities": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "research_scope": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at_source": {
+            "type": "double precision",
+            "nullable": true
+          },
+          "imported_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "source",
+          "sha256",
+          "capabilities",
+          "research_scope",
+          "created_at_source",
+          "imported_at",
+          "status",
+          "details"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "historical_scientific_symbol_state": {
+        "columns": {
+          "bundle_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "samples": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "from_ms": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "through_ms": {
+            "type": "bigint",
+            "nullable": true
+          },
+          "summary": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "features": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "bundle_id",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "bundle_id",
+          "symbol",
+          "status",
+          "samples",
+          "from_ms",
+          "through_ms",
+          "summary",
+          "features"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "system_lifecycle_state": {
+        "columns": {
+          "singleton": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "phase": {
+            "type": "text",
+            "nullable": false
+          },
+          "completed": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "singleton"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "singleton",
+          "phase",
+          "completed",
+          "details",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_methods": {
+        "columns": {
+          "method_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "method_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "schema_version": {
+            "type": "integer",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "config": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "capabilities": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "failure_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "method_key"
+        ],
+        "scope": "GLOBAL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "method_key",
+          "method_version",
+          "schema_version",
+          "status",
+          "config",
+          "capabilities",
+          "failure_count",
+          "created_at",
+          "updated_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_method_events": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "method_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "event_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "schema_version": {
+            "type": "integer",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "source_event_id": {
+            "type": "bigint",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "method_key",
+          "event_ts",
+          "event_type",
+          "schema_version",
+          "created_at",
+          "source_event_id"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "scientific_method_errors": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "method_key": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "error_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "error_message": {
+            "type": "text",
+            "nullable": false
+          },
+          "context": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "method_key",
+          "event_ts",
+          "error_type",
+          "error_message",
+          "context",
+          "created_at"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "agent_commands": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "action": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "delivered_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "lease_until": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "max_attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "result": {
+            "type": "jsonb",
+            "nullable": true
+          },
+          "error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "node_id",
+          "action",
+          "status",
+          "created_at",
+          "delivered_at",
+          "attempts",
+          "max_attempts",
+          "completed_at",
+          "result"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "schema_migrations": {
+        "columns": {
+          "version": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "name": {
+            "type": "text",
+            "nullable": false
+          },
+          "applied_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "version"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "version",
+          "name",
+          "applied_at"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "market_events": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "event_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "event_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "source": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "ingest_ts": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "id",
+          "symbol",
+          "event_ts",
+          "event_type",
+          "source",
+          "ingest_ts"
+        ],
+        "time_column": "event_ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "enrollment_tokens": {
+        "columns": {
+          "token_hash": {
+            "type": "text",
+            "nullable": false
+          },
+          "label": {
+            "type": "text",
+            "nullable": true
+          },
+          "authorized_mode": {
+            "type": "text",
+            "nullable": false
+          },
+          "expires_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "used_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "token_hash"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "SENSITIVE_KEY",
+        "projection": [
+          "label",
+          "authorized_mode",
+          "expires_at",
+          "used_at",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "agent_credentials": {
+        "columns": {
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "credential_hash": {
+            "type": "text",
+            "nullable": false
+          },
+          "install_mode": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "revoked_at": {
+            "type": "timestamptz",
+            "nullable": true
+          }
+        },
+        "key": [
+          "node_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "node_id",
+          "credential_hash",
+          "install_mode",
+          "created_at",
+          "revoked_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "fleet_operations": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "action": {
+            "type": "text",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "requested_by": {
+            "type": "text",
+            "nullable": false
+          },
+          "snapshot": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "targets": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "completed_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "action",
+          "status",
+          "requested_by",
+          "snapshot",
+          "targets",
+          "created_at",
+          "completed_at",
+          "details"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "instruments": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "contract_type": {
+            "type": "text",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "tick_size": {
+            "type": "numeric",
+            "nullable": true
+          },
+          "first_seen": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "last_seen": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "retired_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "missing_since": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "missing_confirmations": {
+            "type": "integer",
+            "nullable": false
+          },
+          "metadata": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "contract_type",
+          "status",
+          "tick_size",
+          "first_seen",
+          "last_seen",
+          "retired_at",
+          "missing_since",
+          "missing_confirmations"
+        ],
+        "time_column": "first_seen",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "analysis_watermarks": {
+        "columns": {
+          "dataset": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "analyzed_through": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "dataset",
+          "symbol"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "dataset",
+          "symbol",
+          "analyzed_through",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "retention_runs": {
+        "columns": {
+          "id": {
+            "type": "bigserial",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "finished_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "dataset": {
+            "type": "text",
+            "nullable": false
+          },
+          "deleted_rows": {
+            "type": "bigint",
+            "nullable": false
+          },
+          "cutoff": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "details": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "started_at",
+          "finished_at",
+          "dataset",
+          "deleted_rows",
+          "cutoff",
+          "status",
+          "details"
+        ],
+        "time_column": null,
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "rollout_nodes": {
+        "columns": {
+          "version": {
+            "type": "text",
+            "nullable": false
+          },
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "wave": {
+            "type": "integer",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "health_acks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "deadline": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "version",
+          "node_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "version",
+          "node_id",
+          "wave",
+          "status",
+          "health_acks",
+          "deadline",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "grid_runtime_state": {
+        "columns": {
+          "singleton": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "state": {
+            "type": "text",
+            "nullable": false
+          },
+          "requested_by": {
+            "type": "text",
+            "nullable": true
+          },
+          "reason": {
+            "type": "text",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "singleton"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "singleton",
+          "requested_by",
+          "reason",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "strategy_jobs": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "strategy_name": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "params": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "symbols": {
+            "type": "jsonb",
+            "nullable": false
+          },
+          "start_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "end_ts": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "assigned_node": {
+            "type": "text",
+            "nullable": true
+          },
+          "priority": {
+            "type": "integer",
+            "nullable": false
+          },
+          "attempts": {
+            "type": "integer",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "started_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "id",
+          "strategy_name",
+          "strategy_version",
+          "params",
+          "symbols",
+          "start_ts",
+          "end_ts",
+          "status",
+          "assigned_node",
+          "priority",
+          "attempts",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "strategy_results": {
+        "columns": {
+          "job_id": {
+            "type": "uuid",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "ts": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "result_type": {
+            "type": "text",
+            "nullable": false
+          },
+          "payload": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "job_id",
+          "symbol",
+          "ts",
+          "result_type"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "job_id",
+          "symbol",
+          "ts",
+          "result_type"
+        ],
+        "time_column": "ts",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "strategy_plugins": {
+        "columns": {
+          "strategy_name": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "sha256": {
+            "type": "text",
+            "nullable": false
+          },
+          "source_code": {
+            "type": "text",
+            "nullable": false
+          },
+          "enabled": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "metadata": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "strategy_name",
+          "strategy_version"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "strategy_name",
+          "strategy_version",
+          "sha256",
+          "source_code",
+          "enabled",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "agent_releases": {
+        "columns": {
+          "version": {
+            "type": "text",
+            "nullable": false
+          },
+          "channel": {
+            "type": "text",
+            "nullable": false
+          },
+          "package_url": {
+            "type": "text",
+            "nullable": false
+          },
+          "sha256": {
+            "type": "text",
+            "nullable": false
+          },
+          "enabled": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "metadata": {
+            "type": "jsonb",
+            "nullable": false
+          }
+        },
+        "key": [
+          "version"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "version",
+          "channel",
+          "package_url",
+          "sha256",
+          "enabled",
+          "created_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "agent_update_status": {
+        "columns": {
+          "node_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "current_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "target_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          },
+          "health_acks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "previous_version": {
+            "type": "text",
+            "nullable": true
+          },
+          "deadline": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "timestamptz",
+            "nullable": false
+          }
+        },
+        "key": [
+          "node_id"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "node_id",
+          "current_version",
+          "target_version",
+          "status",
+          "health_acks",
+          "previous_version",
+          "deadline",
+          "updated_at"
+        ],
+        "time_column": "updated_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      },
+      "rollout_state": {
+        "columns": {
+          "version": {
+            "type": "text",
+            "nullable": false
+          },
+          "phase": {
+            "type": "text",
+            "nullable": false
+          },
+          "canary_node": {
+            "type": "text",
+            "nullable": true
+          },
+          "required_health_acks": {
+            "type": "integer",
+            "nullable": false
+          },
+          "status": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "timestamptz",
+            "nullable": false
+          },
+          "promoted_at": {
+            "type": "timestamptz",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "text",
+            "nullable": true
+          }
+        },
+        "key": [
+          "version"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "version",
+          "phase",
+          "canary_node",
+          "required_health_acks",
+          "status",
+          "created_at",
+          "promoted_at"
+        ],
+        "time_column": "created_at",
+        "schema_id": "grid46",
+        "native_timeframe": null
+      }
+    },
+    "migration_history": [
+      {
+        "version": 1,
+        "name": "baseline_jsonb_extensible"
+      },
+      {
+        "version": 2,
+        "name": "market_microstructure_tables"
+      },
+      {
+        "version": 3,
+        "name": "minute_data_quality"
+      },
+      {
+        "version": 4,
+        "name": "market_features_1m"
+      },
+      {
+        "version": 5,
+        "name": "volatility_regime_columns"
+      },
+      {
+        "version": 6,
+        "name": "poc_lifecycle"
+      },
+      {
+        "version": 7,
+        "name": "historical_level_events"
+      },
+      {
+        "version": 8,
+        "name": "historical_level_availability"
+      },
+      {
+        "version": 9,
+        "name": "level_event_idempotency"
+      },
+      {
+        "version": 10,
+        "name": "observer_recovery_state"
+      },
+      {
+        "version": 11,
+        "name": "ml_event_samples"
+      },
+      {
+        "version": 12,
+        "name": "ml_orchestrator_concurrency"
+      },
+      {
+        "version": 13,
+        "name": "ml_artifact_lifecycle"
+      },
+      {
+        "version": 14,
+        "name": "ml_lifecycle_registry"
+      },
+      {
+        "version": 15,
+        "name": "immutable_dataset_membership"
+      },
+      {
+        "version": 16,
+        "name": "consumer_safe_retention_and_control_state"
+      },
+      {
+        "version": 17,
+        "name": "integrity_repair_state"
+      },
+      {
+        "version": 18,
+        "name": "ml_fencing_immutable_payloads_and_label_horizon"
+      },
+      {
+        "version": 19,
+        "name": "ml_job_deduplication"
+      },
+      {
+        "version": 20,
+        "name": "ml_resource_reservations"
+      },
+      {
+        "version": 21,
+        "name": "markov_transition_edge_results"
+      },
+      {
+        "version": 22,
+        "name": "strategy_comparison_results"
+      },
+      {
+        "version": 23,
+        "name": "historical_experiment_runs"
+      },
+      {
+        "version": 24,
+        "name": "cold_start_backfill"
+      },
+      {
+        "version": 25,
+        "name": "market_data_capabilities"
+      },
+      {
+        "version": 26,
+        "name": "archive_compaction_manifests"
+      },
+      {
+        "version": 27,
+        "name": "trade_archive_discovery"
+      },
+      {
+        "version": 28,
+        "name": "legacy_bootstrap_import"
+      },
+      {
+        "version": 29,
+        "name": "legacy_symbol_import_state"
+      },
+      {
+        "version": 30,
+        "name": "required_retention_consumer_registry"
+      },
+      {
+        "version": 31,
+        "name": "derived_minute_completion"
+      },
+      {
+        "version": 32,
+        "name": "pilot_bootstrap_state"
+      },
+      {
+        "version": 33,
+        "name": "telegram_update_idempotency"
+      },
+      {
+        "version": 34,
+        "name": "microstructure_research_capture"
+      },
+      {
+        "version": 35,
+        "name": "hot_table_autovacuum_policy"
+      },
+      {
+        "version": 36,
+        "name": "micro_agent_research"
+      },
+      {
+        "version": 37,
+        "name": "scientific_hypothesis_memory"
+      },
+      {
+        "version": 38,
+        "name": "durable_scientific_outcomes"
+      },
+      {
+        "version": 39,
+        "name": "scientific_source_event_fencing"
+      },
+      {
+        "version": 40,
+        "name": "scientific_pattern_mining"
+      },
+      {
+        "version": 41,
+        "name": "scientific_simulation_promotion_gate"
+      },
+      {
+        "version": 42,
+        "name": "historical_scientific_bootstrap"
+      },
+      {
+        "version": 43,
+        "name": "system_lifecycle_orchestration"
+      },
+      {
+        "version": 44,
+        "name": "scientific_method_plugins"
+      },
+      {
+        "version": 45,
+        "name": "scientific_simulation_attempt_fencing"
+      },
+      {
+        "version": 46,
+        "name": "scientific_method_event_idempotency"
+      }
+    ]
+  },
+  "strattester": {
+    "sha": "37ff7e9d12a4d2dccd788fc493c28557dbe8bcea",
+    "files": {
+      "strattester/marketdata/schema.py": "4f1dc03d3c445cf87940b9228b7acfdd64a4cda68b50352ff1e46083a2e23175",
+      "strattester/persistence/result_store.py": "41cbed94f11e8bee9eba8b37b449992286067ffbf029077d3471dca9427d1c62",
+      "strattester/research/result_persistence.py": "b2a86a54f91f4b86604a9d67cda837be7aad1efe83d93699c88acf2e8598daeb",
+      "strattester/marketdata/sqlite_store.py": "73212af396c961a9f23a7a890b043608cf3745af49bbac02ef1e52f075421fb3",
+      "strattester/marketdata/sharded_store.py": "ae252efc71b548fcf97b6e768aa58849716e9b86a02bf2dcfb4fbba2b4b2a0d8",
+      "strattester/marketdata/shard_manifest.py": "b0e6f41a99c798ccc29dd6b202aff39556ff6c989c34ff9cab425e19aef5d3c0"
+    },
+    "datasets": {
+      "schema_meta": {
+        "columns": {
+          "key": {
+            "type": "text",
+            "nullable": false
+          },
+          "value": {
+            "type": "text",
+            "nullable": false
+          }
+        },
+        "key": [
+          "key"
+        ],
+        "scope": "GLOBAL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "key",
+          "value"
+        ],
+        "time_column": null,
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "candles": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "open": {
+            "type": "real",
+            "nullable": false
+          },
+          "high": {
+            "type": "real",
+            "nullable": false
+          },
+          "low": {
+            "type": "real",
+            "nullable": false
+          },
+          "close": {
+            "type": "real",
+            "nullable": false
+          },
+          "volume": {
+            "type": "real",
+            "nullable": false
+          },
+          "turnover": {
+            "type": "real",
+            "nullable": true
+          },
+          "complete": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "turnover",
+          "complete"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "mark_prices": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "open": {
+            "type": "real",
+            "nullable": false
+          },
+          "high": {
+            "type": "real",
+            "nullable": false
+          },
+          "low": {
+            "type": "real",
+            "nullable": false
+          },
+          "close": {
+            "type": "real",
+            "nullable": false
+          },
+          "complete": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "open",
+          "high",
+          "low",
+          "close",
+          "complete"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "index_prices": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "open": {
+            "type": "real",
+            "nullable": false
+          },
+          "high": {
+            "type": "real",
+            "nullable": false
+          },
+          "low": {
+            "type": "real",
+            "nullable": false
+          },
+          "close": {
+            "type": "real",
+            "nullable": false
+          },
+          "complete": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "open",
+          "high",
+          "low",
+          "close",
+          "complete"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "premium_index": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "open": {
+            "type": "real",
+            "nullable": false
+          },
+          "high": {
+            "type": "real",
+            "nullable": false
+          },
+          "low": {
+            "type": "real",
+            "nullable": false
+          },
+          "close": {
+            "type": "real",
+            "nullable": false
+          },
+          "complete": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "open",
+          "high",
+          "low",
+          "close",
+          "complete"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "open_interest": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "value": {
+            "type": "real",
+            "nullable": false
+          },
+          "complete": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "value",
+          "complete"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "funding": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "funding_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "rate": {
+            "type": "real",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "funding_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "funding_time",
+          "rate"
+        ],
+        "time_column": "funding_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "long_short_ratio": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "buy_ratio": {
+            "type": "real",
+            "nullable": true
+          },
+          "sell_ratio": {
+            "type": "real",
+            "nullable": true
+          },
+          "long_short_ratio": {
+            "type": "real",
+            "nullable": true
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "buy_ratio",
+          "sell_ratio",
+          "long_short_ratio"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "public_trade_aggregates": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "timeframe": {
+            "type": "text",
+            "nullable": false
+          },
+          "open_time": {
+            "type": "integer",
+            "nullable": false
+          },
+          "buy_volume": {
+            "type": "real",
+            "nullable": false
+          },
+          "sell_volume": {
+            "type": "real",
+            "nullable": false
+          },
+          "turnover": {
+            "type": "real",
+            "nullable": false
+          },
+          "trade_count": {
+            "type": "integer",
+            "nullable": false
+          },
+          "vwap": {
+            "type": "real",
+            "nullable": true
+          },
+          "max_trade": {
+            "type": "real",
+            "nullable": true
+          }
+        },
+        "key": [
+          "symbol",
+          "timeframe",
+          "open_time"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "timeframe",
+          "open_time",
+          "buy_volume",
+          "sell_volume",
+          "turnover",
+          "trade_count",
+          "vwap",
+          "max_trade"
+        ],
+        "time_column": "open_time",
+        "schema_id": "market2",
+        "native_timeframe": null
+      },
+      "research_results": {
+        "columns": {
+          "run_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "real",
+            "nullable": false
+          },
+          "metrics": {
+            "type": "text",
+            "nullable": false
+          },
+          "job_id": {
+            "type": "text",
+            "nullable": true
+          },
+          "lease_token": {
+            "type": "integer",
+            "nullable": false
+          },
+          "node_generation": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "run_id",
+          "symbol",
+          "strategy_id",
+          "strategy_version"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "run_id",
+          "symbol",
+          "strategy_id",
+          "strategy_version",
+          "created_at",
+          "metrics",
+          "job_id",
+          "node_generation"
+        ],
+        "time_column": "created_at",
+        "schema_id": "results1",
+        "native_timeframe": null
+      },
+      "staged_research_results": {
+        "columns": {
+          "stage_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "run_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_id": {
+            "type": "text",
+            "nullable": false
+          },
+          "strategy_version": {
+            "type": "text",
+            "nullable": false
+          },
+          "created_at": {
+            "type": "real",
+            "nullable": false
+          },
+          "metrics": {
+            "type": "text",
+            "nullable": false
+          },
+          "job_id": {
+            "type": "text",
+            "nullable": true
+          },
+          "lease_token": {
+            "type": "integer",
+            "nullable": false
+          },
+          "node_generation": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "stage_id"
+        ],
+        "scope": "SYMBOL",
+        "supported": false,
+        "reason": "INTERNAL_STATE_OR_NO_STABLE_SYMBOL_KEY",
+        "projection": [
+          "stage_id",
+          "run_id",
+          "symbol",
+          "strategy_id",
+          "strategy_version",
+          "created_at",
+          "metrics",
+          "job_id",
+          "node_generation"
+        ],
+        "time_column": "created_at",
+        "schema_id": "results1",
+        "native_timeframe": null
+      },
+      "legacy_candles": {
+        "columns": {
+          "symbol": {
+            "type": "text",
+            "nullable": false
+          },
+          "open": {
+            "type": "real",
+            "nullable": false
+          },
+          "high": {
+            "type": "real",
+            "nullable": false
+          },
+          "low": {
+            "type": "real",
+            "nullable": false
+          },
+          "close": {
+            "type": "real",
+            "nullable": false
+          },
+          "volume": {
+            "type": "real",
+            "nullable": false
+          },
+          "turnover": {
+            "type": "real",
+            "nullable": true
+          },
+          "ts": {
+            "type": "integer",
+            "nullable": false
+          }
+        },
+        "key": [
+          "symbol",
+          "ts"
+        ],
+        "scope": "SYMBOL",
+        "supported": true,
+        "reason": null,
+        "projection": [
+          "symbol",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "turnover",
+          "ts"
+        ],
+        "time_column": "ts",
+        "schema_id": "legacy-candles1",
+        "native_timeframe": "1m",
+        "table": "candles"
+      }
+    }
+  }
+}

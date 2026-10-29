@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "sources": [
+    {"id":"grid-snapshot","source":"grid","backend":"postgres","dsn_env":"TERMINAN_SAVED_GRID_DSN","source_sha":"d537d525296ef34f727996e240ae6c60102c6082","schema_id":"grid46"},
+    {"id":"market-snapshot","source":"strattester","backend":"sqlite","path":"C:/private/consistent-market-snapshot.sqlite3","source_sha":"37ff7e9d12a4d2dccd788fc493c28557dbe8bcea","schema_id":"market2"},
+    {"id":"market-shards","source":"strattester","backend":"sqlite-shards","path":"C:/private/consistent-shards","buckets":64,"source_sha":"37ff7e9d12a4d2dccd788fc493c28557dbe8bcea","schema_id":"market2"},
+    {"id":"research-snapshot","source":"strattester","backend":"sqlite","path":"C:/private/consistent-research-snapshot.sqlite3","source_sha":"37ff7e9d12a4d2dccd788fc493c28557dbe8bcea","schema_id":"results1"}
+  ]
+}
