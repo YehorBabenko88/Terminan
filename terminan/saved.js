@@ -16,6 +16,32 @@
   const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}
   const data=JSON.parse(new TextDecoder().decode(bytes));if(!r.ok)throw Error(data.error||'SOURCE_UNAVAILABLE');return data;
  }
+ async function refreshCache(){
+  if(closed)return;
+  text('cache-summary','Checking local cache...');
+  $('cache-jobs').replaceChildren();
+  try{
+   const d=await read('/api/saved/cache-status',controls.signal);
+   if(closed)return;
+   if(!['READ_ONLY','DISABLED'].includes(d.mode)||d.authority!=='OFFLINE_ONLY'||
+      !Array.isArray(d.jobs)||d.jobs.length>100||!Number.isSafeInteger(d.entries)||d.entries<0)
+      throw Error('CACHE_SCHEMA_UNVERIFIED');
+   const valid=d.jobs.every(j=>/^[a-f0-9]{32}$/.test(j.job_id)&&
+      ['QUEUED','RUNNING','READY','FAILED'].includes(j.state)&&
+      Number.isSafeInteger(j.attempt)&&j.attempt>=0&&
+      (j.error_code==null||['COMPUTE_FAILED','INCOMPLETE','CACHE_FAILED'].includes(j.error_code)));
+   if(!valid)throw Error('CACHE_SCHEMA_UNVERIFIED');
+   text('cache-summary',d.mode+' · '+d.entries+' entries · '+d.jobs.length+' jobs');
+   for(const j of d.jobs){
+    const tr=add($('cache-jobs'),'tr','');
+    for(const value of [j.job_id,j.state,j.attempt,j.error_code||'—'])add(tr,'td',String(value));
+   }
+  }catch(_){
+   if(closed)return;
+   $('cache-jobs').replaceChildren();
+   text('cache-summary','CACHE_UNAVAILABLE · no fallback');
+  }
+ }
  function options(){
   const select=$('dataset');select.replaceChildren();for(const d of source()?.datasets||[]){const o=add(select,'option',d.name+(d.supported?'':' · excluded'));o.value=d.name;o.disabled=!d.supported;}
   const first=source()?.datasets.find(d=>d.supported);if(first)select.value=first.name;
@@ -206,6 +232,7 @@
   if(closed)return;closed=true;chartTimes=[];++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;companion=[];companionStatus='VIEW_CLOSED';$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
  }
  for(const id of ['saved-symbol','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('saved-timeframe','change',()=>{if(['footprint_1m','candles_1m'].includes(dataset()?.name)){span=aggregated().length;pan=0;render();}else load();});on('reload','click',()=>load());on('next','click',()=>load(true));
+ on('cache-refresh','click',refreshCache);
  on('zoom-in','click',()=>{span=Math.max(4,Math.min(chartCount(),span*.7));scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(chartCount(),Math.max(4,span*1.4));scheduleDraw();});on('reset','click',()=>{span=chartCount();pan=0;scheduleDraw();});
  on('saved-chart','click',e=>{
   if(closed||drag!==null||dragMoved||!chartTimes.length){dragMoved=false;return;}
@@ -223,5 +250,5 @@
  window.addEventListener('resize',scheduleDraw,{signal:controls.signal});
  const observer=new ResizeObserver(scheduleDraw);observer.observe($('saved-chart'));
  window.saved={load,dispose,metrics:()=>({closed,rows:rows.length,active,peak,aborted,requests,span,pan,replay,selectedTime,companionRows:companion.length,companionStatus,timer:!!timer,raf:!!raf,session:session?.metrics?.()})};
- (async()=>{const c=new AbortController();controller=c;const timeout=setTimeout(()=>c.abort(),3500);try{catalog=await read('/api/saved/catalog',c.signal);if(closed)return;controller=null;if(catalog.version!==1||!Array.isArray(catalog.sources)||catalog.sources.length>8||!/^[a-f0-9]{40}$/.test(catalog.candidate_sha))throw Error('INVALID_CATALOG');text('saved-sha',catalog.candidate_sha);for(const s of catalog.sources){const o=add($('saved-source'),'option',`${s.id} · ${s.backend}`);o.value=s.id;}options();session=new R4SessionClient({onState:(state,terminal)=>{text('host-state',state);if(terminal)dispose(state);}});session.start(catalog.candidate_sha);if(source())await load();else document.body.dataset.loading='false';}catch(e){if(!closed){text('saved-error','CATALOG_UNAVAILABLE');document.body.dataset.loading='false';}}finally{clearTimeout(timeout);}})();
+ (async()=>{const c=new AbortController();controller=c;const timeout=setTimeout(()=>c.abort(),3500);try{catalog=await read('/api/saved/catalog',c.signal);if(closed)return;controller=null;if(catalog.version!==1||!Array.isArray(catalog.sources)||catalog.sources.length>8||!/^[a-f0-9]{40}$/.test(catalog.candidate_sha))throw Error('INVALID_CATALOG');text('saved-sha',catalog.candidate_sha);for(const s of catalog.sources){const o=add($('saved-source'),'option',`${s.id} · ${s.backend}`);o.value=s.id;}options();refreshCache();session=new R4SessionClient({onState:(state,terminal)=>{text('host-state',state);if(terminal)dispose(state);}});session.start(catalog.candidate_sha);if(source())await load();else document.body.dataset.loading='false';}catch(e){if(!closed){text('saved-error','CATALOG_UNAVAILABLE');document.body.dataset.loading='false';}}finally{clearTimeout(timeout);}})();
 })();
