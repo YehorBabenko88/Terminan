@@ -51,8 +51,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(403,'Local origin required')
         if len(self.path)>2048:return self.send_error(414)
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor"):
-            body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/math"):
+            body = files("terminan").joinpath("math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             try:
