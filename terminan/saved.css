@@ -23,3 +23,7 @@
 .saved-table tbody tr.saved-time-selected{background:#344052;color:#ffdc87}
 
 #companion-state{font:11px Consolas,monospace;color:#91a3b8;margin:2px 0 8px}
+
+/* Match footprint visibility to current candle time window without discarding source rows. */
+.saved-clusters .price-cluster-candle.outside-candle-window{opacity:.22}
+.saved-clusters .price-cluster-candle.cluster-selected-minute{opacity:1}
