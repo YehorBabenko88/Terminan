@@ -64,7 +64,8 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/sources': result=all_sources(symbol,timeframe)
+                if url.path == '/api/math/health': result={'schema':'terminan.math-health.v1','state':'NOT_CONNECTED','source':'MATH_ENGINE_NOT_ATTESTED','research_enabled':False,'trading_authorized':False}
+                elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = source_rows('strattester',symbol,timeframe)
