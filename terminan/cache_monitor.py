@@ -120,25 +120,32 @@ def lookup_exact_cache(db, source_revision, symbol, timeframe, from_ms, to_ms, n
     con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
     try:
         con.execute("PRAGMA query_only=ON")
+        # Filter before limiting: unrelated jobs must never mask a valid hit.
+        # JSON fields are bound parameters, not interpolated SQL.
         rows=con.execute("""SELECT j.job_id,j.identity_json FROM cache_jobs j
-            WHERE j.state='READY' ORDER BY j.job_id LIMIT 129""").fetchall()
-        if len(rows)>128:return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
-        matches=[]
-        for job_id,raw in rows:
-            try:
-                identity=json.loads(raw)
-                if (identity.get("source")=="grid" and identity.get("dataset")=="candles_1m"
-                    and identity.get("source_revision")==source_revision
-                    and identity.get("symbol")==symbol and identity.get("timeframe")==timeframe
-                    and identity.get("from_ms")==from_ms and identity.get("to_ms")==to_ms):
-                    matches.append(job_id)
-            except (ValueError,TypeError,AttributeError):
+            WHERE j.state='READY'
+            AND json_valid(j.identity_json)
+            AND json_extract(j.identity_json,'$.source')='grid'
+            AND json_extract(j.identity_json,'$.dataset')='candles_1m'
+            AND json_extract(j.identity_json,'$.source_revision')=?
+            AND json_extract(j.identity_json,'$.symbol')=?
+            AND json_extract(j.identity_json,'$.timeframe')=?
+            AND json_extract(j.identity_json,'$.from_ms')=?
+            AND json_extract(j.identity_json,'$.to_ms')=?
+            ORDER BY j.job_id LIMIT 2""",
+            (source_revision,symbol,timeframe,from_ms,to_ms)).fetchall()
+        if not rows:return {"state":"MISS","authority":"OFFLINE_ONLY"}
+        if len(rows)>1:return {"state":"AMBIGUOUS","authority":"OFFLINE_ONLY"}
+        try:
+            identity=json.loads(rows[0][1])
+            if not isinstance(identity,dict) or identity.get("source_revision")!=source_revision:
                 return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
-        if not matches:return {"state":"MISS","authority":"OFFLINE_ONLY"}
-        if len(matches)!=1:return {"state":"AMBIGUOUS","authority":"OFFLINE_ONLY"}
+        except (ValueError,TypeError,AttributeError):
+            return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
+        job_id=rows[0][0]
     finally:
         con.close()
-    result=read_job_result(db,matches[0],now=now)
+    result=read_job_result(db,job_id,now=now)
     if result.get("state")!="READY":return {"state":result.get("state","UNAVAILABLE"),"authority":"OFFLINE_ONLY"}
     if result.get("source_revision")!=source_revision or result.get("symbol")!=symbol or result.get("timeframe")!=timeframe:
         return {"state":"STALE","authority":"OFFLINE_ONLY"}
