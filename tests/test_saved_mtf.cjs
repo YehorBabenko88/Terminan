@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {aggregate,periods}=require('../terminan/saved_mtf.js');
+const c=Array.from({length:5},(_,i)=>({ts:1767225600000+i*60000,open:10+i,high:12+i,low:9+i,close:11+i,buy_volume:2,sell_volume:1}));
+const f=c.map(x=>({ts:x.ts,price:10,buy_volume:2,sell_volume:1}));
+const x=aggregate(c,f,'5m');assert.equal(x.length,1);assert.equal(x[0].complete,true);assert.equal(x[0].open,10);assert.equal(x[0].close,15);assert.equal(x[0].high,16);assert.equal(x[0].low,9);assert.equal(x[0].volume,15);assert.equal(x[0].delta,5);assert.equal(x[0].poc_price,10);assert.equal(x[0].levels[0].volume,15);
+const partial=aggregate(c.slice(0,4),f.slice(0,4),'5m')[0];assert.equal(partial.complete,false);assert.equal(partial.poc_price,null);
+assert.equal(aggregate(c,f,'15m')[0].complete,false);
+assert.equal(aggregate(c,f,'1h')[0].complete,false);
+assert.equal(aggregate(c,f,'4h')[0].complete,false);
+assert.equal(aggregate(c,f,'1d')[0].complete,false);
+assert.equal(aggregate(c,f,'1m').length,5);
+assert.throws(()=>aggregate(c,f,'2m'),/UNSUPPORTED_TIMEFRAME/);
+assert.throws(()=>aggregate([c[0],c[0]],f,'5m'),/INVALID_CANDLE/);
+assert.throws(()=>aggregate([{...c[0],low:100}],f,'5m'),/INVALID_CANDLE/);
+assert.throws(()=>aggregate(c,[{...f[0],buy_volume:-1}],'5m'),/INVALID_FOOTPRINT/);
+assert.equal(periods['1d'],1440);
+console.log('saved_mtf: PASS');
