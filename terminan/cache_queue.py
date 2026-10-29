@@ -13,7 +13,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from .saved_cache import open_cache, key_for, compute_mtf, put, CacheError, MAX_INPUT
+from .saved_cache import open_cache, key_for, compute_mtf, CacheError, MAX_INPUT
 
 MAX_JOBS = 128
 LEASE_SECONDS = 120
@@ -89,7 +89,26 @@ def finish(con, job, payload=None, error=None, now=None):
             return False
         if error is None:
             try:
-                put(con,job["identity"],payload,now=now)
+                # put() uses a nested SQLite savepoint through an isolated writer
+                # connection, while the claim token remains fenced by this lock.
+                raw = json.dumps(payload,sort_keys=True,separators=(",",":"),allow_nan=False).encode()
+                if len(raw)>4*1024*1024 or payload.get("complete") is not True or payload.get("source_revision")!=job["identity"]["source_revision"]:
+                    raise CacheError("INVALID_PAYLOAD")
+                key=key_for(job["identity"])
+                h=hashlib.sha256(raw).hexdigest()
+                con.execute("""INSERT INTO cache_entries
+                    (cache_key,identity_json,source_revision,content_hash,payload,created_at,expires_at,last_access)
+                    VALUES (?,?,?,?,?,?,?,?)
+                    ON CONFLICT(cache_key) DO UPDATE SET
+                    identity_json=excluded.identity_json,
+                    source_revision=excluded.source_revision,
+                    content_hash=excluded.content_hash,
+                    payload=excluded.payload,
+                    created_at=excluded.created_at,
+                    expires_at=excluded.expires_at,
+                    last_access=excluded.last_access""",
+                    (key,json.dumps(job["identity"],sort_keys=True),job["identity"]["source_revision"],
+                     h,raw,now,now+86400,now))
             except (CacheError,ValueError,TypeError,sqlite3.Error):
                 error="CACHE_FAILED"
         con.execute("""UPDATE cache_jobs SET state=?,error_code=?,token=NULL,
