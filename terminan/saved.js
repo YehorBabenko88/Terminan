@@ -60,7 +60,44 @@
   const clusters=$('saved-clusters');clusters.replaceChildren();
   if(dataset()?.name==='footprint_1m'){
    const groups=new Map();for(const r of visible){if(!groups.has(r.ts))groups.set(r.ts,[]);groups.get(r.ts).push(r);}
-   for(const [t,levels] of groups){const card=add(clusters,'article','');add(card,'small',when(t));const max=Math.max(...levels.map(r=>r.volume));for(const r of [...levels].sort((a,b)=>b.price-a.price)){const line=add(card,'div',`${r.price}  ${r.sell_volume} × ${r.buy_volume}`,r.volume===max?'level poc':'level');add(line,'small',`V ${r.volume} · Δ ${r.delta}`);}add(card,'small',`Visible ΣV ${levels.reduce((s,r)=>s+r.volume,0)} · Δ ${levels.reduce((s,r)=>s+r.delta,0)}`);}
+   // One shared price axis across every visible minute. Price levels are placed
+   // at their actual vertical price coordinate, not stacked by row index.
+   const all=[...groups.values()].flat();
+   if(all.length){
+    const prices=[...new Set(all.map(r=>r.price))].sort((a,b)=>a-b);
+    const lo=prices[0],hi=prices[prices.length-1];
+    const diffs=prices.slice(1).map((p,i)=>p-prices[i]).filter(v=>v>0);
+    const tick=diffs.length?Math.min(...diffs):1;
+    const maxCells=80,step=Math.max(tick,(hi-lo)/Math.max(1,maxCells-1));
+    const height=Math.max(180,Math.min(900,(hi-lo)/step*30+44));
+    clusters.style.setProperty('--cluster-height',height+'px');
+    clusters.style.setProperty('--cluster-step',step);
+    const axis=add(clusters,'div','', 'cluster-price-axis');
+    const axisTop=add(axis,'span',String(hi));axisTop.className='cluster-axis-top';
+    const axisBottom=add(axis,'span',String(lo));axisBottom.className='cluster-axis-bottom';
+    for(const [t,levels] of groups){
+     const card=add(clusters,'article','', 'price-cluster-candle');
+     card.dataset.minute=String(t);
+     const plot=add(card,'div','', 'cluster-price-plot');
+     const max=Math.max(...levels.map(r=>r.volume));
+     const sorted=[...levels].sort((a,b)=>b.price-a.price);
+     const top=Math.max(...levels.map(r=>r.price)),bottom=Math.min(...levels.map(r=>r.price));
+     const y=price=>height-22-(price-lo)/(hi-lo||1)*(height-44);
+     const spine=add(plot,'div','', 'cluster-candle-spine');
+     spine.style.top=y(top)+'px';spine.style.height=Math.max(2,y(bottom)-y(top))+'px';
+     for(const r of sorted){
+      const line=add(plot,'div','',r.volume===max?'level poc price-cluster-level':'level price-cluster-level');
+      line.dataset.price=String(r.price);
+      line.dataset.side=r.delta>0?'buy':r.delta<0?'sell':'neutral';
+      line.style.top=y(r.price)+'px';
+      line.title=`Price ${r.price} · Sell ${r.sell_volume} · Buy ${r.buy_volume} · Volume ${r.volume} · Delta ${r.delta}`;
+      add(line,'span',`${r.sell_volume} × ${r.buy_volume}`);
+     }
+     const label=add(card,'small',when(t),'cluster-minute-label');
+     label.title=when(t);
+     add(card,'small',`ΣV ${levels.reduce((s,r)=>s+r.volume,0)} · Δ ${levels.reduce((s,r)=>s+r.delta,0)}`,'cluster-minute-totals');
+    }
+   }
   }else add(clusters,'p','Select footprint_1m to view multiple saved minute clusters. The synthetic book is a separate panel.');
   scheduleDraw();text('saved-metrics',`Retained ${rows.length}/200 rows · requests ${requests} · active ${active} · cancelled ${aborted} · page only`);
  }
