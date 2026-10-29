@@ -1,6 +1,7 @@
 'use strict';
 (()=>{
  const $=id=>document.getElementById(id), controls=new AbortController();
+ let cacheGeneration=0,cacheController=null;
  let catalog=null,current=null,rows=[],generation=0,controller=null,timer=0,closed=false,aborted=0,requests=0,active=0,peak=0,span=100,pan=0,replay=0,raf=0,drag=null,session=null,selectedTime=null,companion=[],companionStatus='NOT_REQUESTED',chartTimes=[],dragMoved=false;
  const text=(id,value)=>$(id).textContent=value;
  const source=()=>catalog?.sources.find(s=>s.id===$('saved-source').value);
@@ -16,30 +17,36 @@
   const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}
   const data=JSON.parse(new TextDecoder().decode(bytes));if(!r.ok)throw Error(data.error||'SOURCE_UNAVAILABLE');return data;
  }
+ function clearCache(){cacheGeneration++;cacheController?.abort();cacheController=null;$('cache-result-rows').replaceChildren();text('cache-result-state','No current cache result');text('cache-match-state','Exact cache match: NOT_CHECKED');}
+ function cacheRequest(){cacheController?.abort();const controller=new AbortController();cacheController=controller;return {controller,sequence:++cacheGeneration,generation,timer:setTimeout(()=>controller.abort(),1500)};}
+ function cacheActive(r){return !closed&&r.generation===generation&&r.sequence===cacheGeneration;}
+ function cacheDone(r){clearTimeout(r.timer);if(cacheController===r.controller)cacheController=null;}
  async function lookupCache(p,gen){
+  if(closed||gen!==generation)return;
   text('cache-match-state','Exact cache match: CHECKING');
   if(!p||!['footprint_1m','candles_1m'].includes(p.dataset)||source()?.source!=='grid'||
-     !/^[a-f0-9]{64}$/.test(p.source_sha)||!p.rows.length){
+     !/^[a-f0-9]{64}$/.test(p.epoch)||!p.rows.length){
    text('cache-match-state','Exact cache match: NOT_APPLICABLE');return;
   }
   const times=p.rows.map(r=>r.ts).filter(Number.isSafeInteger);
   if(!times.length){text('cache-match-state','Exact cache match: NO_RANGE');return;}
   const from=Math.min(...times),to=Math.max(...times);
-  const query=new URLSearchParams({revision:p.source_sha,symbol:p.symbol,timeframe:displayTF(),
+  const query=new URLSearchParams({revision:p.epoch,symbol:p.symbol,timeframe:displayTF(),
    from_ms:String(from),to_ms:String(to)});
+  const request=cacheRequest();
   try{
-   const d=await read('/api/saved/cache-lookup?'+query,controls.signal);
-   if(closed||gen!==generation)return;
+   const d=await read('/api/saved/cache-lookup?'+query,request.controller.signal);
+   if(!cacheActive(request))return;
    if(d.authority!=='OFFLINE_ONLY'||typeof d.state!=='string')throw Error('UNVERIFIED_CACHE');
    if(d.state!=='READY'){
     if(!['MISS','EXPIRED','STALE','CORRUPT','AMBIGUOUS','UNAVAILABLE','DISABLED','MISSING'].includes(d.state))throw Error('UNVERIFIED_CACHE');
     text('cache-match-state','Exact cache match: '+d.state+' · source revision and UTC range required');
     return;
    }
-   if(d.match!=='EXACT_SOURCE_REVISION_AND_RANGE'||d.source_revision!==p.source_sha||
-      d.symbol!==p.symbol||d.timeframe!==displayTF()||!/^[a-f0-9]{64}$/.test(d.sha256)||
+   if(d.match!=='EXACT_SOURCE_REVISION_AND_RANGE'||d.source_revision!==p.epoch||
+      d.symbol!==p.symbol||d.timeframe!==displayTF()||!/^[a-f0-9]{64}$/.test(d.sha256)||!/^[a-f0-9]{64}$/.test(d.preview_sha256)||d.integrity_scope!=='PREVIEW_SHA256_WORKER_VALIDATED_FULL_DIGEST'||
       !Array.isArray(d.candles)||d.candles.length>64||!Number.isSafeInteger(d.total_candles)||
-      d.total_candles!==d.candles.length)throw Error('UNVERIFIED_CACHE');
+      d.candles.length!==Math.min(64,d.total_candles)||d.truncated!==(d.total_candles>64)||d.from_ms!==from||d.to_ms!==to)throw Error('UNVERIFIED_CACHE');
    for(const c of d.candles){
     if(!Number.isSafeInteger(c.ts)||c.ts<from||c.ts>to||
        !['open','high','low','close','volume','delta'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]))||
@@ -50,21 +57,22 @@
     const tr=add($('cache-result-rows'),'tr','');
     for(const v of [when(c.ts),c.open,c.high,c.low,c.close,c.volume,c.delta])add(tr,'td',String(v));
    }
-   text('cache-result-state','EXACT CACHE HIT · '+d.symbol+' · '+d.timeframe+' · '+d.total_candles+' candles · OFFLINE_ONLY');
-   text('cache-match-state','Exact cache match: READY · SHA256 '+d.sha256.slice(0,12));
+   text('cache-result-state','EXACT CACHE HIT · '+d.symbol+' · '+d.timeframe+' · '+d.candles.length+' / '+d.total_candles+' candles · OFFLINE_ONLY');
+   text('cache-match-state','Exact cache match: READY · preview '+d.preview_sha256.slice(0,12)+' / full digest '+d.sha256.slice(0,12));
   }catch(_){
-   if(closed||gen!==generation)return;
+   if(!cacheActive(request))return;
    text('cache-match-state','Exact cache match: UNAVAILABLE · no fallback');
-  }
+  }finally{cacheDone(request);}
  }
  async function inspectCache(jobId){
   if(closed)return;
   text('cache-result-state','Loading verified offline cache...');
   $('cache-result-rows').replaceChildren();
+  const request=cacheRequest();
   try{
-   const d=await read('/api/saved/cache-result?job_id='+encodeURIComponent(jobId),controls.signal);
-   if(closed)return;
-   if(d.state!=='READY'||d.authority!=='OFFLINE_ONLY'||!/^[a-f0-9]{64}$/.test(d.sha256)||
+   const d=await read('/api/saved/cache-result?job_id='+encodeURIComponent(jobId),request.controller.signal);
+   if(!cacheActive(request))return;
+   if(d.state!=='READY'||d.authority!=='OFFLINE_ONLY'||!/^[a-f0-9]{64}$/.test(d.sha256)||!/^[a-f0-9]{64}$/.test(d.preview_sha256)||d.integrity_scope!=='PREVIEW_SHA256_WORKER_VALIDATED_FULL_DIGEST'||
       !Array.isArray(d.candles)||d.candles.length>64||
       !Number.isSafeInteger(d.total_candles)||d.total_candles<d.candles.length||
       !/^[A-Z0-9_-]{1,80}$/.test(d.symbol)||!['1m','5m','15m','1h','4h','1d'].includes(d.timeframe))
@@ -74,16 +82,16 @@
        c.low>Math.min(c.open,c.close)||c.high<Math.max(c.open,c.close)||c.volume<0)
        throw Error('UNVERIFIED_CACHE');
    }
-   text('cache-result-state',d.symbol+' · '+d.timeframe+' · '+d.total_candles+' cached candles · OFFLINE_ONLY · SHA256 '+d.sha256.slice(0,12));
+   text('cache-result-state',d.symbol+' · '+d.timeframe+' · '+d.candles.length+' / '+d.total_candles+' cached candles · OFFLINE_ONLY · SHA256 '+d.sha256.slice(0,12));
    for(const c of d.candles){
     const tr=add($('cache-result-rows'),'tr','');
     for(const v of [when(c.ts),c.open,c.high,c.low,c.close,c.volume,c.delta])add(tr,'td',String(v));
    }
   }catch(_){
-   if(closed)return;
+   if(!cacheActive(request))return;
    $('cache-result-rows').replaceChildren();
    text('cache-result-state','CACHE_RESULT_UNAVAILABLE · no fallback');
-  }
+  }finally{cacheDone(request);}
  }
  async function refreshCache(){
   if(closed)return;
@@ -98,7 +106,7 @@
    const valid=d.jobs.every(j=>/^[a-f0-9]{32}$/.test(j.job_id)&&
       ['QUEUED','RUNNING','READY','FAILED'].includes(j.state)&&
       Number.isSafeInteger(j.attempt)&&j.attempt>=0&&
-      (j.error_code==null||['COMPUTE_FAILED','INCOMPLETE','CACHE_FAILED'].includes(j.error_code)));
+      (j.error_code==null||['COMPUTE_FAILED','INCOMPLETE','CACHE_FAILED','LEASE_EXHAUSTED'].includes(j.error_code)));
    if(!valid)throw Error('CACHE_SCHEMA_UNVERIFIED');
    text('cache-summary',d.mode+' · '+d.entries+' entries · '+d.jobs.length+' jobs');
    for(const j of d.jobs){
@@ -152,7 +160,7 @@
  }
  async function load(next=false){
   if(closed||!source()||!dataset())return;syncTimeframe();
-  const gen=++generation;controller?.abort();if(active)aborted++;stopReplay();
+  const gen=++generation;clearCache();controller?.abort();if(active)aborted++;stopReplay();
   const c=new AbortController();controller=c;const timeout=setTimeout(()=>c.abort(),3500);
   const expected={symbol:$('saved-symbol').value,timeframe:['footprint_1m','candles_1m'].includes(dataset()?.name)?'1m':$('saved-timeframe').value};
   const q=new URLSearchParams({source:source().id,dataset:dataset().name,...expected,limit:$('limit').value});
@@ -304,9 +312,9 @@
  }
  function tick(){timer=0;if(closed)return;if(replay>=rows.length){stopReplay();return;}replay++;selectedTime=time(rows[replay-1])??null;render();timer=setTimeout(tick,180);}
  function dispose(state='VIEW_CLOSED'){
-  if(closed)return;closed=true;chartTimes=[];++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;companion=[];companionStatus='VIEW_CLOSED';$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
+  if(closed)return;closed=true;clearCache();chartTimes=[];++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;companion=[];companionStatus='VIEW_CLOSED';$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
  }
- for(const id of ['saved-symbol','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('saved-timeframe','change',()=>{if(['footprint_1m','candles_1m'].includes(dataset()?.name)){span=aggregated().length;pan=0;render();}else load();});on('reload','click',()=>load());on('next','click',()=>load(true));
+ for(const id of ['saved-symbol','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('saved-timeframe','change',()=>{if(['footprint_1m','candles_1m'].includes(dataset()?.name)){span=aggregated().length;pan=0;clearCache();render();if(current)void lookupCache(current,generation);}else load();});on('reload','click',()=>load());on('next','click',()=>load(true));
  on('cache-refresh','click',refreshCache);
  on('zoom-in','click',()=>{span=Math.max(4,Math.min(chartCount(),span*.7));scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(chartCount(),Math.max(4,span*1.4));scheduleDraw();});on('reset','click',()=>{span=chartCount();pan=0;scheduleDraw();});
  on('saved-chart','click',e=>{

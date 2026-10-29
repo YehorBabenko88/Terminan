@@ -1,10 +1,11 @@
 """Standalone, opt-in loopback-only read-only cache status dashboard.
 
 No queue writes, computation, upstream access, or background worker startup.
-Open only an explicitly selected SQLite file in immutable read-only mode.
+Open only an explicitly selected SQLite file in WAL-aware read-only mode.
 """
 from __future__ import annotations
 import argparse
+import contextlib
 import hashlib
 import math
 import time
@@ -14,6 +15,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
+from .saved_cache import key_for, canonical, PERIODS, CacheError, ALGORITHM, EXACT_INDEX
 
 HTML = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -51,105 +53,111 @@ async function refresh(){
 el('refresh').onclick=refresh;refresh();
 </script></html>"""
 
+@contextlib.contextmanager
+def reader(db):
+    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=.25,isolation_level=None)
+    try:
+        con.execute('PRAGMA query_only=ON');con.execute('PRAGMA busy_timeout=250')
+        deadline=time.monotonic()+.25
+        con.set_progress_handler(lambda:int(time.monotonic()>deadline),1000)
+        con.execute('BEGIN') # one WAL snapshot for lookup, identities and result
+        yield con
+    finally:con.close()
+
+
+def require_index(con,name):
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",(name,)).fetchone():
+        raise ValueError('CACHE_INDEX_REQUIRED')
+
+
 def read_status(db):
-    # URI mode=ro guarantees no schema creation or mutation.
-    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
-    try:
-        con.execute("PRAGMA query_only=ON")
-        con.execute("PRAGMA busy_timeout=1000")
-        jobs=con.execute("""SELECT job_id,state,attempt,error_code FROM cache_jobs
-            ORDER BY updated_at DESC,job_id LIMIT 100""").fetchall()
-        entries=con.execute("SELECT count(*) FROM cache_entries").fetchone()[0]
-        return {"mode":"READ_ONLY","authority":"OFFLINE_ONLY","entries":entries,
-                "jobs":[dict(job_id=j[0],state=j[1],attempt=j[2],error_code=j[3]) for j in jobs]}
-    finally:
-        con.close()
+    with reader(db) as con:
+        require_index(con,'cache_jobs_updated_idx')
+        jobs=con.execute("SELECT substr(job_id,1,33),substr(state,1,9),CASE WHEN typeof(attempt)='integer' THEN attempt END,substr(error_code,1,33) FROM cache_jobs ORDER BY updated_at DESC,job_id LIMIT 100").fetchall()
+        for job,state,attempt,error in jobs:
+            if type(job) is not str or len(job)!=32 or any(c not in '0123456789abcdef' for c in job) or state not in ('QUEUED','RUNNING','READY','FAILED') or type(attempt) is not int or not 0<=attempt<=3 or error not in (None,'COMPUTE_FAILED','INCOMPLETE','CACHE_FAILED','LEASE_EXHAUSTED'):raise ValueError('CACHE_METADATA_INVALID')
+        entries=con.execute('SELECT count(*) FROM cache_entries').fetchone()[0]
+        return dict(mode='READ_ONLY',authority='OFFLINE_ONLY',entries=entries,
+            jobs=[dict(job_id=j[0],state=j[1],attempt=j[2],error_code=j[3]) for j in jobs])
 
-def read_job_result(db, job_id, now=None):
-    """Return only bounded, integrity-checked, completed offline cache results."""
-    if not isinstance(job_id,str) or len(job_id)!=32 or any(c not in "0123456789abcdef" for c in job_id):
-        raise ValueError("INVALID_JOB_ID")
-    now=int(time.time()) if now is None else int(now)
-    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
-    try:
-        con.execute("PRAGMA query_only=ON")
-        row=con.execute("""SELECT j.state,j.identity_json,e.identity_json,
-            e.content_hash,e.payload,e.expires_at
-            FROM cache_jobs j LEFT JOIN cache_entries e ON e.cache_key=j.cache_key
-            WHERE j.job_id=?""",(job_id,)).fetchone()
-        if row is None:return {"state":"NOT_FOUND"}
-        state,job_identity,entry_identity,expected,raw,expires=row
-        if state!="READY":return {"state":state}
-        if raw is None:return {"state":"MISSING"}
-        if expires<=now:return {"state":"EXPIRED"}
-        if len(raw)>4*1024*1024 or hashlib.sha256(raw).hexdigest()!=expected:
-            return {"state":"CORRUPT"}
-        try:
-            identity=json.loads(job_identity)
-            if identity!=json.loads(entry_identity):return {"state":"STALE"}
-            data=json.loads(raw)
-            if data.get("state")!="HISTORICAL_ONLY" or data.get("complete") is not True or data.get("source_revision")!=identity["source_revision"]:
-                return {"state":"STALE"}
-            candles=data.get("candles")
-            if not isinstance(candles,list) or len(candles)>10000:return {"state":"CORRUPT"}
-            if any(not isinstance(c,dict) or not isinstance(c.get("ts"),int) or
-                   not all(type(c.get(k)) in (int,float) and math.isfinite(c[k]) for k in ("open","high","low","close","volume","delta"))
-                   for c in candles):return {"state":"CORRUPT"}
-        except (ValueError,TypeError,KeyError,AttributeError):
-            return {"state":"CORRUPT"}
-        # Deliberately do not return raw footprint, source payload, paths or identity.
-        return {"state":"READY","authority":"OFFLINE_ONLY","dataset":identity["dataset"],
-                "symbol":identity["symbol"],"timeframe":identity["timeframe"],
-                "source_revision":identity["source_revision"],"sha256":expected,
-                "total_candles":len(candles),
-                "candles":[{k:c[k] for k in ("ts","open","high","low","close","volume","delta")}
-                           for c in candles[:64]]}
-    finally:
-        con.close()
 
-def lookup_exact_cache(db, source_revision, symbol, timeframe, from_ms, to_ms, now=None):
-    """Only return a cache hit for a unique, exact, revision-pinned query."""
-    if not isinstance(source_revision,str) or len(source_revision)!=64 or any(c not in "0123456789abcdef" for c in source_revision):
-        raise ValueError("INVALID_REVISION")
-    if not isinstance(symbol,str) or not 1<=len(symbol)<=80 or not all(c.isalnum() or c in "_-" for c in symbol):
-        raise ValueError("INVALID_SYMBOL")
-    if timeframe not in ("1m","5m","15m","1h","4h","1d"):
-        raise ValueError("INVALID_TIMEFRAME")
-    if type(from_ms) is not int or type(to_ms) is not int or not 946684800000<=from_ms<=to_ms<=2**53-1:
-        raise ValueError("INVALID_RANGE")
-    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
+def checked_preview(identity,data,full_hash):
+    minutes=PERIODS.get(identity['timeframe']);start,end=identity['from_ms'],identity['to_ms']
+    if not minutes or start%(minutes*60000) or (end+60000)%(minutes*60000):raise ValueError()
+    expected=(end-start+60000)//(minutes*60000)
+    keys={'state','authority','dataset','symbol','timeframe','source_revision','sha256','from_ms','to_ms','algorithm','parameters_hash','total_candles','truncated','integrity_scope','candles','expires_at'}
+    if type(data) is not dict or set(data)!=keys or type(full_hash) is not str or len(full_hash)!=64 or any(c not in '0123456789abcdef' for c in full_hash) or data.get('state')!='READY' or data.get('authority')!='OFFLINE_ONLY' or data.get('sha256')!=full_hash or data.get('integrity_scope')!='PREVIEW_SHA256_WORKER_VALIDATED_FULL_DIGEST':raise ValueError()
+    for k in ('source_revision','dataset','symbol','timeframe','from_ms','to_ms','algorithm','parameters_hash'):
+        if type(data.get(k)) is not type(identity[k]) or data[k]!=identity[k]:raise ValueError()
+    if type(data.get('total_candles')) is not int or data['total_candles']!=expected or not 1<=expected<=10000 or type(data.get('truncated')) is not bool or data['truncated']!=(expected>64):raise ValueError()
+    rows=data.get('candles')
+    if type(rows) is not list or len(rows)!=min(expected,64):raise ValueError()
+    for i,c in enumerate(rows):
+        if type(c) is not dict or set(c)!={'ts','open','high','low','close','volume','delta'} or type(c['ts']) is not int or c['ts']!=start+i*minutes*60000:raise ValueError()
+        if any(type(c[k]) not in (int,float) or not math.isfinite(c[k]) for k in ('open','high','low','close','volume','delta')):raise ValueError()
+        if min(c[k] for k in ('open','high','low','close'))<=0 or not c['low']<=min(c['open'],c['close'])<=max(c['open'],c['close'])<=c['high'] or c['volume']<0 or abs(c['delta'])>c['volume']+1e-8:raise ValueError()
+
+
+def result_in_snapshot(con,job_id,now):
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cache_previews'").fetchone():return dict(state='UNAVAILABLE',code='CACHE_UPGRADE_REQUIRED')
+    row=con.execute("""SELECT substr(j.state,1,9),substr(j.cache_key,1,65),
+        CASE WHEN length(j.identity_json)<=4096 THEN j.identity_json END,
+        substr(p.entry_hash,1,65),substr(p.identity_hash,1,65),substr(p.content_hash,1,65),
+        CASE WHEN length(p.payload)<=32768 THEN p.payload END
+        FROM cache_jobs j LEFT JOIN cache_previews p ON p.cache_key=j.cache_key WHERE j.job_id=?""",(job_id,)).fetchone()
+    if row is None:return dict(state='NOT_FOUND')
+    state,key,job_id_json,full_hash,identity_hash,expected,raw=row
+    if state!='READY':return dict(state=state if state in ('QUEUED','RUNNING','FAILED') else 'UNAVAILABLE')
+    if full_hash is None:
+        exists=con.execute('SELECT 1 FROM cache_entries WHERE cache_key=?',(key,)).fetchone()
+        return dict(state='CORRUPT' if exists else 'MISSING')
+    if not isinstance(raw,bytes) or len(raw)>32768 or hashlib.sha256(raw).hexdigest()!=expected:return dict(state='CORRUPT')
     try:
-        con.execute("PRAGMA query_only=ON")
-        # Filter before limiting: unrelated jobs must never mask a valid hit.
-        # JSON fields are bound parameters, not interpolated SQL.
-        rows=con.execute("""SELECT j.job_id,j.identity_json FROM cache_jobs j
-            WHERE j.state='READY'
-            AND json_valid(j.identity_json)
-            AND json_extract(j.identity_json,'$.source')='grid'
-            AND json_extract(j.identity_json,'$.dataset')='candles_1m'
-            AND json_extract(j.identity_json,'$.source_revision')=?
-            AND json_extract(j.identity_json,'$.symbol')=?
-            AND json_extract(j.identity_json,'$.timeframe')=?
-            AND json_extract(j.identity_json,'$.from_ms')=?
-            AND json_extract(j.identity_json,'$.to_ms')=?
-            ORDER BY j.job_id LIMIT 2""",
-            (source_revision,symbol,timeframe,from_ms,to_ms)).fetchall()
-        if not rows:return {"state":"MISS","authority":"OFFLINE_ONLY"}
-        if len(rows)>1:return {"state":"AMBIGUOUS","authority":"OFFLINE_ONLY"}
-        try:
-            identity=json.loads(rows[0][1])
-            if not isinstance(identity,dict) or identity.get("source_revision")!=source_revision:
-                return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
-        except (ValueError,TypeError,AttributeError):
-            return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
-        job_id=rows[0][0]
-    finally:
-        con.close()
-    result=read_job_result(db,job_id,now=now)
-    if result.get("state")!="READY":return {"state":result.get("state","UNAVAILABLE"),"authority":"OFFLINE_ONLY"}
-    if result.get("source_revision")!=source_revision or result.get("symbol")!=symbol or result.get("timeframe")!=timeframe:
-        return {"state":"STALE","authority":"OFFLINE_ONLY"}
-    return dict(result,match="EXACT_SOURCE_REVISION_AND_RANGE")
+        identity=json.loads(job_id_json)
+        if key_for(identity)!=key or identity_hash!=key:return dict(state='STALE')
+        data=json.loads(raw);checked_preview(identity,data,full_hash)
+        if type(data['expires_at']) is not int:return dict(state='CORRUPT')
+        if data['expires_at']<=now:return dict(state='EXPIRED')
+    except (CacheError,ValueError,TypeError,KeyError,AttributeError,OverflowError):return dict(state='CORRUPT')
+    return dict(data,preview_sha256=expected)
+
+
+def read_job_result(db,job_id,now=None):
+    if type(job_id) is not str or len(job_id)!=32 or any(c not in '0123456789abcdef' for c in job_id):raise ValueError('INVALID_JOB_ID')
+    with reader(db) as con:return result_in_snapshot(con,job_id,int(time.time()) if now is None else int(now))
+
+
+LOOKUP_SQL=f"""SELECT substr(j.job_id,1,33) FROM cache_jobs j INDEXED BY {EXACT_INDEX}
+    WHERE j.state='READY' AND json_valid(j.identity_json)
+    AND json_extract(j.identity_json,'$.source')='grid'
+    AND json_extract(j.identity_json,'$.dataset')='candles_1m'
+    AND json_extract(j.identity_json,'$.source_revision')=?
+    AND json_extract(j.identity_json,'$.symbol')=?
+    AND json_extract(j.identity_json,'$.timeframe')=?
+    AND json_extract(j.identity_json,'$.from_ms')=?
+    AND json_extract(j.identity_json,'$.to_ms')=?
+    AND json_extract(j.identity_json,'$.algorithm')=?
+    ORDER BY j.job_id LIMIT 2"""
+
+
+def lookup_exact_cache(db,source_revision,symbol,timeframe,from_ms,to_ms,now=None):
+    if type(source_revision) is not str or len(source_revision)!=64 or any(c not in '0123456789abcdef' for c in source_revision):raise ValueError('INVALID_REVISION')
+    if type(symbol) is not str or not 1<=len(symbol)<=80 or not all(c.isalnum() or c in '_-' for c in symbol):raise ValueError('INVALID_SYMBOL')
+    if timeframe not in PERIODS:raise ValueError('INVALID_TIMEFRAME')
+    if type(from_ms) is not int or type(to_ms) is not int or not 946684800000<=from_ms<=to_ms<=2**53-1:raise ValueError('INVALID_RANGE')
+    args=(source_revision,symbol,timeframe,from_ms,to_ms,ALGORITHM)
+    with reader(db) as con:
+        require_index(con,EXACT_INDEX)
+        plan=con.execute('EXPLAIN QUERY PLAN '+LOOKUP_SQL,args).fetchall()
+        if not any('SEARCH j USING INDEX '+EXACT_INDEX in r[3] for r in plan) or any('SCAN ' in r[3] or 'TEMP B-TREE' in r[3] for r in plan):raise ValueError('CACHE_INDEX_REQUIRED')
+        rows=con.execute(LOOKUP_SQL,args).fetchall()
+        if not rows:return dict(state='MISS',authority='OFFLINE_ONLY')
+        if len(rows)>1:return dict(state='AMBIGUOUS',authority='OFFLINE_ONLY')
+        result=result_in_snapshot(con,rows[0][0],int(time.time()) if now is None else int(now))
+        if result.get('state')!='READY':return dict(state=result.get('state','UNAVAILABLE'),authority='OFFLINE_ONLY')
+        if tuple(result[k] for k in ('source_revision','symbol','timeframe','from_ms','to_ms','algorithm'))!=args:return dict(state='STALE',authority='OFFLINE_ONLY')
+        return dict(result,match='EXACT_SOURCE_REVISION_AND_RANGE')
+
 
 def serve(db,port):
     if not Path(db).is_file():

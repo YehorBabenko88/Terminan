@@ -3,11 +3,12 @@ import unittest
 from pathlib import Path
 from terminan.saved_cache import open_cache, put, get, compute_mtf, CacheError, ALGORITHM
 
-IDENTITY = dict(source="grid", source_revision="a"*64, dataset="candles_1m",
-                symbol="BTCUSDT", timeframe="15m", from_ms=1767225600000,
-                to_ms=1767226500000, algorithm=ALGORITHM, parameters_hash="b"*64)
-PAYLOAD = dict(state="HISTORICAL_ONLY", source_revision="a"*64,
-               complete=True, candles=[dict(ts=1767225600000, close=100)])
+IDENTITY = dict(source="grid",source_revision="a"*64,dataset="candles_1m",symbol="BTCUSDT",
+ timeframe="5m",from_ms=1767225600000,to_ms=1767225840000,algorithm=ALGORITHM,parameters_hash="b"*64)
+# A complete fixture must cover every minute and account for every footprint volume.
+PAYLOAD=compute_mtf(IDENTITY,dict(source_revision="a"*64,
+ candles=[dict(symbol="BTCUSDT",ts=1767225600000+i*60000,open=100,high=102,low=99,close=101,buy_volume=2,sell_volume=1) for i in range(5)],
+ footprint=[dict(symbol="BTCUSDT",ts=1767225600000+i*60000,price=100,buy_volume=2,sell_volume=1) for i in range(5)]))
 
 class SavedCacheTests(unittest.TestCase):
     def setUp(self):

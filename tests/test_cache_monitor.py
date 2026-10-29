@@ -36,9 +36,9 @@ class CacheMonitorTests(unittest.TestCase):
  def test_status_reads_job(self):
   self.con.execute("""INSERT INTO cache_jobs
    (job_id,cache_key,identity_json,source_json,state,created_at,updated_at)
-   VALUES (?,?,?,?,?,?,?)""",("j1","k1","{}","{}","QUEUED",100,100))
+   VALUES (?,?,?,?,?,?,?)""",("1"*32,"k1","{}","{}","QUEUED",100,100))
   result=read_status(self.path)
-  self.assertEqual(result["jobs"][0]["job_id"],"j1")
+  self.assertEqual(result["jobs"][0]["job_id"],"1"*32)
   self.assertEqual(result["jobs"][0]["state"],"QUEUED")
 
  def test_verified_cache_result(self):
