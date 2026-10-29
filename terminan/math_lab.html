@@ -9,6 +9,7 @@
 <section id="composition" class="box target" tabindex="0"><strong>Область композиции</strong><p id="placeholder">Перетащи сюда научные блоки</p><ol id="nodes"></ol></section></div>
 <p><button id="clear" type="button">Очистить схему</button> <button id="export" type="button">Показать схему JSON</button></p><pre id="result" aria-live="polite"></pre>
 <section class="box"><h2>Math Engine — проверка связи</h2><p>Доступность центрального вычислителя. Исследовательские запросы и торговые действия отключены до доверенного подключения.</p><button id="checkMath" type="button">Проверить Math Engine</button><pre id="mathHealth" aria-live="polite">NOT_CONNECTED</pre></section>
+<section class="box"><h2>Вычисляемый научный граф</h2><p>Синтетические ряды A и B → разность → среднеквадратичная энергия. Вычисление выполняется только Math Engine. Результат не является торговым сигналом.</p><button id="computeGraph" type="button">Выполнить граф в Math</button><pre id="graphComputeResult" aria-live="polite">NOT_RUN</pre><canvas id="graphChart" width="660" height="160" style="width:100%;background:#0c1928"></canvas></section>
 <section class="box"><h2>Эксперимент: входной ряд → Math Engine</h2>
 <p>Введи 500–2000 положительных цен, разделённых пробелами или переносами. Данные считаются НЕДОВЕРЕННЫМИ; результаты не разрешают обучение или торговлю.</p>
 <textarea id="closeValues" rows="4" style="width:100%;background:#0d1b28;color:white" aria-label="Исторические цены"></textarea>
@@ -23,6 +24,22 @@ function render(){nodes.replaceChildren();selected.forEach((v,i)=>{const li=docu
 document.querySelectorAll('[data-kind]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',el.dataset.kind);e.dataTransfer.effectAllowed='copy'}));
 target.addEventListener('dragover',e=>e.preventDefault());target.addEventListener('drop',e=>{e.preventDefault();const kind=e.dataTransfer.getData('text/plain');if(permitted.has(kind)&&selected.length<24){selected.push(kind);render()}});
 document.getElementById('checkMath').onclick=async()=>{const target=document.getElementById('mathHealth');target.textContent='CHECKING';try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),3000);try{const response=await fetch('/api/math/health',{signal:controller.signal,cache:'no-store'});const v=await response.json();target.textContent=JSON.stringify(v,null,2);if(!response.ok||v.state!=='READY_OFFLINE')target.textContent='MATH_ENGINE_NOT_CONNECTED';}finally{clearTimeout(timeout)}}catch{target.textContent='MATH_ENGINE_UNAVAILABLE'}};
+document.getElementById('computeGraph').onclick=async()=>{
+ const output=document.getElementById('graphComputeResult');output.textContent='CALCULATING';
+ const a=Array.from({length:120},(_,i)=>Math.sin(i/9)),b=Array.from({length:120},(_,i)=>Math.cos(i/11));
+ const payload={schema:'math.graph.execute.v1',mode:'HISTORICAL_RESEARCH',execution_authority:false,nodes:[
+ {id:'a',kind:'source',values:a},{id:'b',kind:'source',values:b},
+ {id:'difference',kind:'transform',adapter:'series-difference',inputs:['a','b'],parameters:{}},
+ {id:'energy',kind:'transform',adapter:'comparison-energy',inputs:['difference'],parameters:{}}
+ ]};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/graph',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
+ const result=await response.json();if(!response.ok||result.schema!=='math.graph.result.v1'||result.trading_authorized!==false){output.textContent='GRAPH_UNAVAILABLE';return}
+ output.textContent=JSON.stringify(result,null,2);
+ const c=document.getElementById('graphChart'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+ for(const [data,color] of [[a,'#40b9ff'],[b,'#edbd69']]){ctx.beginPath();ctx.strokeStyle=color;data.forEach((v,i)=>{const x=i*(c.width-1)/(data.length-1),y=c.height/2-v*58;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke()}
+ }catch{output.textContent='MATH_GRAPH_UNAVAILABLE'}finally{clearTimeout(timer)}
+};
 document.getElementById('loadDemo').onclick=()=>{document.getElementById('closeValues').value=Array.from({length:500},(_,i)=>(70000+20*Math.sin(i/10)+i*.03).toFixed(5)).join(' ');document.getElementById('mathEvaluation').textContent='SYNTHETIC_INPUT_NOT_MARKET_DATA'};
 document.getElementById('evaluateMath').onclick=async()=>{
  const status=document.getElementById('mathEvaluation');status.textContent='CHECKING';
