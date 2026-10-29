@@ -48,7 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if host not in allowed or origin!='http://'+host:
             return self.send_error(403,'Local origin required')
-        if self.path!='/api/math/evaluate':
+        if self.path not in ('/api/math/evaluate','/api/math/graph'):
             return self.send_error(404)
         if self.headers.get('Content-Type')!='application/json':
             return self.send_error(415)
@@ -56,7 +56,8 @@ class Handler(BaseHTTPRequestHandler):
         if not rawlen.isascii() or not rawlen.isdecimal() or not 2<=int(rawlen)<=262144:
             return self.send_error(413)
         try:
-            result=math_bridge.evaluate(self.rfile.read(int(rawlen)))
+            raw=self.rfile.read(int(rawlen))
+            result=math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
         except (ValueError, TypeError):
