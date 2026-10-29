@@ -13,7 +13,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from .saved_cache import open_cache, key_for, compute_mtf, CacheError, MAX_INPUT
+from .saved_cache import open_cache, key_for, compute_mtf, CacheError, MAX_INPUT, transaction, prepare, write_entry, canonical, get, EXACT_INDEX
 
 MAX_JOBS = 128
 LEASE_SECONDS = 120
@@ -28,36 +28,48 @@ def init_queue(con):
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     )""")
     con.execute("CREATE INDEX IF NOT EXISTS cache_jobs_state_idx ON cache_jobs(state,created_at)")
+    con.execute("CREATE INDEX IF NOT EXISTS cache_jobs_updated_idx ON cache_jobs(updated_at DESC,job_id)")
+    con.execute(f"""CREATE INDEX IF NOT EXISTS {EXACT_INDEX} ON cache_jobs(
+        json_extract(identity_json,'$.source_revision'),json_extract(identity_json,'$.symbol'),
+        json_extract(identity_json,'$.timeframe'),json_extract(identity_json,'$.from_ms'),
+        json_extract(identity_json,'$.to_ms'),json_extract(identity_json,'$.algorithm'),job_id)
+        WHERE state='READY' AND json_valid(identity_json)
+        AND json_extract(identity_json,'$.source')='grid'
+        AND json_extract(identity_json,'$.dataset')='candles_1m'""")
     return con
 
-def submit(con, identity, source, now=None):
-    now = int(time.time()) if now is None else int(now)
-    key = key_for(identity)
-    raw = json.dumps(source, sort_keys=True, separators=(",", ":"), allow_nan=False)
-    if len(raw.encode()) > MAX_INPUT:
-        raise CacheError("INPUT_TOO_LARGE")
-    if type(source) is not dict or source.get("source_revision") != identity["source_revision"]:
-        raise CacheError("SOURCE_REVISION_MISMATCH")
-    with con:
-        count = con.execute("SELECT count(*) FROM cache_jobs").fetchone()[0]
-        existing = con.execute("SELECT job_id,state FROM cache_jobs WHERE cache_key=?", (key,)).fetchone()
+def submit(con, identity, source, now=None, retry=False):
+    now=int(time.time()) if now is None else int(now)
+    key=key_for(identity)
+    if type(source) is not dict or source.get('source_revision')!=identity['source_revision']:
+        raise CacheError('SOURCE_REVISION_MISMATCH')
+    raw=canonical(source).decode()
+    if len(raw.encode())>MAX_INPUT:raise CacheError('INPUT_TOO_LARGE')
+    with transaction(con):
+        existing=con.execute('SELECT job_id,state,source_json FROM cache_jobs WHERE cache_key=?',(key,)).fetchone()
         if existing:
-            return {"job_id": existing[0], "state": existing[1]}
-        if count >= MAX_JOBS:
-            raise CacheError("QUEUE_FULL")
-        job_id = uuid.uuid4().hex
-        con.execute("""INSERT INTO cache_jobs
-            (job_id,cache_key,identity_json,source_json,state,created_at,updated_at)
-            VALUES (?,?,?,?,?,?,?)""",
-            (job_id,key,json.dumps(identity,sort_keys=True),raw,"QUEUED",now,now))
-    return {"job_id":job_id,"state":"QUEUED"}
+            if existing[2]!=raw:raise CacheError('SOURCE_CONTENT_CONFLICT')
+            state=existing[1]
+            usable=False
+            if state=='READY':
+                from .cache_monitor import result_in_snapshot
+                usable=get(con,identity,now)['state']=='HIT' and result_in_snapshot(con,existing[0],now)['state']=='READY'
+            if state=='READY' and not usable or state=='FAILED' and retry:
+                con.execute("UPDATE cache_jobs SET state='QUEUED',attempt=0,token=NULL,lease_until=NULL,error_code=NULL,updated_at=? WHERE job_id=?",(now,existing[0]));state='QUEUED'
+            return dict(job_id=existing[0],state=state)
+        if con.execute('SELECT count(*) FROM cache_jobs').fetchone()[0]>=MAX_JOBS:raise CacheError('QUEUE_FULL')
+        job_id=uuid.uuid4().hex
+        con.execute("INSERT INTO cache_jobs(job_id,cache_key,identity_json,source_json,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",(job_id,key,canonical(identity).decode(),raw,'QUEUED',now,now))
+    return dict(job_id=job_id,state='QUEUED')
+
 
 def claim(con, now=None):
     now = int(time.time()) if now is None else int(now)
     token = uuid.uuid4().hex
     con.execute("BEGIN IMMEDIATE")
     try:
-        # A crashed worker's expired RUNNING job is eligible for one retry.
+        con.execute("UPDATE cache_jobs SET state='FAILED',error_code='LEASE_EXHAUSTED',token=NULL,lease_until=NULL,updated_at=? WHERE state='RUNNING' AND lease_until<=? AND attempt>=3",(now,now))
+        # At most three claims per automatic attempt cycle; terminal failure is visible.
         row = con.execute("""SELECT job_id,identity_json,source_json,attempt
             FROM cache_jobs WHERE state='QUEUED'
             OR (state='RUNNING' AND lease_until<=? AND attempt<3)
@@ -77,48 +89,24 @@ def claim(con, now=None):
                 source=json.loads(source),attempt=attempt+1)
 
 def finish(con, job, payload=None, error=None, now=None):
-    now = int(time.time()) if now is None else int(now)
-    if error is not None and error not in ("COMPUTE_FAILED","INCOMPLETE","CACHE_FAILED"):
-        error = "COMPUTE_FAILED"
-    con.execute("BEGIN IMMEDIATE")
-    try:
-        row = con.execute("""SELECT state,token,lease_until FROM cache_jobs
-            WHERE job_id=?""",(job["job_id"],)).fetchone()
-        if row is None or row[0]!="RUNNING" or row[1]!=job["token"] or row[2]<=now:
-            con.execute("ROLLBACK")
-            return False
-        if error is None:
-            try:
-                # put() uses a nested SQLite savepoint through an isolated writer
-                # connection, while the claim token remains fenced by this lock.
-                raw = json.dumps(payload,sort_keys=True,separators=(",",":"),allow_nan=False).encode()
-                if len(raw)>4*1024*1024 or payload.get("complete") is not True or payload.get("source_revision")!=job["identity"]["source_revision"]:
-                    raise CacheError("INVALID_PAYLOAD")
-                key=key_for(job["identity"])
-                h=hashlib.sha256(raw).hexdigest()
-                con.execute("""INSERT INTO cache_entries
-                    (cache_key,identity_json,source_revision,content_hash,payload,created_at,expires_at,last_access)
-                    VALUES (?,?,?,?,?,?,?,?)
-                    ON CONFLICT(cache_key) DO UPDATE SET
-                    identity_json=excluded.identity_json,
-                    source_revision=excluded.source_revision,
-                    content_hash=excluded.content_hash,
-                    payload=excluded.payload,
-                    created_at=excluded.created_at,
-                    expires_at=excluded.expires_at,
-                    last_access=excluded.last_access""",
-                    (key,json.dumps(job["identity"],sort_keys=True),job["identity"]["source_revision"],
-                     h,raw,now,now+86400,now))
-            except (CacheError,ValueError,TypeError,sqlite3.Error):
-                error="CACHE_FAILED"
-        con.execute("""UPDATE cache_jobs SET state=?,error_code=?,token=NULL,
-            lease_until=NULL,updated_at=? WHERE job_id=? AND token=?""",
-            ("READY" if error is None else "FAILED",error,now,job["job_id"],job["token"]))
-        con.execute("COMMIT")
-        return True
-    except BaseException:
-        con.execute("ROLLBACK")
-        raise
+    # Validation/hash outside the writer lock; publication itself is atomic.
+    if error not in (None,'COMPUTE_FAILED','INCOMPLETE','CACHE_FAILED'):error='COMPUTE_FAILED'
+    prepared=None
+    if error is None:
+        try:prepared=prepare(job['identity'],payload)
+        except (CacheError,ValueError,TypeError,KeyError,OverflowError):error='CACHE_FAILED'
+    with transaction(con):
+        tick=int(time.time()) if now is None else int(now)
+        row=con.execute('SELECT state,token,lease_until,cache_key,identity_json FROM cache_jobs WHERE job_id=?',(job['job_id'],)).fetchone()
+        if row is None or row[0]!='RUNNING' or row[1]!=job['token'] or row[2]<=tick:return False
+        try:
+            if key_for(job['identity'])!=row[3] or canonical(json.loads(row[4]))!=canonical(job['identity']):return False
+        except (CacheError,ValueError,TypeError):return False
+        if error is None:write_entry(con,job['identity'],prepared,86400,tick)
+        # BEGIN IMMEDIATE prevents a reclaim between this fence and COMMIT.
+        con.execute("UPDATE cache_jobs SET state=?,error_code=?,token=NULL,lease_until=NULL,updated_at=? WHERE job_id=? AND token=?",('READY' if error is None else 'FAILED',error,tick,job['job_id'],job['token']))
+    return True
+
 
 def run_once(con, now=None):
     job = claim(con,now)
@@ -143,6 +131,7 @@ def main(argv=None):
     p.add_argument("--identity")
     p.add_argument("--source")
     p.add_argument("--job-id")
+    p.add_argument("--retry",action="store_true",help="Explicitly reset a FAILED attempt cycle")
     p.add_argument("--poll-seconds",type=float,default=0.25)
     p.add_argument("--max-seconds",type=int,default=60)
     p.add_argument("action",choices=("submit","run-once","work","status"))
@@ -157,7 +146,7 @@ def main(argv=None):
                     if Path(name).stat().st_size>MAX_INPUT:
                         raise CacheError("INPUT_TOO_LARGE")
                 result=submit(con,json.loads(Path(a.identity).read_text(encoding="utf8")),
-                              json.loads(Path(a.source).read_text(encoding="utf8")))
+                              json.loads(Path(a.source).read_text(encoding="utf8")),retry=a.retry)
             elif a.action=="status":
                 if not a.job_id:
                     raise CacheError("JOB_ID_REQUIRED")

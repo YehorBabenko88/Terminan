@@ -1,0 +1,41 @@
+name: Cache reliability Python312 audit
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: cache-audit-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  cache:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Offline regressions and100k lookup corpus
+        shell: pwsh
+        run: |
+          $sha=(git rev-parse HEAD).Trim()
+          if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SOURCE_MISMATCH' }
+          if ($IsWindows) {
+            powershell.exe -NoProfile -File scripts/Invoke-CacheAudit.ps1 -ExpectedSha $sha -EvidenceRoot reports/cache-audit -Python (Get-Command python).Source
+          } else {
+            python scripts/audit_cache.py --sha $sha --out reports/cache-audit
+          }
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cache-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/cache-audit/
