@@ -213,7 +213,8 @@ def main(argv=None):
                 path = Path(args.payload)
                 if path.stat().st_size > MAX_INPUT:
                     raise CacheError("INPUT_TOO_LARGE")
-                source = json.loads(path.read_text(encoding="utf8"))\n                result = put(con, identity, compute_mtf(identity, source) if args.action == "compute" else source, args.ttl)
+                source = json.loads(path.read_text(encoding="utf8"))
+                result = put(con, identity, compute_mtf(identity, source) if args.action == "compute" else source, args.ttl)
             elif args.action == "get":
                 result = get(con, identity)
             else:
