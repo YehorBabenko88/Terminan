@@ -13,3 +13,11 @@
 .saved-clusters .price-cluster-level.poc{background:#463820;border-color:#c8a04e;color:#ffdc87;z-index:2}
 .cluster-minute-label{font:9px Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:7px 1px 2px}
 .cluster-minute-totals{font:9px Consolas,monospace;white-space:nowrap}
+
+/* R4 saved workspace: linked selection only within the current validated page. */
+.cluster-navigation{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0 10px}
+.cluster-navigation output{font:11px Consolas,monospace;color:#ffdc87}
+.saved-clusters .cluster-selected-minute .cluster-price-plot{outline:2px solid #ffdc87;outline-offset:-2px;background-color:#1d2c3b}
+.saved-clusters .price-cluster-candle{cursor:pointer}
+.saved-clusters .price-cluster-candle:focus-visible{outline:2px solid #ffdc87}
+.saved-table tbody tr.saved-time-selected{background:#344052;color:#ffdc87}
