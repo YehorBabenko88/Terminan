@@ -60,7 +60,7 @@
   if(!times.length){companionStatus='NO_FOOTPRINT_ROWS';return;}
   const min=Math.min(...times),max=Math.max(...times);
   const q=new URLSearchParams({source:p.source_id,dataset:'candles_1m',symbol:p.symbol,timeframe:'1m',
-   limit:'200',from_ms:String(min),cutoff_ms:String(Math.min(p.cutoff_ms,max+60000))});
+   limit:'200',from_ms:String(min),cutoff_ms:String(Math.min(p.cutoff_ms,max))});
   companionStatus='LOADING';
   try{
    const x=await read('/api/saved/page?'+q,signal);
