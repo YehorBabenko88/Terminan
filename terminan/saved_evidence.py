@@ -9,7 +9,9 @@ def check_report(raw,source_sha,invocation,projects):
  try:
   if not re.fullmatch('[a-f0-9]{40}',source_sha) or not re.fullmatch('[a-f0-9]{32}',invocation):raise ValueError()
   meta=raw['config']['metadata']
-  if set(meta)-{'invocation','source_sha','actualWorkers','started_ms'} or meta.get('invocation')!=invocation or meta.get('source_sha')!=source_sha or raw['errors']!=[]:raise ValueError()
+  # Playwright adds CI context automatically. Its merge SHA is not our source SHA.
+  if set(meta)-{'invocation','source_sha','actualWorkers','started_ms','ci'} or meta.get('invocation')!=invocation or meta.get('source_sha')!=source_sha or raw['errors']!=[]:raise ValueError()
+  if 'ci' in meta and type(meta['ci']) is not dict:raise ValueError()
   started=meta['started_ms'];report_start=int(datetime.fromisoformat(raw['stats']['startTime'].replace('Z','+00:00')).timestamp()*1000)
   if type(started) is not int or not started<=report_start<=started+30000:raise ValueError()
   if 'actualWorkers' in meta and (type(meta['actualWorkers']) is not int or meta['actualWorkers']!=1):raise ValueError()

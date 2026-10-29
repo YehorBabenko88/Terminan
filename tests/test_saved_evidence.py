@@ -7,6 +7,8 @@ class SavedEvidenceTests(unittest.TestCase):
   raw=dict(config=dict(metadata=dict(invocation=inv,source_sha=sha)),errors=[],stats=dict(expected=3,skipped=0,unexpected=0,flaky=0),suites=[dict(specs=[dict(title='saved history controls identity clusters research and cancellation',file='saved.spec.cjs',ok=True,tests=[dict(projectName=n,projectId=n,expectedStatus='passed',status='expected',results=[dict(status='passed',retry=0,errors=[],attachments=[])]) for n in projects])])])
   raw['config']['metadata']['started_ms']=1767225600000;raw['stats']['startTime']='2026-01-01T00:00:01Z'
   self.assertEqual(len(check_report(raw,sha,inv,projects)),3)
+  hosted=copy.deepcopy(raw);hosted['config']['metadata']['ci']={'commitHash':'c'*40,'buildHref':'https://github.com/example/actions/runs/1'}
+  self.assertEqual(len(check_report(hosted,sha,inv,projects)),3)
   for fault in ('missing','skip','interrupt','false-zero','stale','identity','retry'):
    x=copy.deepcopy(raw)
    if fault=='missing':x.pop('stats')
