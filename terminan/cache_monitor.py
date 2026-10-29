@@ -107,6 +107,43 @@ def read_job_result(db, job_id, now=None):
     finally:
         con.close()
 
+def lookup_exact_cache(db, source_revision, symbol, timeframe, from_ms, to_ms, now=None):
+    """Only return a cache hit for a unique, exact, revision-pinned query."""
+    if not isinstance(source_revision,str) or len(source_revision)!=64 or any(c not in "0123456789abcdef" for c in source_revision):
+        raise ValueError("INVALID_REVISION")
+    if not isinstance(symbol,str) or not 1<=len(symbol)<=80 or not all(c.isalnum() or c in "_-" for c in symbol):
+        raise ValueError("INVALID_SYMBOL")
+    if timeframe not in ("1m","5m","15m","1h","4h","1d"):
+        raise ValueError("INVALID_TIMEFRAME")
+    if type(from_ms) is not int or type(to_ms) is not int or not 946684800000<=from_ms<=to_ms<=2**53-1:
+        raise ValueError("INVALID_RANGE")
+    con=sqlite3.connect(Path(db).resolve().as_uri()+"?mode=ro",uri=True,timeout=1)
+    try:
+        con.execute("PRAGMA query_only=ON")
+        rows=con.execute("""SELECT j.job_id,j.identity_json FROM cache_jobs j
+            WHERE j.state='READY' ORDER BY j.job_id LIMIT 129""").fetchall()
+        if len(rows)>128:return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
+        matches=[]
+        for job_id,raw in rows:
+            try:
+                identity=json.loads(raw)
+                if (identity.get("source")=="grid" and identity.get("dataset")=="candles_1m"
+                    and identity.get("source_revision")==source_revision
+                    and identity.get("symbol")==symbol and identity.get("timeframe")==timeframe
+                    and identity.get("from_ms")==from_ms and identity.get("to_ms")==to_ms):
+                    matches.append(job_id)
+            except (ValueError,TypeError,AttributeError):
+                return {"state":"UNAVAILABLE","authority":"OFFLINE_ONLY"}
+        if not matches:return {"state":"MISS","authority":"OFFLINE_ONLY"}
+        if len(matches)!=1:return {"state":"AMBIGUOUS","authority":"OFFLINE_ONLY"}
+    finally:
+        con.close()
+    result=read_job_result(db,matches[0],now=now)
+    if result.get("state")!="READY":return {"state":result.get("state","UNAVAILABLE"),"authority":"OFFLINE_ONLY"}
+    if result.get("source_revision")!=source_revision or result.get("symbol")!=symbol or result.get("timeframe")!=timeframe:
+        return {"state":"STALE","authority":"OFFLINE_ONLY"}
+    return dict(result,match="EXACT_SOURCE_REVISION_AND_RANGE")
+
 def serve(db,port):
     if not Path(db).is_file():
         raise ValueError("CACHE_DB_NOT_FOUND")
