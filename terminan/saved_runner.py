@@ -7,7 +7,7 @@ from .saved_sources import SavedSources,demo_config,SourceError
 def main():
  server=None;thread=None;code=0
  try:
-  parser=argparse.ArgumentParser();choice=parser.add_mutually_exclusive_group();choice.add_argument('--demo',action='store_true');choice.add_argument('--config');parser.add_argument('--port',type=int,default=0);args=parser.parse_args()
+  parser=argparse.ArgumentParser();choice=parser.add_mutually_exclusive_group();choice.add_argument('--demo',action='store_true');choice.add_argument('--config');parser.add_argument('--port',type=int,default=0);parser.add_argument('--cache-db');args=parser.parse_args()
   if not 0<=args.port<=65535:raise SourceError()
   config=demo_config() if args.demo else None
   if args.config:
@@ -16,6 +16,12 @@ def main():
    if len(text)>65536:raise SourceError('RESOURCE_LIMIT')
    config=json.loads(text)
   sources=SavedSources(config);server=SavedServer(('127.0.0.1',args.port),SavedHandler);server.saved=sources
+  if args.cache_db:
+   from .cache_monitor import read_status
+   cache_path=Path(args.cache_db).resolve(strict=True)
+   if not cache_path.is_file():raise SourceError('SOURCE_UNAVAILABLE')
+   read_status(cache_path)  # verify schema and read-only accessibility before publishing
+   server.cache_db=cache_path
   repo=Path(__file__).resolve().parents[1];server.candidate_sha=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True,stderr=subprocess.DEVNULL,timeout=5).strip()
   thread=threading.Thread(target=server.serve_forever);thread.start()
   print(json.dumps(dict(url=f'http://127.0.0.1:{server.server_port}/saved',port=server.server_port,candidate_sha=server.candidate_sha,mode='SYNTHETIC' if args.demo else 'SOURCES_CONFIGURED' if config else 'SOURCES_DISABLED')),flush=True)
