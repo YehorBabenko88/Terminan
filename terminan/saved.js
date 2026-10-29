@@ -24,11 +24,19 @@
  }
  function syncTimeframe(){
   const d=dataset(),select=$('saved-timeframe'),native=d?.timeframe;
-  for(const option of select.options)option.disabled=!!native&&option.value!==native;
-  if(native&&select.value!==native)select.value=native;
-  select.title=native?'Dataset native timeframe: '+native:'Choose timeframe';
+  const local=d?.name==='footprint_1m'||d?.name==='candles_1m';
+  for(const option of select.options)option.disabled=!local&&!!native&&option.value!==native;
+  if(!local&&native&&select.value!==native)select.value=native;
+  select.title=local?'Local bounded aggregation from native 1m; partial periods explicitly marked':native?'Dataset native timeframe: '+native:'Choose timeframe';
  }
- function chartCount(){return dataset()?.name==='footprint_1m'&&companion.length?companion.length:rows.length;}
+ function displayTF(){return $('saved-timeframe').value;}
+ function aggregated(){
+  if(!current||!window.SavedMTF||!['footprint_1m','candles_1m'].includes(dataset()?.name))return [];
+  const candles=dataset()?.name==='footprint_1m'?companion:rows;
+  const levels=dataset()?.name==='footprint_1m'?rows:[];
+  return window.SavedMTF.aggregate(candles,levels,displayTF());
+ }
+ function chartCount(){return ['footprint_1m','candles_1m'].includes(dataset()?.name)?aggregated().length:rows.length;}
  function chartWindow(){const count=chartCount();return Math.max(0,Math.min(count,Math.round(span)));}
  function stopReplay(){clearTimeout(timer);timer=0;text('saved-play','▶ Replay page');}
  function clearIdentity(){text('row-detail','');text('provenance','');delete document.body.dataset.identity;delete document.body.dataset.dataset;}
@@ -45,7 +53,7 @@
   if(closed||!source()||!dataset())return;syncTimeframe();
   const gen=++generation;controller?.abort();if(active)aborted++;stopReplay();
   const c=new AbortController();controller=c;const timeout=setTimeout(()=>c.abort(),3500);
-  const expected={symbol:$('saved-symbol').value,timeframe:$('saved-timeframe').value};
+  const expected={symbol:$('saved-symbol').value,timeframe:['footprint_1m','candles_1m'].includes(dataset()?.name)?'1m':$('saved-timeframe').value};
   const q=new URLSearchParams({source:source().id,dataset:dataset().name,...expected,limit:$('limit').value});
   if($('from-utc').value)q.set('from_ms',Date.parse($('from-utc').value+'Z'));if($('to-utc').value)q.set('cutoff_ms',Date.parse($('to-utc').value+'Z'));
   if(next&&current?.next_cursor){q.set('cursor',current.next_cursor);q.set('cutoff_ms',current.cutoff_ms);q.set('from_ms',current.from_ms);}else{next=false;blank();}
@@ -107,7 +115,9 @@
   text('columns-note','First12 table columns; select a row for all projected fields. Internal/secret-bearing fields are excluded by the reviewed catalog. Page coverage never asserts full history.');
   const clusters=$('saved-clusters');clusters.replaceChildren();
   if(dataset()?.name==='footprint_1m'){
-   const groups=new Map();for(const r of visible){if(!groups.has(r.ts))groups.set(r.ts,[]);groups.get(r.ts).push(r);}
+   const groups=new Map();
+   if(displayTF()==='1m'){for(const r of visible){if(!groups.has(r.ts))groups.set(r.ts,[]);groups.get(r.ts).push(r);}}
+   else {for(const period of aggregated()){if(!period.levels.length)continue;groups.set(period.ts,period.levels.map(r=>({...r,ts:period.ts,partial:!period.complete||!period.footprint_complete})));}}
    // One shared price axis across every visible minute. Price levels are placed
    // at their actual vertical price coordinate, not stacked by row index.
    const all=[...groups.values()].flat();
@@ -138,14 +148,14 @@
      const spine=add(plot,'div','', 'cluster-candle-spine');
      spine.style.top=y(top)+'px';spine.style.height=Math.max(2,y(bottom)-y(top))+'px';
      for(const r of sorted){
-      const line=add(plot,'div','',r.volume===max?'level poc price-cluster-level':'level price-cluster-level');
+      const line=add(plot,'div','',r.volume===max&&!r.partial?'level poc price-cluster-level':'level price-cluster-level');
       line.dataset.price=String(r.price);
       line.dataset.side=r.delta>0?'buy':r.delta<0?'sell':'neutral';
       line.style.top=y(r.price)+'px';
       line.title=`Price ${r.price} · Sell ${r.sell_volume} · Buy ${r.buy_volume} · Volume ${r.volume} · Delta ${r.delta}`;
       add(line,'span',`${r.sell_volume} × ${r.buy_volume}`);
      }
-     const label=add(card,'small',when(t),'cluster-minute-label');
+     const label=add(card,'small',when(t)+(levels.some(r=>r.partial)?' · PARTIAL':''),'cluster-minute-label');
      label.title=when(t);
      add(card,'small',`ΣV ${levels.reduce((s,r)=>s+r.volume,0)} · Δ ${levels.reduce((s,r)=>s+r.delta,0)}`,'cluster-minute-totals');
     }
@@ -186,16 +196,16 @@
   raf=0;const canvas=$('saved-chart'),rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio;canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,rect.width,rect.height);
   const footprint=dataset()?.name==='footprint_1m';
   const visibleTimes=new Set(rows.slice(0,replay).map(r=>r.ts));
-  const candles=(footprint?companion.filter(r=>visibleTimes.has(r.ts)):rows.slice(0,replay)).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(1,Math.round(span))),maxPan=Math.max(0,candles.length-n),offset=Math.max(0,Math.min(maxPan,Math.round(pan))),end=candles.length-offset,view=candles.slice(Math.max(0,end-n),end);
+  const candles=(['footprint_1m','candles_1m'].includes(dataset()?.name)?aggregated().filter(r=>r.ts<=Math.max(...visibleTimes,0)):rows.slice(0,replay)).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(1,Math.round(span))),maxPan=Math.max(0,candles.length-n),offset=Math.max(0,Math.min(maxPan,Math.round(pan))),end=candles.length-offset,view=candles.slice(Math.max(0,end-n),end);
   chartTimes=view.map(time);syncClusterWindow();$('saved-empty').hidden=view.length>0;if(!view.length)return;const low=Math.min(...view.map(r=>r.low)),high=Math.max(...view.map(r=>r.high)),range=high-low||1,height=rect.height-70,width=rect.width/view.length,y=v=>18+(high-v)/range*(height-36),vol=r=>r.volume??(r.buy_volume??0)+(r.sell_volume??0),vmax=Math.max(1,...view.map(vol));
-  view.forEach((r,i)=>{const x=(i+.5)*width;c.fillStyle=c.strokeStyle=r.close>=r.open?'#64dca6':'#ff8c95';c.beginPath();c.moveTo(x,y(r.high));c.lineTo(x,y(r.low));c.stroke();c.fillRect(x-width*.3,Math.min(y(r.open),y(r.close)),Math.max(1,width*.6),Math.max(1,Math.abs(y(r.close)-y(r.open))));c.globalAlpha=.4;c.fillRect(x-width*.3,height+8,width*.6,vol(r)/vmax*44);c.globalAlpha=1;if(selectedTime!==null&&time(r)===selectedTime){c.strokeStyle='#ffdc87';c.lineWidth=2;c.strokeRect(x-width*.42,8,width*.84,height-2);c.lineWidth=1;}if(r.poc_price!=null){c.fillStyle='#ffdc87';c.fillRect(x-width*.3,y(r.poc_price),width*.6,2);}});
+  view.forEach((r,i)=>{const x=(i+.5)*width;c.fillStyle=c.strokeStyle=r.close>=r.open?'#64dca6':'#ff8c95';c.beginPath();c.moveTo(x,y(r.high));c.lineTo(x,y(r.low));c.stroke();c.fillRect(x-width*.3,Math.min(y(r.open),y(r.close)),Math.max(1,width*.6),Math.max(1,Math.abs(y(r.close)-y(r.open))));c.globalAlpha=.4;c.fillRect(x-width*.3,height+8,width*.6,vol(r)/vmax*44);c.globalAlpha=1;if(r.complete===false){c.fillStyle='#ffdc87';c.font='9px monospace';c.fillText('PARTIAL',x-width*.42,14);}if(selectedTime!==null&&time(r)===selectedTime){c.strokeStyle='#ffdc87';c.lineWidth=2;c.strokeRect(x-width*.42,8,width*.84,height-2);c.lineWidth=1;}if(r.complete!==false&&r.poc_price!=null){c.fillStyle='#ffdc87';c.fillRect(x-width*.3,y(r.poc_price),width*.6,2);}});
   c.fillStyle='#91a3b8';c.font='11px monospace';c.fillText(`${when(time(view[0]))}  →  ${when(time(view.at(-1)))}`,8,rect.height-5);
  }
  function tick(){timer=0;if(closed)return;if(replay>=rows.length){stopReplay();return;}replay++;selectedTime=time(rows[replay-1])??null;render();timer=setTimeout(tick,180);}
  function dispose(state='VIEW_CLOSED'){
   if(closed)return;closed=true;chartTimes=[];++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;companion=[];companionStatus='VIEW_CLOSED';$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
  }
- for(const id of ['saved-symbol','saved-timeframe','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('reload','click',()=>load());on('next','click',()=>load(true));
+ for(const id of ['saved-symbol','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('saved-timeframe','change',()=>{if(['footprint_1m','candles_1m'].includes(dataset()?.name)){span=aggregated().length;pan=0;render();}else load();});on('reload','click',()=>load());on('next','click',()=>load(true));
  on('zoom-in','click',()=>{span=Math.max(4,Math.min(chartCount(),span*.7));scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(chartCount(),Math.max(4,span*1.4));scheduleDraw();});on('reset','click',()=>{span=chartCount();pan=0;scheduleDraw();});
  on('saved-chart','click',e=>{
   if(closed||drag!==null||dragMoved||!chartTimes.length){dragMoved=false;return;}
