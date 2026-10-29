@@ -16,6 +16,47 @@
   const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}
   const data=JSON.parse(new TextDecoder().decode(bytes));if(!r.ok)throw Error(data.error||'SOURCE_UNAVAILABLE');return data;
  }
+ async function lookupCache(p,gen){
+  text('cache-match-state','Exact cache match: CHECKING');
+  if(!p||!['footprint_1m','candles_1m'].includes(p.dataset)||source()?.source!=='grid'||
+     !/^[a-f0-9]{64}$/.test(p.source_sha)||!p.rows.length){
+   text('cache-match-state','Exact cache match: NOT_APPLICABLE');return;
+  }
+  const times=p.rows.map(r=>r.ts).filter(Number.isSafeInteger);
+  if(!times.length){text('cache-match-state','Exact cache match: NO_RANGE');return;}
+  const from=Math.min(...times),to=Math.max(...times);
+  const query=new URLSearchParams({revision:p.source_sha,symbol:p.symbol,timeframe:displayTF(),
+   from_ms:String(from),to_ms:String(to)});
+  try{
+   const d=await read('/api/saved/cache-lookup?'+query,controls.signal);
+   if(closed||gen!==generation)return;
+   if(d.authority!=='OFFLINE_ONLY'||typeof d.state!=='string')throw Error('UNVERIFIED_CACHE');
+   if(d.state!=='READY'){
+    if(!['MISS','EXPIRED','STALE','CORRUPT','AMBIGUOUS','UNAVAILABLE','DISABLED','MISSING'].includes(d.state))throw Error('UNVERIFIED_CACHE');
+    text('cache-match-state','Exact cache match: '+d.state+' · source revision and UTC range required');
+    return;
+   }
+   if(d.match!=='EXACT_SOURCE_REVISION_AND_RANGE'||d.source_revision!==p.source_sha||
+      d.symbol!==p.symbol||d.timeframe!==displayTF()||!/^[a-f0-9]{64}$/.test(d.sha256)||
+      !Array.isArray(d.candles)||d.candles.length>64||!Number.isSafeInteger(d.total_candles)||
+      d.total_candles<d.candles.length)throw Error('UNVERIFIED_CACHE');
+   for(const c of d.candles){
+    if(!Number.isSafeInteger(c.ts)||c.ts<from||c.ts>to||
+       !['open','high','low','close','volume','delta'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]))||
+       c.low>Math.min(c.open,c.close)||c.high<Math.max(c.open,c.close)||c.volume<0)throw Error('UNVERIFIED_CACHE');
+   }
+   $('cache-result-rows').replaceChildren();
+   for(const c of d.candles){
+    const tr=add($('cache-result-rows'),'tr','');
+    for(const v of [when(c.ts),c.open,c.high,c.low,c.close,c.volume,c.delta])add(tr,'td',String(v));
+   }
+   text('cache-result-state','EXACT CACHE HIT · '+d.symbol+' · '+d.timeframe+' · '+d.total_candles+' candles · OFFLINE_ONLY');
+   text('cache-match-state','Exact cache match: READY · SHA256 '+d.sha256.slice(0,12));
+  }catch(_){
+   if(closed||gen!==generation)return;
+   text('cache-match-state','Exact cache match: UNAVAILABLE · no fallback');
+  }
+ }
  async function inspectCache(jobId){
   if(closed)return;
   text('cache-result-state','Loading verified offline cache...');
@@ -100,7 +141,7 @@
  function chartWindow(){const count=chartCount();return Math.max(0,Math.min(count,Math.round(span)));}
  function stopReplay(){clearTimeout(timer);timer=0;text('saved-play','▶ Replay page');}
  function clearIdentity(){text('row-detail','');text('provenance','');delete document.body.dataset.identity;delete document.body.dataset.dataset;}
- function blank(){stopReplay();rows=[];current=null;replay=0;selectedTime=null;companion=[];companionStatus='NOT_REQUESTED';$('next').disabled=true;clearIdentity();render();}
+ function blank(){text('cache-match-state','Exact cache match: NOT_CHECKED');stopReplay();rows=[];current=null;replay=0;selectedTime=null;companion=[];companionStatus='NOT_REQUESTED';$('next').disabled=true;clearIdentity();render();}
  function validate(p,expected,next){
   const d=dataset(),s=source();
   if(!p||p.version!==1||p.candidate_sha!==catalog.candidate_sha||p.source_id!==s.id||p.dataset!==d.name||p.source_sha!==s.source_sha||p.provenance?.source_sha!==s.source_sha||p.rows?.length>200||!Array.isArray(p.rows)||!/^[a-f0-9]{64}$/.test(p.epoch)||!Number.isSafeInteger(p.as_of_ms)||p.cutoff_ms>p.as_of_ms)throw Error('INVALID_SOURCE_RESPONSE');
@@ -125,7 +166,7 @@
    document.body.dataset.identity=(p.symbol??'GLOBAL')+'|'+(p.timeframe??'UNSCOPED');document.body.dataset.dataset=dataset().name;
    text('saved-status',`${p.mode} · ${p.state} · ${p.authority} · ${p.freshness} · ${p.symbol??'GLOBAL'} / ${p.timeframe??'UNSCOPED'} · page sequence ${p.sequence}`);
    text('provenance',`Source ${p.source_id} / ${p.source_sha} · schema ${p.provenance.schema_id} / ${p.schema_sha} · UTC as-of ${when(p.as_of_ms)} · ${p.coverage.scope} · ${p.provenance.publication}`);
-   $('next').disabled=!p.next_cursor;render();
+   $('next').disabled=!p.next_cursor;render();void lookupCache(p,gen);
   }catch(e){if(closed||gen!==generation)return;rows=[];current=null;replay=0;selectedTime=null;companion=[];companionStatus='UNAVAILABLE';clearIdentity();render();text('saved-status','UNVERIFIED · no fallback');text('saved-error',/^[A-Z_]{1,50}$/.test(e.message)?e.message:e.name==='AbortError'?'REQUEST_TIMEOUT':'INVALID_SOURCE_RESPONSE');}
   finally{clearTimeout(timeout);if(gen===generation){active=0;controller=null;document.body.dataset.loading='false';}}
  }
