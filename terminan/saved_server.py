@@ -5,12 +5,12 @@ from .r4_server import R4Server,R4Handler
 from .saved_sources import SavedSources,SourceError
 
 class SavedServer(R4Server):
- def __init__(self,*a,**kw):super().__init__(*a,**kw);self.saved=SavedSources()
+ def __init__(self,*a,**kw):super().__init__(*a,**kw);self.saved=SavedSources();self.cache_db=None
 
 class SavedHandler(R4Handler):
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page'):return super().do_GET()
+  if path not in ('/saved','/saved.js','/saved_mtf.js','/saved.css','/api/saved/catalog','/api/saved/page','/api/saved/cache-status'):return super().do_GET()
   host=self.headers.get('Host','')
   if host not in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'} or self.headers.get('Origin') not in (None,'http://'+host):return self.send(403,dict(error='LOCAL_ORIGIN_REQUIRED'))
   if len(self.path)>8192:return self.send(414,dict(error='REQUEST_LIMIT'))
@@ -22,6 +22,17 @@ class SavedHandler(R4Handler):
    if path in ('/saved','/saved.js','/saved_mtf.js','/saved.css'):
     if q:raise SourceError()
     file=Path(__file__).with_name('saved.html' if path=='/saved' else path[1:]);return self.send(200,file.read_bytes(),('text/html' if path=='/saved' else 'text/javascript' if path.endswith('.js') else 'text/css')+'; charset=utf-8')
+   if path=='/api/saved/cache-status':
+    if q:raise SourceError()
+    if self.server.cache_db is None:
+     return self.send(200,dict(mode='DISABLED',authority='OFFLINE_ONLY',entries=0,jobs=[]))
+    try:
+     from .cache_monitor import read_status
+     return self.send(200,read_status(self.server.cache_db))
+    except (OSError,ValueError):
+     return self.send(503,dict(error='CACHE_UNAVAILABLE',authority='OFFLINE_ONLY',jobs=[]))
+    except __import__('sqlite3').Error:
+     return self.send(503,dict(error='CACHE_UNAVAILABLE',authority='OFFLINE_ONLY',jobs=[]))
    if path.endswith('/catalog'):
     if q:raise SourceError()
     return self.send(200,dict(**self.server.saved.catalog(),candidate_sha=self.server.candidate_sha))
