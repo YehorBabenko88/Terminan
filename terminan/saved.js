@@ -16,6 +16,34 @@
   const bytes=new Uint8Array(size);let at=0;for(const c of chunks){bytes.set(c,at);at+=c.length;}
   const data=JSON.parse(new TextDecoder().decode(bytes));if(!r.ok)throw Error(data.error||'SOURCE_UNAVAILABLE');return data;
  }
+ async function inspectCache(jobId){
+  if(closed)return;
+  text('cache-result-state','Loading verified offline cache...');
+  $('cache-result-rows').replaceChildren();
+  try{
+   const d=await read('/api/saved/cache-result?job_id='+encodeURIComponent(jobId),controls.signal);
+   if(closed)return;
+   if(d.state!=='READY'||d.authority!=='OFFLINE_ONLY'||!/^[a-f0-9]{64}$/.test(d.sha256)||
+      !Array.isArray(d.candles)||d.candles.length>64||
+      !Number.isSafeInteger(d.total_candles)||d.total_candles<d.candles.length||
+      !/^[A-Z0-9_-]{1,80}$/.test(d.symbol)||!['1m','5m','15m','1h','4h','1d'].includes(d.timeframe))
+      throw Error('UNVERIFIED_CACHE');
+   for(const c of d.candles){
+    if(!Number.isSafeInteger(c.ts)||!['open','high','low','close','volume','delta'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k]))||
+       c.low>Math.min(c.open,c.close)||c.high<Math.max(c.open,c.close)||c.volume<0)
+       throw Error('UNVERIFIED_CACHE');
+   }
+   text('cache-result-state',d.symbol+' · '+d.timeframe+' · '+d.total_candles+' cached candles · OFFLINE_ONLY · SHA256 '+d.sha256.slice(0,12));
+   for(const c of d.candles){
+    const tr=add($('cache-result-rows'),'tr','');
+    for(const v of [when(c.ts),c.open,c.high,c.low,c.close,c.volume,c.delta])add(tr,'td',String(v));
+   }
+  }catch(_){
+   if(closed)return;
+   $('cache-result-rows').replaceChildren();
+   text('cache-result-state','CACHE_RESULT_UNAVAILABLE · no fallback');
+  }
+ }
  async function refreshCache(){
   if(closed)return;
   text('cache-summary','Checking local cache...');
@@ -35,6 +63,12 @@
    for(const j of d.jobs){
     const tr=add($('cache-jobs'),'tr','');
     for(const value of [j.job_id,j.state,j.attempt,j.error_code||'—'])add(tr,'td',String(value));
+    if(j.state==='READY'){
+     const cell=add(tr,'td','');
+     const btn=add(cell,'button','View cached candles');
+     btn.type='button';
+     btn.addEventListener('click',()=>inspectCache(j.job_id),{signal:controls.signal});
+    }
    }
   }catch(_){
    if(closed)return;
