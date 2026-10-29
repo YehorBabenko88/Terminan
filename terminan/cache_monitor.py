@@ -6,6 +6,7 @@ Open only an explicitly selected SQLite file in immutable read-only mode.
 from __future__ import annotations
 import argparse
 import hashlib
+import math
 import time
 import json
 import sqlite3
@@ -92,7 +93,7 @@ def read_job_result(db, job_id, now=None):
             candles=data.get("candles")
             if not isinstance(candles,list) or len(candles)>10000:return {"state":"CORRUPT"}
             if any(not isinstance(c,dict) or not isinstance(c.get("ts"),int) or
-                   not all(isinstance(c.get(k),(int,float)) and not isinstance(c.get(k),bool) for k in ("open","high","low","close","volume","delta"))
+                   not all(type(c.get(k)) in (int,float) and math.isfinite(c[k]) for k in ("open","high","low","close","volume","delta"))
                    for c in candles):return {"state":"CORRUPT"}
         except (ValueError,TypeError,KeyError,AttributeError):
             return {"state":"CORRUPT"}
