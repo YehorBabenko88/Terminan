@@ -154,13 +154,30 @@
   const card=[...$('saved-clusters').querySelectorAll('[data-minute]')].find(el=>el.dataset.minute===String(t));
   if(card)card.scrollIntoView({block:'nearest',inline:'nearest'});
  }
+ function syncClusterWindow(){
+  const cluster=$('saved-clusters');
+  const cards=[...cluster.querySelectorAll('.price-cluster-candle')];
+  if(!cards.length)return;
+  const times=new Set(chartTimes.filter(Number.isSafeInteger));
+  const hasCompanion=dataset()?.name==='footprint_1m'&&companionStatus==='HISTORICAL_PAGE_ONLY';
+  for(const card of cards){
+   const t=Number(card.dataset.minute);
+   card.classList.toggle('outside-candle-window',hasCompanion&&!times.has(t));
+  }
+  if(!hasCompanion||!times.size)return;
+  const first=cards.find(card=>times.has(Number(card.dataset.minute)));
+  if(first){
+   const left=Math.max(0,first.offsetLeft-cluster.offsetLeft-62);
+   if(Math.abs(cluster.scrollLeft-left)>100)cluster.scrollLeft=left;
+  }
+ }
  function scheduleDraw(){if(!closed&&!raf)raf=requestAnimationFrame(draw);}
  function draw(){
   raf=0;const canvas=$('saved-chart'),rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio;canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,rect.width,rect.height);
   const footprint=dataset()?.name==='footprint_1m';
   const visibleTimes=new Set(rows.slice(0,replay).map(r=>r.ts));
   const candles=(footprint?companion.filter(r=>visibleTimes.has(r.ts)):rows.slice(0,replay)).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(4,Math.round(span))),end=Math.max(n,Math.min(candles.length,candles.length-Math.round(pan))),view=candles.slice(Math.max(0,end-n),end);
-  chartTimes=view.map(time);$('saved-empty').hidden=view.length>0;if(!view.length)return;const low=Math.min(...view.map(r=>r.low)),high=Math.max(...view.map(r=>r.high)),range=high-low||1,height=rect.height-70,width=rect.width/view.length,y=v=>18+(high-v)/range*(height-36),vol=r=>r.volume??(r.buy_volume??0)+(r.sell_volume??0),vmax=Math.max(1,...view.map(vol));
+  chartTimes=view.map(time);syncClusterWindow();$('saved-empty').hidden=view.length>0;if(!view.length)return;const low=Math.min(...view.map(r=>r.low)),high=Math.max(...view.map(r=>r.high)),range=high-low||1,height=rect.height-70,width=rect.width/view.length,y=v=>18+(high-v)/range*(height-36),vol=r=>r.volume??(r.buy_volume??0)+(r.sell_volume??0),vmax=Math.max(1,...view.map(vol));
   view.forEach((r,i)=>{const x=(i+.5)*width;c.fillStyle=c.strokeStyle=r.close>=r.open?'#64dca6':'#ff8c95';c.beginPath();c.moveTo(x,y(r.high));c.lineTo(x,y(r.low));c.stroke();c.fillRect(x-width*.3,Math.min(y(r.open),y(r.close)),Math.max(1,width*.6),Math.max(1,Math.abs(y(r.close)-y(r.open))));c.globalAlpha=.4;c.fillRect(x-width*.3,height+8,width*.6,vol(r)/vmax*44);c.globalAlpha=1;if(selectedTime!==null&&time(r)===selectedTime){c.strokeStyle='#ffdc87';c.lineWidth=2;c.strokeRect(x-width*.42,8,width*.84,height-2);c.lineWidth=1;}if(r.poc_price!=null){c.fillStyle='#ffdc87';c.fillRect(x-width*.3,y(r.poc_price),width*.6,2);}});
   c.fillStyle='#91a3b8';c.font='11px monospace';c.fillText(`${when(time(view[0]))}  →  ${when(time(view.at(-1)))}`,8,rect.height-5);
  }
