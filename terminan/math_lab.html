@@ -9,6 +9,11 @@
 <section id="composition" class="box target" tabindex="0"><strong>Область композиции</strong><p id="placeholder">Перетащи сюда научные блоки</p><ol id="nodes"></ol></section></div>
 <p><button id="clear" type="button">Очистить схему</button> <button id="export" type="button">Показать схему JSON</button></p><pre id="result" aria-live="polite"></pre>
 <section class="box"><h2>Math Engine — проверка связи</h2><p>Доступность центрального вычислителя. Исследовательские запросы и торговые действия отключены до доверенного подключения.</p><button id="checkMath" type="button">Проверить Math Engine</button><pre id="mathHealth" aria-live="polite">NOT_CONNECTED</pre></section>
+<section class="box"><h2>Эксперимент: входной ряд → Math Engine</h2>
+<p>Введи 500–2000 положительных цен, разделённых пробелами или переносами. Данные считаются НЕДОВЕРЕННЫМИ; результаты не разрешают обучение или торговлю.</p>
+<textarea id="closeValues" rows="4" style="width:100%;background:#0d1b28;color:white" aria-label="Исторические цены"></textarea>
+<p><button type="button" id="evaluateMath">Вычислить в Math Engine</button> <button type="button" id="loadDemo">Создать синтетический пример</button></p>
+<pre id="mathEvaluation" aria-live="polite">NOT_RUN</pre></section>
 <p class="notice">Здесь пока нет исполнения исследований: API Math, учёт происхождения данных, обучение Strattester и стратегический симулятор должны пройти независимую приёмку. Граф не предоставляет полномочий на реальные сделки.</p></main>
 <script>
 'use strict';
@@ -18,6 +23,15 @@ function render(){nodes.replaceChildren();selected.forEach((v,i)=>{const li=docu
 document.querySelectorAll('[data-kind]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',el.dataset.kind);e.dataTransfer.effectAllowed='copy'}));
 target.addEventListener('dragover',e=>e.preventDefault());target.addEventListener('drop',e=>{e.preventDefault();const kind=e.dataTransfer.getData('text/plain');if(permitted.has(kind)&&selected.length<24){selected.push(kind);render()}});
 document.getElementById('checkMath').onclick=async()=>{const target=document.getElementById('mathHealth');target.textContent='CHECKING';try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),3000);try{const response=await fetch('/api/math/health',{signal:controller.signal,cache:'no-store'});const v=await response.json();target.textContent=JSON.stringify(v,null,2);if(!response.ok||v.state!=='READY_OFFLINE')target.textContent='MATH_ENGINE_NOT_CONNECTED';}finally{clearTimeout(timeout)}}catch{target.textContent='MATH_ENGINE_UNAVAILABLE'}};
+document.getElementById('loadDemo').onclick=()=>{document.getElementById('closeValues').value=Array.from({length:500},(_,i)=>(70000+20*Math.sin(i/10)+i*.03).toFixed(5)).join(' ');document.getElementById('mathEvaluation').textContent='SYNTHETIC_INPUT_NOT_MARKET_DATA'};
+document.getElementById('evaluateMath').onclick=async()=>{
+ const status=document.getElementById('mathEvaluation');status.textContent='CHECKING';
+ const raw=document.getElementById('closeValues').value.trim().split(/\\s+/);
+ const values=raw.map(Number);
+ if(values.length<500||values.length>2000||values.some(x=>!Number.isFinite(x)||x<=0)){status.textContent='INVALID_PRICE_SERIES';return}
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/evaluate',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({schema:'math.evaluate.v1',mode:'HISTORICAL_RESEARCH',execution_authority:false,closes:values}),signal:controller.signal});const result=await response.json();status.textContent=response.ok?JSON.stringify(result,null,2):'MATH_RESEARCH_UNAVAILABLE';}catch{status.textContent='MATH_ENGINE_UNAVAILABLE'}finally{clearTimeout(timeout)}
+};
 document.getElementById('clear').onclick=()=>{selected.length=0;out.textContent='';render()};
 document.getElementById('export').onclick=()=>{out.textContent=JSON.stringify({schema:'math.graph.preview.v1',nodes:selected.map((kind,i)=>({id:'n'+i,kind})),executable:false,source_attested:false,trading_authorized:false},null,2)};
 </script></html>
