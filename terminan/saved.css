@@ -21,3 +21,5 @@
 .saved-clusters .price-cluster-candle{cursor:pointer}
 .saved-clusters .price-cluster-candle:focus-visible{outline:2px solid #ffdc87}
 .saved-table tbody tr.saved-time-selected{background:#344052;color:#ffdc87}
+
+#companion-state{font:11px Consolas,monospace;color:#91a3b8;margin:2px 0 8px}

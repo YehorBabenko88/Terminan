@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
  const $=id=>document.getElementById(id), controls=new AbortController();
- let catalog=null,current=null,rows=[],generation=0,controller=null,timer=0,closed=false,aborted=0,requests=0,active=0,peak=0,span=100,pan=0,replay=0,raf=0,drag=null,session=null,selectedTime=null;
+ let catalog=null,current=null,rows=[],generation=0,controller=null,timer=0,closed=false,aborted=0,requests=0,active=0,peak=0,span=100,pan=0,replay=0,raf=0,drag=null,session=null,selectedTime=null,companion=[],companionStatus='NOT_REQUESTED';
  const text=(id,value)=>$(id).textContent=value;
  const source=()=>catalog?.sources.find(s=>s.id===$('saved-source').value);
  const dataset=()=>source()?.datasets.find(d=>d.name===$('dataset').value);
@@ -23,7 +23,7 @@
  }
  function stopReplay(){clearTimeout(timer);timer=0;text('saved-play','▶ Replay page');}
  function clearIdentity(){text('row-detail','');text('provenance','');delete document.body.dataset.identity;delete document.body.dataset.dataset;}
- function blank(){stopReplay();rows=[];current=null;replay=0;selectedTime=null;$('next').disabled=true;clearIdentity();render();}
+ function blank(){stopReplay();rows=[];current=null;replay=0;selectedTime=null;companion=[];companionStatus='NOT_REQUESTED';$('next').disabled=true;clearIdentity();render();}
  function validate(p,expected,next){
   const d=dataset(),s=source();
   if(!p||p.version!==1||p.candidate_sha!==catalog.candidate_sha||p.source_id!==s.id||p.dataset!==d.name||p.source_sha!==s.source_sha||p.provenance?.source_sha!==s.source_sha||p.rows?.length>200||!Array.isArray(p.rows)||!/^[a-f0-9]{64}$/.test(p.epoch)||!Number.isSafeInteger(p.as_of_ms)||p.cutoff_ms>p.as_of_ms)throw Error('INVALID_SOURCE_RESPONSE');
@@ -43,12 +43,48 @@
   text('saved-error','');text('saved-status','LOADING · authority UNVERIFIED');$('next').disabled=true;requests++;active=1;peak=Math.max(peak,active);
   try{
    const p=await read('/api/saved/page?'+q,c.signal);if(closed||gen!==generation)return;validate(p,expected,next);current=p;rows=p.rows;replay=rows.length;span=rows.length;pan=0;selectedTime=null;
+   await loadCompanion(p,c.signal,gen);if(closed||gen!==generation)return;
    document.body.dataset.identity=(p.symbol??'GLOBAL')+'|'+(p.timeframe??'UNSCOPED');document.body.dataset.dataset=dataset().name;
    text('saved-status',`${p.mode} · ${p.state} · ${p.authority} · ${p.freshness} · ${p.symbol??'GLOBAL'} / ${p.timeframe??'UNSCOPED'} · page sequence ${p.sequence}`);
    text('provenance',`Source ${p.source_id} / ${p.source_sha} · schema ${p.provenance.schema_id} / ${p.schema_sha} · UTC as-of ${when(p.as_of_ms)} · ${p.coverage.scope} · ${p.provenance.publication}`);
    $('next').disabled=!p.next_cursor;render();
-  }catch(e){if(closed||gen!==generation)return;rows=[];current=null;replay=0;selectedTime=null;clearIdentity();render();text('saved-status','UNVERIFIED · no fallback');text('saved-error',/^[A-Z_]{1,50}$/.test(e.message)?e.message:e.name==='AbortError'?'REQUEST_TIMEOUT':'INVALID_SOURCE_RESPONSE');}
+  }catch(e){if(closed||gen!==generation)return;rows=[];current=null;replay=0;selectedTime=null;companion=[];companionStatus='UNAVAILABLE';clearIdentity();render();text('saved-status','UNVERIFIED · no fallback');text('saved-error',/^[A-Z_]{1,50}$/.test(e.message)?e.message:e.name==='AbortError'?'REQUEST_TIMEOUT':'INVALID_SOURCE_RESPONSE');}
   finally{clearTimeout(timeout);if(gen===generation){active=0;controller=null;document.body.dataset.loading='false';}}
+ }
+ async function loadCompanion(p,signal,gen){
+  companion=[];companionStatus='NOT_APPLICABLE';
+  if(p.dataset!=='footprint_1m'||p.source_id!==source()?.id||source()?.source!=='grid')return;
+  const ds=source().datasets.find(d=>d.name==='candles_1m'&&d.supported);
+  if(!ds){companionStatus='NO_CANDLE_DATASET';return;}
+  const times=p.rows.map(r=>r.ts).filter(Number.isSafeInteger);
+  if(!times.length){companionStatus='NO_FOOTPRINT_ROWS';return;}
+  const min=Math.min(...times),max=Math.max(...times);
+  const q=new URLSearchParams({source:p.source_id,dataset:'candles_1m',symbol:p.symbol,timeframe:'1m',
+   limit:'200',from_ms:String(min),cutoff_ms:String(Math.min(p.cutoff_ms,max+60000))});
+  companionStatus='LOADING';
+  try{
+   const x=await read('/api/saved/page?'+q,signal);
+   if(closed||gen!==generation)return;
+   if(x.version!==1||x.candidate_sha!==p.candidate_sha||x.source_id!==p.source_id||
+      x.source_sha!==p.source_sha||x.dataset!=='candles_1m'||x.symbol!==p.symbol||
+      x.timeframe!=='1m'||x.mode!==p.mode||x.authority!==p.authority||
+      x.provenance?.source_sha!==p.source_sha||!Array.isArray(x.rows)||
+      x.rows.length>200||x.next_cursor||x.previous_sequence!==0||x.sequence!==1||
+      !Number.isSafeInteger(x.cutoff_ms)||x.cutoff_ms>p.cutoff_ms||
+      !/^[a-f0-9]{64}$/.test(x.epoch))throw Error('COMPANION_IDENTITY');
+   const seen=new Set();
+   for(const r of x.rows){
+    if(r.symbol!==p.symbol||!Number.isSafeInteger(r.ts)||r.ts<min||r.ts>max||
+       seen.has(r.ts)||!['open','high','low','close','volume'].every(k=>typeof r[k]==='number'&&Number.isFinite(r[k]))||
+       r.low>Math.min(r.open,r.close)||r.high<Math.max(r.open,r.close)||r.volume<0)
+       throw Error('COMPANION_INVALID');
+    seen.add(r.ts);
+   }
+   companion=x.rows;companionStatus=x.rows.length?'HISTORICAL_PAGE_ONLY':'NO_MATCHING_CANDLES';
+  }catch(e){
+   if(closed||gen!==generation)return;
+   companion=[];companionStatus=e.name==='AbortError'?'REQUEST_TIMEOUT':'UNVERIFIED';
+  }
  }
  function render(){
   $('saved-seek').max=rows.length;$('saved-seek').value=replay;text('saved-position',`${replay} / ${rows.length}`);text('row-count',`${rows.length} rows`);text('saved-title',dataset()?.name||'Saved candles');
@@ -104,6 +140,7 @@
    }
   }else add(clusters,'p','Select footprint_1m to view multiple saved minute clusters. The synthetic book is a separate panel.');
   text('selected-utc',selectedTime===null?'No minute selected':'Selected UTC '+when(selectedTime));
+  text('companion-state','Candle companion: '+companionStatus+' · same Grid source · bounded page');
   scheduleDraw();text('saved-metrics',`Retained ${rows.length}/200 rows · requests ${requests} · active ${active} · cancelled ${aborted} · page only`);
  }
  function selectTime(t){
@@ -118,14 +155,16 @@
  function scheduleDraw(){if(!closed&&!raf)raf=requestAnimationFrame(draw);}
  function draw(){
   raf=0;const canvas=$('saved-chart'),rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio;canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,rect.width,rect.height);
-  const candles=rows.slice(0,replay).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(4,Math.round(span))),end=Math.max(n,Math.min(candles.length,candles.length-Math.round(pan))),view=candles.slice(Math.max(0,end-n),end);
+  const footprint=dataset()?.name==='footprint_1m';
+  const visibleTimes=new Set(rows.slice(0,replay).map(r=>r.ts));
+  const candles=(footprint?companion.filter(r=>visibleTimes.has(r.ts)):rows.slice(0,replay)).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(4,Math.round(span))),end=Math.max(n,Math.min(candles.length,candles.length-Math.round(pan))),view=candles.slice(Math.max(0,end-n),end);
   $('saved-empty').hidden=view.length>0;if(!view.length)return;const low=Math.min(...view.map(r=>r.low)),high=Math.max(...view.map(r=>r.high)),range=high-low||1,height=rect.height-70,width=rect.width/view.length,y=v=>18+(high-v)/range*(height-36),vol=r=>r.volume??(r.buy_volume??0)+(r.sell_volume??0),vmax=Math.max(1,...view.map(vol));
   view.forEach((r,i)=>{const x=(i+.5)*width;c.fillStyle=c.strokeStyle=r.close>=r.open?'#64dca6':'#ff8c95';c.beginPath();c.moveTo(x,y(r.high));c.lineTo(x,y(r.low));c.stroke();c.fillRect(x-width*.3,Math.min(y(r.open),y(r.close)),Math.max(1,width*.6),Math.max(1,Math.abs(y(r.close)-y(r.open))));c.globalAlpha=.4;c.fillRect(x-width*.3,height+8,width*.6,vol(r)/vmax*44);c.globalAlpha=1;if(selectedTime!==null&&time(r)===selectedTime){c.strokeStyle='#ffdc87';c.lineWidth=2;c.strokeRect(x-width*.42,8,width*.84,height-2);c.lineWidth=1;}if(r.poc_price!=null){c.fillStyle='#ffdc87';c.fillRect(x-width*.3,y(r.poc_price),width*.6,2);}});
   c.fillStyle='#91a3b8';c.font='11px monospace';c.fillText(`${when(time(view[0]))}  →  ${when(time(view.at(-1)))}`,8,rect.height-5);
  }
  function tick(){timer=0;if(closed)return;if(replay>=rows.length){stopReplay();return;}replay++;selectedTime=time(rows[replay-1])??null;render();timer=setTimeout(tick,180);}
  function dispose(state='VIEW_CLOSED'){
-  if(closed)return;closed=true;++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
+  if(closed)return;closed=true;++generation;controller?.abort();controller=null;active=0;stopReplay();cancelAnimationFrame(raf);raf=0;observer.disconnect();controls.abort();session?.close();rows=[];current=null;selectedTime=null;companion=[];companionStatus='VIEW_CLOSED';$('saved-head').replaceChildren();$('saved-body').replaceChildren();$('saved-clusters').replaceChildren();text('row-detail','');text('host-state',state);text('saved-status',state+' · requests stopped');text('saved-error','');for(const e of document.querySelectorAll('button,select,input'))e.disabled=true;
  }
  for(const id of ['saved-symbol','saved-timeframe','limit','dataset','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('reload','click',()=>load());on('next','click',()=>load(true));
  on('zoom-in','click',()=>{span=Math.max(4,span*.7);scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(rows.length,Math.max(4,span*1.4));scheduleDraw();});on('reset','click',()=>{span=rows.length;pan=0;scheduleDraw();});
@@ -135,6 +174,6 @@
  on('saved-play','click',()=>{if(timer){stopReplay();return;}if(replay>=rows.length)replay=0;text('saved-play','Pause');tick();});on('saved-step','click',()=>{stopReplay();replay=Math.min(rows.length,replay+1);selectedTime=replay?time(rows[replay-1])??null:null;render();});on('saved-seek','input',()=>{stopReplay();replay=Number($('saved-seek').value);selectedTime=replay?time(rows[replay-1])??null:null;render();});on('close','click',()=>dispose());window.addEventListener('pagehide',()=>dispose(),{signal:controls.signal});
  window.addEventListener('resize',scheduleDraw,{signal:controls.signal});
  const observer=new ResizeObserver(scheduleDraw);observer.observe($('saved-chart'));
- window.saved={load,dispose,metrics:()=>({closed,rows:rows.length,active,peak,aborted,requests,span,pan,replay,selectedTime,timer:!!timer,raf:!!raf,session:session?.metrics?.()})};
+ window.saved={load,dispose,metrics:()=>({closed,rows:rows.length,active,peak,aborted,requests,span,pan,replay,selectedTime,companionRows:companion.length,companionStatus,timer:!!timer,raf:!!raf,session:session?.metrics?.()})};
  (async()=>{const c=new AbortController();controller=c;const timeout=setTimeout(()=>c.abort(),3500);try{catalog=await read('/api/saved/catalog',c.signal);if(closed)return;controller=null;if(catalog.version!==1||!Array.isArray(catalog.sources)||catalog.sources.length>8||!/^[a-f0-9]{40}$/.test(catalog.candidate_sha))throw Error('INVALID_CATALOG');text('saved-sha',catalog.candidate_sha);for(const s of catalog.sources){const o=add($('saved-source'),'option',`${s.id} · ${s.backend}`);o.value=s.id;}options();session=new R4SessionClient({onState:(state,terminal)=>{text('host-state',state);if(terminal)dispose(state);}});session.start(catalog.candidate_sha);if(source())await load();else document.body.dataset.loading='false';}catch(e){if(!closed){text('saved-error','CATALOG_UNAVAILABLE');document.body.dataset.loading='false';}}finally{clearTimeout(timeout);}})();
 })();
