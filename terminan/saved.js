@@ -85,10 +85,7 @@
      const y=price=>height-22-(price-lo)/(hi-lo||1)*(height-44);
      const spine=add(plot,'div','', 'cluster-candle-spine');
      spine.style.top=y(top)+'px';spine.style.height=Math.max(2,y(bottom)-y(top))+'px';
-     const occupied=new Set();
      for(const r of sorted){
-      const slot=Math.round((r.price-lo)/step);
-      if(occupied.has(slot))continue;occupied.add(slot);
       const line=add(plot,'div','',r.volume===max?'level poc price-cluster-level':'level price-cluster-level');
       line.dataset.price=String(r.price);
       line.dataset.side=r.delta>0?'buy':r.delta<0?'sell':'neutral';
