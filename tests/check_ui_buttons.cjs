@@ -13,6 +13,6 @@ const ctx={document:{getElementById:make,createElement:()=>({})},AbortController
  devicePixelRatio:1,fetch:async(path,{signal})=>({ok:true,json:async()=>path==='/api/instruments'?['BTCUSDT']:path.startsWith('/api/levels')?[]:path.startsWith('/api/logs')?{events:[]}:path.startsWith('/api/research')?[]:path.startsWith('/api/sources')?{}:path.startsWith('/api/consumer')?{}:[]}),
  setTimeout(){return 1},clearTimeout(){},console};
 vm.createContext(ctx);vm.runInContext(script,ctx);
-setImmediate(async()=>{assert.equal(typeof make('refresh').onclick,'function');assert.equal(typeof make('search').oninput,'function');assert.equal(typeof make('tf').onchange,'function');assert.equal(typeof make('showlevels').onchange,'function');
+setImmediate(async()=>{try{assert.equal(typeof make('refresh').onclick,'function');assert.equal(typeof make('search').oninput,'function');assert.equal(typeof make('tf').onchange,'function');assert.equal(typeof make('showlevels').onchange,'function');
 make('refresh').onclick();make('refresh').onclick();assert(aborts>=1,'refresh must abort previous generation');
-make('showlevels').onchange();console.log('UI_BUTTON_HANDLERS_PASS');});
+make('showlevels').onchange();console.log('UI_BUTTON_HANDLERS_PASS');}catch(error){console.error(error);process.exitCode=1;}});
