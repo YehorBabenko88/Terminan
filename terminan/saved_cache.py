@@ -129,13 +129,75 @@ def get(con, identity, now=None):
         con.execute("UPDATE cache_entries SET last_access=? WHERE cache_key=?", (now, cache_key))
     return {"state": "HIT", "sha256": expected, "payload": payload}
 
+def compute_mtf(identity, source):
+    """Offline bounded 1m candle/footprint aggregation, no source database reads."""
+    key_for(identity)
+    if identity["source"] != "grid" or identity["dataset"] != "candles_1m":
+        raise CacheError("UNSUPPORTED_DATASET")
+    minutes = {"1m": 1, "5m": 5, "15m": 15, "1h": 60, "4h": 240, "1d": 1440}.get(identity["timeframe"])
+    if minutes is None:
+        raise CacheError("UNSUPPORTED_TIMEFRAME")
+    if type(source) is not dict or set(source) != {"source_revision", "candles", "footprint"}:
+        raise CacheError("INVALID_INPUT")
+    if source["source_revision"] != identity["source_revision"]:
+        raise CacheError("SOURCE_REVISION_MISMATCH")
+    candles, footprint = source["candles"], source["footprint"]
+    if type(candles) is not list or type(footprint) is not list or len(candles) > 10000 or len(footprint) > 50000:
+        raise CacheError("RESOURCE_LIMIT")
+    groups, by_ts = {}, {}
+    for c in candles:
+        if type(c) is not dict or c.get("symbol") != identity["symbol"]:
+            raise CacheError("INVALID_CANDLE")
+        t = c.get("ts")
+        if type(t) is not int or t % 60000 or not identity["from_ms"] <= t <= identity["to_ms"] or t in by_ts:
+            raise CacheError("INVALID_CANDLE")
+        for field in ("open", "high", "low", "close", "buy_volume", "sell_volume"):
+            if type(c.get(field)) not in (int, float) or not __import__("math").isfinite(c[field]):
+                raise CacheError("INVALID_CANDLE")
+        if c["low"] > min(c["open"], c["close"]) or c["high"] < max(c["open"], c["close"]) or min(c["buy_volume"], c["sell_volume"]) < 0:
+            raise CacheError("INVALID_CANDLE")
+        by_ts[t] = c
+        bucket = (t // (minutes * 60000)) * minutes * 60000
+        groups.setdefault(bucket, []).append(c)
+    levels = {}
+    for r in footprint:
+        if type(r) is not dict or r.get("symbol") != identity["symbol"]:
+            raise CacheError("INVALID_FOOTPRINT")
+        t, price = r.get("ts"), r.get("price")
+        if type(t) is not int or t not in by_ts or type(price) not in (int, float) or not __import__("math").isfinite(price):
+            raise CacheError("INVALID_FOOTPRINT")
+        if any(type(r.get(k)) not in (int, float) or not __import__("math").isfinite(r[k]) or r[k] < 0 for k in ("buy_volume", "sell_volume")):
+            raise CacheError("INVALID_FOOTPRINT")
+        bucket = (t // (minutes * 60000)) * minutes * 60000
+        cell = levels.setdefault(bucket, {}).setdefault(str(price), dict(price=price, buy_volume=0, sell_volume=0))
+        cell["buy_volume"] += r["buy_volume"]
+        cell["sell_volume"] += r["sell_volume"]
+    result = []
+    for bucket, rows in sorted(groups.items()):
+        rows.sort(key=lambda c: c["ts"])
+        complete = len(rows) == minutes and all(c["ts"] == bucket + i * 60000 for i, c in enumerate(rows))
+        buy = sum(c["buy_volume"] for c in rows)
+        sell = sum(c["sell_volume"] for c in rows)
+        cells = [dict(x, volume=x["buy_volume"] + x["sell_volume"], delta=x["buy_volume"] - x["sell_volume"]) for x in levels.get(bucket, {}).values()]
+        cells.sort(key=lambda x: -x["price"])
+        footprint_complete = complete and all(any(r["ts"] == c["ts"] for r in footprint) for c in rows)
+        result.append(dict(ts=bucket, open=rows[0]["open"], high=max(c["high"] for c in rows),
+            low=min(c["low"] for c in rows), close=rows[-1]["close"],
+            buy_volume=buy, sell_volume=sell, volume=buy + sell, delta=buy - sell,
+            complete=complete, footprint_complete=footprint_complete, levels=cells,
+            poc_price=(min((x for x in cells if x["volume"] == max(y["volume"] for y in cells)), key=lambda x: x["price"])["price"] if cells and footprint_complete else None)))
+    # Partial periods are never written as complete authoritative cache entries.
+    return dict(state="HISTORICAL_ONLY", source_revision=identity["source_revision"],
+        complete=bool(result) and all(r["complete"] and r["footprint_complete"] for r in result),
+        candles=result)
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Offline visualization cache; no upstream I/O")
     parser.add_argument("--db", required=True)
     parser.add_argument("--identity", required=True)
     parser.add_argument("--payload")
     parser.add_argument("--ttl", type=int, default=86400)
-    parser.add_argument("action", choices=("put", "get", "stats"))
+    parser.add_argument("action", choices=("put", "get", "stats", "compute"))
     args = parser.parse_args(argv)
     try:
         if args.action != "stats":
@@ -145,13 +207,13 @@ def main(argv=None):
             identity = json.loads(identity_path.read_text(encoding="utf8"))
         con = open_cache(args.db)
         try:
-            if args.action == "put":
+            if args.action in ("put", "compute"):
                 if not args.payload:
                     raise CacheError("PAYLOAD_REQUIRED")
                 path = Path(args.payload)
                 if path.stat().st_size > MAX_INPUT:
                     raise CacheError("INPUT_TOO_LARGE")
-                result = put(con, identity, json.loads(path.read_text(encoding="utf8")), args.ttl)
+                source = json.loads(path.read_text(encoding="utf8"))\n                result = put(con, identity, compute_mtf(identity, source) if args.action == "compute" else source, args.ttl)
             elif args.action == "get":
                 result = get(con, identity)
             else:
