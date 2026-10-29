@@ -8,3 +8,22 @@ main{max-width:1700px;margin:auto;padding:26px 32px}.intro{display:flex;justify-
 @media(max-width:760px){.workspace{grid-template-columns:1fr}.intro{display:block}.clock{text-align:left;margin-top:18px}.chart-wrap{height:300px}header{gap:15px}#mode{font-size:9px;padding:6px}.brand strong{font-size:15px}.brand small{font-size:8px}.book-scroll{height:230px}.replay-row{gap:8px}.replay-row strong{display:none}}
 
 .poc td{color:#f1cb79;background:#302717}.chart-footer>span:first-child{line-height:1.5;max-width:80%}
+
+/* R4 layout-only: single-column DOM ladder and compact footprint boxes. */
+.book-ladder{table-layout:fixed}
+.book-ladder th,.book-ladder td{width:50%;text-align:right!important;font-variant-numeric:tabular-nums}
+.book-ladder td{padding:3px 10px}
+.book-ladder .ladder-ask td{background:rgba(237,132,149,.10)}
+.book-ladder .ladder-bid td{background:rgba(71,197,166,.10)}
+.book-ladder .ladder-ask .ask,.book-ladder .ladder-ask .ask-price{color:var(--red)}
+.book-ladder .ladder-bid .bid,.book-ladder .ladder-bid .bid-price{color:var(--green)}
+.book-ladder .ladder-spread td{text-align:center!important;background:#263247;color:var(--muted);font-size:9px;letter-spacing:1px;padding:5px}
+.cluster-scroll{min-height:160px;overflow-x:auto;padding:8px 2px 10px}
+.cluster-strip{display:flex;align-items:flex-start;gap:10px;min-height:130px}
+.footprint-cluster{width:132px;flex:none;display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums}
+.footprint-cell{min-height:27px;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid #34455e;background:#172335;padding:4px 6px;font:11px Consolas,monospace}
+.footprint-cell[data-side=buy]{border-left:3px solid var(--green)}
+.footprint-cell[data-side=sell]{border-left:3px solid var(--red)}
+.footprint-cell.footprint-poc{background:#302717;border-color:#b99545;color:#f1cb79}
+.footprint-pair{white-space:nowrap}.footprint-price{color:var(--muted);font-size:9px}
+.footprint-totals{font:10px Consolas,monospace;color:var(--muted);padding:6px 2px;text-align:center}
