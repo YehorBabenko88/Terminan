@@ -23,6 +23,7 @@ vm.runInContext('draw = rows => { document.getElementById("chartmsg").textConten
   await reply('/api/candles?symbol=ETHUSDT&timeframe=1m', [{symbol:'ETHUSDT'}]);
   await reply('/api/grid/footprint?symbol=ETHUSDT', []);
   await reply('/api/research?symbol=ETHUSDT', []);
+  await reply('/api/consumer/v1/status?symbol=ETHUSDT&timeframe=1m', {supervisor:{state:'UNAVAILABLE'}});
   await reply('/api/sources?symbol=ETHUSDT&timeframe=1m', {state:'NOT_CONFIGURED'});
   await newer;
   await reply('/api/levels?symbol=BTCUSDT', [{price:100,timeframe:'1h',side:'high'}]);

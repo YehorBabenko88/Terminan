@@ -1,0 +1,2 @@
+# Disposable Supervisor -> Terminan dashboard test
+Runs a synthetic local HTTP fixture on 127.0.0.1 with an OS-assigned port and exercises Terminan's real dashboard function. The consumer must show BLOCKED/UNVERIFIED and never grant trading. This does not import or run Unified's actual WSGI implementation; the response is a fixture. It does not establish authenticated producer identity, whole-request hostile-peer resilience or physical readiness.

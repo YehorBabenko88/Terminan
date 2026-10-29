@@ -1,0 +1,35 @@
+name: Read-only consumer exact head
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  consumer:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Exact head identity
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
+          Write-Output 'sha=${{ github.event.pull_request.head.sha || github.sha }} run=${{ github.run_id }} attempt=${{ github.run_attempt }}'
+          New-Item -ItemType Directory -Force reports | Out-Null
+          @{sha=(git rev-parse HEAD).Trim();run='${{ github.run_id }}';attempt='${{ github.run_attempt }}';kind='SYNTHETIC_WINDOWS_LOOPBACK'} | ConvertTo-Json | Set-Content reports/consumer-identity.json
+      - run: python -m unittest discover -s tests -p test_consumer.py -v
+      - run: npm ci --ignore-scripts
+      - run: npm run test:ui
+      - run: npx playwright install chromium
+      - run: npx playwright test -c playwright.consumer.config.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/consumer-identity.json
