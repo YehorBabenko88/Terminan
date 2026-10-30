@@ -11,6 +11,7 @@ from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .g0_sources import all_sources, snapshot
 from . import math_bridge
+from .infrastructure import infrastructure_snapshot
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -81,8 +82,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(403,'Local origin required')
         if len(self.path)>2048:return self.send_error(414)
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor", "/math"):
-            body = files("terminan").joinpath("math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
+        if url.path in ("/", "/monitor", "/math", "/infrastructure"):
+            body = files("terminan").joinpath("infrastructure.html" if url.path == "/infrastructure" else "math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
             try:
@@ -94,7 +95,8 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/math/health': result=math_bridge.check()
+                if url.path == '/api/infrastructure': result=infrastructure_snapshot()
+                elif url.path == '/api/math/health': result=math_bridge.check()
                 elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
