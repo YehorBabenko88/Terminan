@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "scripts": {
     "test:browser": "playwright test",
+    "test:history": "playwright test -c playwright.history.config.cjs",
     "test:ui": "node tests/check_ui_script.cjs && node tests/check_ui_refresh_race.cjs"
   },
   "devDependencies": {

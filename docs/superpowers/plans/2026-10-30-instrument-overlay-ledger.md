@@ -1,0 +1,12 @@
+# Execution ledger
+
+- Base: Terminan #54 `2dc84750df5e119ee1740dd82d845662ca35b13b`; separate clone/branch, no ADMINIT checkout.
+- Task 1: JS syntax regression observed red, P0 repaired. Producer syntax/test red reproduced at #65; isolated producer repair and real market identity fix committed in Strattester #67 `2669c433333b811b0eaedf88ea13b0e955b0836b`. Eleven provisioned producer/review/replay tests pass.
+- Task 2: Admission and multi-file browser tests observed red. Real exporter runs for two fee policies each produced 60 forecasts; pinned Scientific engine produced two independent historical price-unit layers. Python canonical SHA256 admission and browser-native Math request/trace digest checks implemented; no numeric model calculation in consumer.
+- Ruling: Use a stateless same-origin Python admission endpoint — Python JSON floats differ from JS JSON.stringify, so browser reserialization would reject legitimate receipt hashes. Endpoint performs no source I/O or persistence.
+- Ruling: Preserve source identity separately from market identity — #65 placed source revision/epoch in market and lost the symbol. Producer review now carries actual market, rather than consumer inventing it.
+- Ruling: Existing saved-source test honors GRID_REPO/STRATTESTER_REPO like the existing pin test — permits old source contracts and new history pins to coexist without changing either version's expected hashes.
+- Task 3: Eight Chromium scenarios pass: layers, asOf/OOS, wheel/drag/keyboard/timeline/crosshair/tooltip, persistence, corrupt packages, scientific binding, async supersession, unavailable validation/storage, safe singleton clocks. View config only is persisted.
+- Review: Independent read-only reviewer found two P2 issues: metadata outcome smuggling and maximum safe singleton timestamp. Both reproduced with failing tests, repaired with metadata whitelists and downward singleton range expansion, and rechecked by reviewer (10 targeted Python tests and JS syntax pass).
+- Validation before final publish: full Python suite and Node suite rerun after review fixes; exact final counts recorded in reports and PR. Local Firefox fails to spawn in Windows (`spawn UNKNOWN`); do not call this PASS. Dedicated Linux Chromium/Firefox workflow rebuilds all real producer fixtures and uploads exact-head evidence. Remote result must be checked before full acceptance.
+- No merge, production PostgreSQL, external market source, real orders, deployment or working ADMINIT changes.
