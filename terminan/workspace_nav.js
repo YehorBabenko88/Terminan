@@ -22,7 +22,7 @@
     'border-color:#80c6ed;font-weight:700}',
     '#terminan-workspace-nav a:focus-visible{outline:2px solid #a4d8ff;outline-offset:2px}',
     '#terminan-workspace-nav span{opacity:.65;border-style:dashed}',
-    'body:has(#terminan-workspace-nav) main{max-height:calc(100vh - 118px)}'
+    '#terminan-workspace-nav{position:relative;z-index:2}'
   ].join('');
   document.head.appendChild(style);
   const nav = document.createElement('nav');
