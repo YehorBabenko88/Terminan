@@ -48,6 +48,7 @@ async function verify(r,p,cap){
   if(n.kind==='source'&&defaultOutput.type!==n.type)fail('SOURCE_TYPE_MISMATCH');
   if(n.kind==='source'&&canonical(t.provenance)!==canonical(n.provenance))fail('PROVENANCE_BINDING_MISMATCH');
   if(n.kind==='knowledge'&&(!t.knowledge||t.knowledge.id!==n.reference.id||t.knowledge.sha256!==n.reference.sha256))fail('KNOWLEDGE_BINDING_MISMATCH');
+  if(n.kind==='knowledge'&&canonical(t.knowledge)!==canonical(cap.knowledge?.find(k=>k.id===n.reference.id&&k.sha256===n.reference.sha256)))fail('KNOWLEDGE_BINDING_MISMATCH');
   if(t.knowledge&&(t.knowledge.mathematicallyVerified!==false||t.knowledge.confidence!=='NOT_VERIFIED'))fail('KNOWLEDGE_AUTHORITY_ESCALATION');trace.set(n.id,t);
  }
  return {schema:'terminan.math-verification.v1',requestSHA256:r.requestSHA256,resultSHA256:await digest(r),traceSHA256:await digest(r.trace),ports:receipt,sourceAuthenticity:'UNATTESTED',execution_authority:false};

@@ -12,3 +12,5 @@ Ruling: request audit data for every actual dependency and default output. This 
 Ruling: preserve legacy editor model as a user formula; new engine-model maps to pinned fixed Math model contracts. Cost: two explicitly different block kinds rather than silent schema reinterpretation. V2.0 pin is preserved in a separate lock and tested against the real old engine. All new operations require revision/features/named-port support.
 
 A final negative regression exposed that unrelated formula trace nodes could carry invented source/book attribution even with NOT_VERIFIED flags. RED/GREEN now rejects provenance on non-source nodes and knowledge metadata on non-knowledge nodes. This enforces the exact engine attribution boundary without claiming source authenticity.
+
+A synthetic host-configured catalogue regression also verifies public book metadata equality: changing page7 to8 while retaining id/sha256 must fail. The public trace record is compared exactly to the selected public catalogue record; this is reference consistency, not book authenticity.
