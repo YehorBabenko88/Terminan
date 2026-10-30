@@ -19,3 +19,16 @@ r4-test-results/
 .r4-reliability-evidence/
 
 saved-test-results/
+
+# PR55 local tooling hardening
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.cache-audit-evidence/
+unified-test-results/
+.unified-evidence/
+baseline-tests.txt

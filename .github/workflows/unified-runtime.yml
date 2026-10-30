@@ -1,0 +1,52 @@
+name: Unified runtime exact offline
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: unified-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  runtime:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - run: python -m unittest discover -s tests -q
+      - run: node tests/check_cache_race.cjs
+      - run: node tests/check_r4_protocol.cjs
+      - run: node tests/check_ui_script.cjs
+      - run: node tests/check_ui_refresh_race.cjs
+      - name: Exact native Windows 15 then600
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $sha=git rev-parse HEAD
+          powershell.exe -NoProfile -File scripts/Invoke-Terminan.ps1 -ExpectedSha $sha -ReviewSeconds 15 -EvidenceRoot reports/unified15
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoProfile -File scripts/Invoke-Terminan.ps1 -ExpectedSha $sha -ReviewSeconds 600 -PreviousSmoke reports/unified15 -EvidenceRoot reports/unified600
+          exit $LASTEXITCODE
+      - name: Exact Linux 15 then600
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python -m terminan.unified_harness --sha "$(git rev-parse HEAD)" --out reports/unified15 --seconds 15
+          python -m terminan.unified_harness --sha "$(git rev-parse HEAD)" --out reports/unified600 --seconds 600 --previous reports/unified15
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unified-${{ matrix.os }}-${{ github.run_attempt }}
+          path: reports/

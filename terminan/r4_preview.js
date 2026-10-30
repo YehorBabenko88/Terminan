@@ -76,13 +76,9 @@ function drawPanels(){
     const tr=row([quantity,(price*d.dom.tick_size).toFixed(2)],['ask','ask-price']);
     tr.className='ladder-ask';book.append(tr);
   }
-  if(asks.length&&bids.length){
-    const tr=document.createElement('tr');tr.className='ladder-spread';
-    const cell=document.createElement('td');cell.colSpan=2;cell.textContent='SPREAD';tr.append(cell);book.append(tr);
-  }
   for(const [price,quantity] of bids){
     const tr=row([quantity,(price*d.dom.tick_size).toFixed(2)],['bid','bid-price']);
-    tr.className='ladder-bid';book.append(tr);
+    tr.className='ladder-bid';if(asks.length&&price===bids[0][0])tr.classList.add('ladder-spread');book.append(tr);
   }
   $('book-body').replaceChildren(book);
   const scroll=$('book-body').closest('.book-scroll');
@@ -261,7 +257,7 @@ function terminal(state){
 }
 on($('close-view'),'click',()=>terminal('VIEW_CLOSED'));on(window,'pagehide',()=>terminal('VIEW_CLOSED'));
 window.r2={benchmark,seek:step=>{stop();return load(step);},metrics,dispose};
-window.r4={metrics,close:()=>terminal('VIEW_CLOSED')};
+window.r4={metrics,pause:stop,close:()=>terminal('VIEW_CLOSED')};
 async function start(){
  try{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),1500);
