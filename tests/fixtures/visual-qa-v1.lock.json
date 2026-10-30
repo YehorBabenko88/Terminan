@@ -3,7 +3,7 @@
   "evidence_class": "SYNTHETIC",
   "base_sha": "c08de12dbee5bcb64efe91641438efcdf9e96796",
   "files": {
-    "tests\\fixtures\\visual-history-v1.json": "a8824909e38249218e27f4b22b4fd8d5c94e97c2b0d0e33dc34c2130a240c20d"
+    "tests/fixtures/visual-history-v1.json": "a8824909e38249218e27f4b22b4fd8d5c94e97c2b0d0e33dc34c2130a240c20d"
   },
   "canonicalization": "UTF8_LF"
 }

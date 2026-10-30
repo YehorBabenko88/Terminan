@@ -1,5 +1,5 @@
 """Exact-head visual matrix orchestration. Only synthetic fixtures and owned processes."""
-import argparse,hashlib,json,os,subprocess,sys,uuid
+import argparse,hashlib,json,os,subprocess,sys,uuid,struct,zlib
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from terminan.unified_process import run_browser
@@ -35,6 +35,8 @@ def validate_metrics(reports,sha,tree,invocation):
   found=[]
   for row in rows:
    key=(row['size']['width'],row['size']['height'],row['zoom'],row['route']);found.append(key)
+   name='terminal' if row['route']=='/' else row['route'][1:]
+   if row.get('screenshot')!=str(key[0])+'x'+str(key[1])+'-zoom'+str(key[2])+'-'+name+'.png':raise ValueError('SCREENSHOT_UNBOUND')
    if row['scrollWidth']>row['width']+1 or row['controls'] or row['overlaps'] or row['replacementChars'] or row['actualZoom']!=row['zoom']:raise ValueError('VISUAL_REGRESSION')
    if abs(row['browser']['dpr']-r['dpr']*row['zoom'])>.001 or row['browser']['pinch']!=1:raise ValueError('ZOOM_NOT_VERIFIED')
   if len(found)!=36 or set(found)!=expected:raise ValueError('MATRIX_INCOMPLETE')
@@ -42,6 +44,38 @@ def validate_metrics(reports,sha,tree,invocation):
   total+=len(rows)
  if sorted(projects)!=PROJECTS:raise ValueError('METRICS_PROJECTS_INVALID')
  return total
+
+def validate_png(file,width,height):
+ try:
+  raw=Path(file).read_bytes()
+  if len(raw)>32*1024*1024 or raw[:8]!=b'\x89PNG\r\n\x1a\n':raise ValueError()
+  pos=8;header=False;data=False;end=False
+  while pos<len(raw):
+   if pos+12>len(raw):raise ValueError()
+   n=struct.unpack('>I',raw[pos:pos+4])[0];kind=raw[pos+4:pos+8];chunk=raw[pos+8:pos+8+n]
+   if pos+12+n>len(raw) or zlib.crc32(kind+chunk)&0xffffffff!=struct.unpack('>I',raw[pos+8+n:pos+12+n])[0]:raise ValueError()
+   if kind==b'IHDR':
+    if header or n!=13 or struct.unpack('>II',chunk[:8])!=(width,height):raise ValueError()
+    header=True
+   if kind==b'IDAT':data=data or n>0
+   if kind==b'IEND':
+    if n or pos+12!=len(raw):raise ValueError()
+    end=True
+   pos+=n+12
+  if not header or not data or not end:raise ValueError()
+ except (OSError,ValueError,struct.error):raise ValueError('SCREENSHOT_MISSING_OR_INVALID') from None
+
+def validate_screenshots(metric_files):
+ count=0
+ for file in metric_files:
+  r=json.loads(file.read_text(encoding='utf8'));base=file.parent.resolve()
+  for row in r['rows']:
+   target=(base/row['screenshot']).resolve()
+   if not target.is_relative_to(base):raise ValueError('SCREENSHOT_UNBOUND')
+   validate_png(target,round(row['size']['width']*r['dpr']),round(row['size']['height']*r['dpr']));count+=1
+  for name in ('monitor-unavailable.png','history-error.png'):
+   validate_png(base/name,round(1920*r['dpr']),round(1080*r['dpr']));count+=1
+ return count
 
 def main():
  p=argparse.ArgumentParser();p.add_argument('--expected-sha',required=True);p.add_argument('--out',required=True);a=p.parse_args();os.chdir(ROOT)
@@ -65,8 +99,14 @@ def main():
   report=json.loads(file.read_text(encoding='utf8'));file.write_text(redact(json.dumps(report,ensure_ascii=False,indent=2))+'\n',encoding='utf8')
   if run.returncode:raise ValueError()
   validate_report(report,sha,tree,invocation)
-  metrics=[json.loads(f.read_text(encoding='utf8')) for f in out.rglob('metrics.json') if f.stat().st_size<2*1024*1024]
-  total=validate_metrics(metrics,sha,tree,invocation);summary.update(result='AUTOMATED_VISUAL_PASS',exit_code=0,matrix_cases=total);code=0;stage=None;error=None
+  metric_files=[f for f in out.rglob('metrics.json') if f.stat().st_size<2*1024*1024]
+  metrics=[json.loads(f.read_text(encoding='utf8')) for f in metric_files]
+  total=validate_metrics(metrics,sha,tree,invocation)
+  stage='evidence_finalize';error='SCREENSHOT_MISSING_OR_INVALID';code=50
+  screenshots=validate_screenshots(metric_files)
+  if screenshots!=114:raise ValueError()
+  summary.update(screenshots_verified=screenshots)
+  summary.update(result='AUTOMATED_VISUAL_PASS',exit_code=0,matrix_cases=total);code=0;stage=None;error=None
  except KeyboardInterrupt:code=130;error='CANCELLED'
  except Exception:pass
  finally:
