@@ -1,0 +1,59 @@
+{
+  "schema": "terminan.history.scientific-handoff.v1",
+  "evidence_class": "SYNTHETIC",
+  "source_authenticity": "UNATTESTED",
+  "scientific_api": "NOT_EXECUTED",
+  "math_history_api": "math.history.result.v1.1",
+  "execution_authority": false,
+  "training_authorized": false,
+  "trading_authorized": false,
+  "market": {
+    "venue": "bybit",
+    "market_type": "linear",
+    "symbol": "BTCUSDT"
+  },
+  "strategy": "test",
+  "dataset_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "snapshot_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "review_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "result_receipt": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "source": {
+    "units": {
+      "price": "USDT/BTC",
+      "time": "UTC_MS"
+    },
+    "identity": {
+      "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "observed_prices": [
+    {
+      "event_end_ms": 60000,
+      "available_at_ms": 61000,
+      "watermark_ms": 60000,
+      "value": 101.0
+    }
+  ],
+  "forecast_points": [
+    {
+      "feature_event_end_ms": 60000,
+      "feature_available_at_ms": 61000,
+      "decision_ms": 61000,
+      "target_event_end_ms": 120000,
+      "value": 102.5,
+      "request_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    {
+      "feature_event_end_ms": 60000,
+      "feature_available_at_ms": 61000,
+      "decision_ms": 61000,
+      "target_event_end_ms": 90000,
+      "value": 102.5,
+      "request_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ],
+  "oos_metrics": {
+    "net_pnl": 2.0
+  },
+  "handoff_sha256": "d2c5d5efc6dca3bc2fd3032fe28c9d9c686af6c80d7a90eb88af048398373696"
+}
