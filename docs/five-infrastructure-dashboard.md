@@ -15,3 +15,10 @@ Lifecycle uses epoch/sequence and bounded stage counters. The view explicitly op
 | Research/Grid health | Display explicit provider status; absence UNAVAILABLE | P0 source-qualified deployment receipts |
 
 SOFTWARE: unit and real Chromium controls tested against labeled synthetic fixtures. SOURCE_PROVENANCE: UNVERIFIED for snapshot observations. PHYSICAL: NOT_RUN. PRODUCTION: NO_GO. P2 richer visual charts await real telemetry. CI PASS does not attest source authenticity, network links, physical hosts or trading authority.
+
+## Independent nested consumer validation (2026-10-30)
+The local export is untrusted. The consumer independently accepts the exact Unified v1 PLAN_ONLY fleet shape, empty links/databases/alerts and false identity/execution authority. Current producer utilization and database sizes must be null. Available resource capacity is bounded finite numeric data labeled UNATTESTED; it never becomes CPU/RAM/disk utilization. Future authenticated telemetry needs a separately reviewed versioned contract.
+
+Compatibility is limited to historical exports with fleet nodes containing only id and optional cpu:null; their missing fields project UNAVAILABLE and identity remains false. Historical links remain discarded. Extra fleet/node/stage/module/top-level fields, authority upgrades and invalid bounds fail closed. Core API remains exact integer 1.0. No unknown dictionaries are copied into the display. Existing controls and dynamic fleets remain available.
+
+Negative regressions reproduced the original acceptance of forged identity_verified, execution_authorized and db_sizes. Added exact-producer positive/negative tests and Chromium coverage that runs the actual Python consumer on a forged source before rendering its unavailable result. All browser controls, timeout and stale response tests remain intact. Physical NOT_RUN; production NO_GO.
