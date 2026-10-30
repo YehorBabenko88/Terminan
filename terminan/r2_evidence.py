@@ -9,6 +9,17 @@ import shutil
 
 BASE='0ad0f36edce2ac7717c753d35ebe113dc6334fd0'
 PROJECTS=[engine+'-dpr'+str(dpr) for engine in ('chromium','firefox') for dpr in (1,1.5,2)]
+BROWSER_ASSERTIONS={
+    'zoom pan resize DPR and complete synthetic identity',
+    'fault recovery contracts and bounded replay',
+    'superseded requests cannot keep another symbol visible',
+    'stress frame pipeline memory CPU and lifecycle evidence',
+    'partial HTTP failure and in-flight disposal abort all requests',
+    'dynamic fleet, every control, unavailable data and selection',
+    'aborted stale response cannot overwrite new snapshot',
+    'actual A states filter and selected detail follows latest metrics',
+    'stalled local refresh becomes explicitly unavailable at deadline',
+}
 REPO=Path(__file__).resolve().parents[1]
 
 def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
@@ -55,9 +66,11 @@ def verify(root,sha):
         for project in expected:required.update({project+'/performance.json',project+'/preview.png'})
         if not required.issubset(names) or summary['result']!='PASS':raise ValueError('incomplete browser evidence')
         tests=read(root/'tests.json')
-        if len(tests)!=len(expected)*5 or any(t['status']!='passed' or t['attempts']!=1 for t in tests):raise ValueError('browser failures/skips')
+        if any(t['status']!='passed' or t['attempts']!=1 for t in tests):raise ValueError('browser failures/skips')
+        inventory={(project,title) for project in expected for title in BROWSER_ASSERTIONS}
+        observed=[(t['project'],t['title']) for t in tests]
+        if len(observed)!=len(inventory) or set(observed)!=inventory:raise ValueError('missing, duplicate or unexpected browser assertions')
         for project in expected:
-            if len({t['title'] for t in tests if t['project']==project})!=5:raise ValueError('missing browser assertions')
             perf=read(root/project/'performance.json')
             if perf['candidate_sha']!=sha or not perf['source_clean'] or perf['mode']!='SYNTHETIC':raise ValueError('wrong browser source')
             check_performance(perf)
