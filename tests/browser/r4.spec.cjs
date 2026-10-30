@@ -11,6 +11,19 @@ test.afterAll(async()=>{if(child&&child.exitCode===null){await new Promise(resol
 test('R4 bounded workloads contracts and session lifecycle',async({page,browserName},info)=>{
  let pageErrors=0,consoleErrors=0;page.on('pageerror',()=>pageErrors++);page.on('console',m=>{if(m.type()==='error')consoleErrors++;});
  expect(process.env.R4_INVOCATION).toMatch(/^[0-9a-f]{32}$/);test.setTimeout(180000);await page.goto(url);await expect(page.locator('body')).toHaveAttribute('data-loading','false');
+ // Regression: decorative spread must not consume a 41st DOM row or hide a level.
+ const ladderFrame=await(await page.request.get(url+'/api/synthetic/frame?step=100')).json();
+ const ladderCases=[ladderFrame.dom,{...ladderFrame.dom,bids:[[101,7],[100,11]],asks:[[101,13],[102,17]]},{...ladderFrame.dom,bids:[],asks:[[102,17]]},{...ladderFrame.dom,bids:[[100,11]],asks:[]},{...ladderFrame.dom,bids:[],asks:[]}];
+ for(const dom of ladderCases){
+  await page.route('**/api/synthetic/frame?*',async route=>{const response=await route.fetch();const data=await response.json();await route.fulfill({response,json:{...data,dom}});});
+  await page.evaluate(()=>window.r2.seek(100));
+  const expected=[...dom.asks].sort((a,b)=>b[0]-a[0]).map(([p,q])=>['ladder-ask',String(q),(p*dom.tick_size).toFixed(2)]).concat([...dom.bids].sort((a,b)=>b[0]-a[0]).map(([p,q])=>['ladder-bid',String(q),(p*dom.tick_size).toFixed(2)]));
+  await expect.poll(()=>page.locator('#book-body > tr').count()).toBe(expected.length);
+  expect(await page.locator('#book-body > tr').evaluateAll(rows=>rows.map(r=>[r.classList.contains('ladder-ask')?'ladder-ask':'ladder-bid',...Array.from(r.cells,c=>c.textContent)]))).toEqual(expected);
+  expect((await page.evaluate(()=>window.r2.metrics())).bookRows).toBe(expected.length);
+  await page.unroute('**/api/synthetic/frame?*');
+ }
+ await page.evaluate(()=>window.r2.seek(100));
  const size=await page.locator('#chart').evaluate(c=>({width:c.width,css:c.clientWidth,dpr:devicePixelRatio}));expect(Math.abs(size.width-size.css*size.dpr)).toBeLessThanOrEqual(2);
  const span=(await page.evaluate(()=>window.r2.metrics())).spanMs;await page.locator('#zoom-in').click();await expect.poll(()=>page.evaluate(()=>window.r2.metrics().spanMs)).toBeLessThan(span);
  const box=await page.locator('#chart').boundingBox();const beforePan=(await page.evaluate(()=>window.r2.metrics())).windowEnd;await page.mouse.move(box.x+box.width*.6,box.y+80);await page.mouse.down();await page.mouse.move(box.x+box.width*.8,box.y+80);await page.mouse.up();await expect.poll(()=>page.evaluate(()=>window.r2.metrics().windowEnd)).not.toBe(beforePan);
