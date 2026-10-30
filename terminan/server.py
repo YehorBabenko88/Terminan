@@ -57,7 +57,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(413)
         try:
             raw=self.rfile.read(int(rawlen))
-            result=math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
+            result=math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
         except (ValueError, TypeError):
