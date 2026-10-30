@@ -9,6 +9,7 @@ import math
 import re
 
 LIMIT = 2 * 1024 * 1024
+UNIFIED_LIMIT = 8 * 1024 * 1024
 SCIENTIFIC_SHA = '1f97e56701c0fce01dc8dd05952111fa8df3f2d1'
 
 def fail(code):raise ValueError(code)
@@ -34,7 +35,7 @@ def _provenance(source):
 
 def _model(model):
     if not obj(model):return 'UNKNOWN'
-    result={k:model[k] for k in ('commit','tree','python_sha256') if text(model.get(k))}
+    result={k:model[k] for k in ('commit','tree','python_sha256','node_sha256') if text(model.get(k))}
     if obj(model.get('manifest')):result['manifest']={k:v for k,v in model['manifest'].items() if sha(v)}
     return result
 
@@ -51,7 +52,7 @@ def _bounded(v,depth=0):
         for flag in ('execution_authority','trading_authorized','training_authorized','mathematicallyVerified'):
             if flag in v:require(v[flag] is False,'AUTHORITY_DENIED')
         if 'source_authenticity' in v:
-            require(v['source_authenticity'] in ('UNATTESTED','REQUIRES_INDEPENDENT_RECEIPT_PROVISIONING'),'UNSUPPORTED_OR_UNTRUSTED_PACKET')
+            require(v['source_authenticity'] in ('UNATTESTED','REQUIRES_INDEPENDENT_RECEIPT_PROVISIONING','NOT_EVALUATED_BY_MATH'),'UNSUPPORTED_OR_UNTRUSTED_PACKET')
         for k,x in v.items():
             require(len(k)<=256,'KEY_LIMIT');_bounded(x,depth+1)
     elif type(v) is list:
@@ -157,19 +158,25 @@ def _scientific(p):
             'api':'math.scientific.result.v2','request_sha256':result['requestSHA256'],
             'source':provenance,'result_status':'CALLER_SUPPLIED_UNATTESTED'},'oos':None}
 
-def admit(raw):
-    require(type(raw) is bytes and 2<=len(raw)<=LIMIT,'FILE_LIMIT')
+def admit(raw, *, allow_unified=False):
+    require(type(raw) is bytes and 2<=len(raw)<=UNIFIED_LIMIT,'FILE_LIMIT')
     try:
         p=json.loads(raw,object_pairs_hook=_pairs,parse_constant=lambda _:fail('NONFINITE'))
+        unified=obj(p) and p.get('schema')=='terminan.unified-display.v1'
+        if unified:require(allow_unified,'UNIFIED_CONTRACT_IMPORT_DISABLED')
+        else:require(len(raw)<=LIMIT,'FILE_LIMIT')
         _bounded(p)
         require(obj(p),'PACKET_REQUIRED');_authority(p)
         require(p.get('evidence_class')=='SYNTHETIC' and p.get('source_authenticity')=='UNATTESTED','UNSUPPORTED_OR_UNTRUSTED_PACKET')
         schema=p.get('schema')
-        require(schema in ('terminan.history.scientific-handoff.v1','terminan.scientific-overlay.v1'),'UNSUPPORTED_SCHEMA')
+        require(schema in ('terminan.history.scientific-handoff.v1','terminan.scientific-overlay.v1','terminan.unified-display.v1'),'UNSUPPORTED_SCHEMA')
         key='handoff_sha256' if schema=='terminan.history.scientific-handoff.v1' else 'packet_sha256'
         receipt=p.get(key);require(sha(receipt),'RECEIPT_REQUIRED')
         require(digest({k:v for k,v in p.items() if k!=key})==receipt,'DIGEST_MISMATCH')
-        result=_history(p) if key=='handoff_sha256' else _scientific(p)
+        if unified:
+            from .unified_display import adapt
+            result=adapt(p)
+        else:result=_history(p) if key=='handoff_sha256' else _scientific(p)
         return {**result,'receipt':receipt,'integrity':'SHA256_MATCH','authenticity':'UNATTESTED','schema':schema}
     except (KeyError,TypeError,OverflowError,RecursionError,UnicodeError):
         raise ValueError('INVALID_PACKET') from None

@@ -71,7 +71,7 @@ class UnifiedReadinessContracts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'UNSUPPORTED_SCHEMA'):
             admit(canonical(p))
 
-    def test_legacy_http_bridge_rejects_unified_delayed_publication(self):
+    def test_http_bridge_preserves_unified_delayed_publication(self):
         q={'schema':'math.scientific.graph.v2','mode':'HISTORICAL_RESEARCH',
            'execution_authority':False,'asOf':61000,'nodes':[{'id':'history'}],
            'edges':[],'outputs':[{'node':'history','port':'value'}]}
@@ -84,8 +84,7 @@ class UnifiedReadinessContracts(unittest.TestCase):
                 'values':[101.0],'timestamps':[60000],'availableAt':[61000]}]}
         with patch.dict(os.environ,{'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), \
              patch.object(math_bridge,'scientific_urlopen',return_value=io.BytesIO(json.dumps(response).encode())):
-            with self.assertRaisesRegex(ValueError,'UNTRUSTED_GRAPH_RESULT'):
-                math_bridge.execute_scientific(json.dumps(q).encode())
+            self.assertEqual(math_bridge.execute_scientific(json.dumps(q).encode())['outputs'],response['outputs'])
 
     def test_new_engine_pin_is_correctly_denied_before_qualification(self):
         p={'schema':'terminan.scientific-overlay.v1','evidence_class':'SYNTHETIC',

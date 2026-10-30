@@ -54,12 +54,13 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Content-Type')!='application/json':
             return self.send_error(415)
         rawlen=self.headers.get('Content-Length','')
-        limit=history_overlay.LIMIT if self.path=='/api/history-overlay/validate' else 262144
+        allow_unified=os.environ.get('TERMINAN_UNIFIED_CONTRACT_IMPORT')=='1'
+        limit=(history_overlay.UNIFIED_LIMIT if allow_unified else history_overlay.LIMIT) if self.path=='/api/history-overlay/validate' else 262144
         if not rawlen.isascii() or not rawlen.isdecimal() or len(rawlen)>8 or not 2<=int(rawlen)<=limit:
             return self.send_error(413)
         try:
             raw=self.rfile.read(int(rawlen))
-            result=history_overlay.admit(raw) if self.path=='/api/history-overlay/validate' else math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
+            result=history_overlay.admit(raw,allow_unified=allow_unified) if self.path=='/api/history-overlay/validate' else math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
         except (ValueError, TypeError) as exc:

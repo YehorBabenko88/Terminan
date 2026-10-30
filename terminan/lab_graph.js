@@ -41,7 +41,7 @@ function validate(d,complete=false,cap=null){
   if(n.kind==='source'){
    if(!exact(p,['values','timestamps','availableAt','sourceId','version','sha256'])||!Array.isArray(p.values)||p.values.length<2||p.values.length>2000||!p.values.every(finite)||!Array.isArray(p.timestamps)||!Array.isArray(p.availableAt)||p.timestamps.length!==p.values.length||p.availableAt.length!==p.values.length||!p.timestamps.every(integer)||!p.availableAt.every(integer)||!str(p.sourceId,128)||!str(p.version,64)||!/^([a-f0-9]{64})$/.test(p.sha256))fail('INVALID_SERIES_OR_PROVENANCE');
    total+=p.values.length;
-   if(p.timestamps.some((t,i)=>t>d.asOf||p.availableAt[i]>t||(i>0&&t<=p.timestamps[i-1])))fail('TEMPORAL_OR_LOOKAHEAD');
+   if(p.timestamps.some((t,i)=>t>d.asOf||p.availableAt[i]>d.asOf||(i>0&&t<=p.timestamps[i-1])))fail('TEMPORAL_OR_LOOKAHEAD');
   }else if(['formula','model'].includes(n.kind)){
    if(!exact(p,['formula'])||!str(p.formula,160))fail('INVALID_FORMULA');
   }else if(n.kind==='method'){
