@@ -5,11 +5,14 @@ test.beforeAll(async()=>{
  const env={...process.env,PYTHONPATH:'.'};for(const k of ['TERMINAN_GRID_DSN','TERMINAN_STRATTESTER_DB','TERMINAN_RESULTS_DB'])delete env[k];
  if(process.env.MATH_REPO){
   const path=require('node:path');
-  engine=spawn('node',[path.resolve(process.env.MATH_REPO,'src/math-engine-server.mjs')],{env:{...env,MATH_ENGINE_PORT:'8788'},stdio:['pipe','pipe','pipe']});
-  await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('ENGINE_TIMEOUT')),10000);engine.stdout.once('data',()=>{clearTimeout(t);resolve()});engine.once('exit',()=>{clearTimeout(t);reject(Error('ENGINE_EXIT'))});engine.once('error',reject)});
+  const serverPath=require('node:url').pathToFileURL(path.resolve(process.env.MATH_REPO,'src/math-engine-server.mjs')).href;
+  const code=`import {startMathEngine} from ${JSON.stringify(serverPath)};const s=startMathEngine({port:0});s.on('listening',()=>console.log(JSON.stringify({port:s.address().port})));`;
+  engine=spawn('node',['--input-type=module','-e',code],{env,windowsHide:true,stdio:['pipe','pipe','pipe']});
+  const port=await new Promise((resolve,reject)=>{let out='';const t=setTimeout(()=>reject(Error('ENGINE_TIMEOUT')),10000);engine.stdout.on('data',b=>{out+=b;if(out.includes('\n')){clearTimeout(t);resolve(JSON.parse(out.split('\n')[0]).port)}});engine.once('exit',()=>{clearTimeout(t);reject(Error('ENGINE_EXIT'))});engine.once('error',reject)});
+  env.TERMINAN_MATH_PORT=String(port);
   env.TERMINAN_MATH_OFFLINE_BRIDGE='1';
  }else delete env.TERMINAN_MATH_OFFLINE_BRIDGE;
- child=spawn(process.env.R2_PYTHON||'python',['scripts/math_lab_test_server.py'],{env,stdio:['pipe','pipe','pipe']});
+ child=spawn(process.env.R2_PYTHON||'python',['scripts/math_lab_test_server.py'],{env,windowsHide:true,stdio:['pipe','pipe','pipe']});
  url=await new Promise((resolve,reject)=>{let s='';const t=setTimeout(()=>reject(Error('SERVER_TIMEOUT')),10000);child.stdout.on('data',b=>{s+=b;if(s.includes('\n')){clearTimeout(t);resolve(JSON.parse(s.split('\n')[0]).url)}});child.on('error',reject)});
 });
 test.afterAll(async()=>{if(child&&child.exitCode===null){const exited=new Promise(r=>child.once('exit',r));child.stdin.end('\n');await exited;}if(engine&&engine.exitCode===null)engine.kill();});
@@ -69,4 +72,36 @@ test('imported IDs do not prevent new nodes and result charts use timestamps',as
  await page.click('#clearGraph');await add(page,'source');await add(page,'formula');await add(page,'result');await link(page,'n1','n2');await link(page,'n1','n3');
  await page.route('**/api/math/scientific',r=>r.fulfill({json:{schema:'math.scientific.result.v2',status:'RESEARCH_ONLY',requestSHA256:requestHash(r.request().postDataJSON()),source:'CALLER_SUPPLIED_UNATTESTED',execution_authority:false,trading_authorized:false,training_authorized:false,mathematicallyVerified:false,outputs:[{node:'n2',port:'value',type:'series',unit:'dimensionless',values:[1,2],timestamps:[60000,120000],availableAt:[0,60000]},{node:'n1',port:'value',type:'series',unit:'dimensionless',values:[1,2,3],timestamps:[0,60000,120000],availableAt:[0,60000,120000]}],trace:[{node:'n1'},{node:'n2'}],order:['n1','n2']}}));
  await page.click('#execute');await expect(page.locator('#chart polyline')).toHaveCount(2);const lines=await page.locator('#chart polyline').evaluateAll(xs=>xs.map(x=>x.getAttribute('points')));expect(Number(lines[0].split(',')[0])).toBeGreaterThan(Number(lines[1].split(',')[0]));
+});
+test('searchable library, history, explicit ports and fit improve editing',async({page})=>{
+ await page.fill('#blockSearch','формула');await expect(page.locator('#blockLibrary button')).toHaveCount(1);await page.locator('#blockLibrary button').click();await expect(page.locator('.node')).toHaveCount(1);
+ await page.click('#duplicateNode');await expect(page.locator('.node')).toHaveCount(2);await page.click('#undoGraph');await expect(page.locator('.node')).toHaveCount(1);await page.click('#redoGraph');await expect(page.locator('.node')).toHaveCount(2);
+ await add(page,'source');await page.selectOption('#connectFrom','n3');await page.selectOption('#connectTo','n1');await page.click('#connectNodes');await expect(page.locator('.edge')).toHaveCount(1);
+ await page.click('#fitGraph');await expect(page.locator('#status')).toContainText('FIT');await page.click('#saveGraph');await page.click('#clearGraph');await page.click('#restoreGraph');await expect(page.locator('.node')).toHaveCount(3);await expect(page.locator('.edge')).toHaveCount(1);
+});
+test('Math catalogue methods and pinned knowledge appear without fabricated sources',async({page})=>{
+ await page.route('**/api/math/catalog',r=>r.fulfill({json:{schema:'math.scientific.capabilities.v2',execution_authority:false,trading_authorized:false,training_authorized:false,mathematicallyVerified:false,units:['dimensionless'],unitMetadata:[],dimensionBasis:[],ports:{method:{inputs:['x'],outputs:['value']},knowledge:{inputs:['x'],outputs:['value']}},methods:['sine'],knowledge:[{id:'reviewed-book',sha256:'a'.repeat(64),expression:'x*2',inputUnit:'dimensionless',outputUnit:'dimensionless',confidence:'NOT_VERIFIED',hypothesis:'Synthetic fixture only',source:{page:7,edition:'1',sourceHash:'b'.repeat(64)}}]}}));
+ await page.reload();await page.fill('#blockSearch','reviewed-book');await expect(page.locator('#blockLibrary button')).toHaveCount(1);await page.locator('#blockLibrary button').click();await expect(page.locator('#inspector')).toContainText('NOT_VERIFIED');await expect(page.locator('#knowledgeReference')).toContainText('a'.repeat(64));
+ await page.fill('#blockSearch','sine');await page.locator('#blockLibrary button').click();await expect(page.locator('#editMethod')).toHaveValue('sine');expect(await page.locator('#editMethod option').allTextContents()).toEqual(['sine']);
+});
+test('result viewport supports time zoom, pan, visibility and trace inspection',async({page})=>{
+ test.skip(!process.env.MATH_REPO,'Requires real pinned engine');await add(page,'source');await add(page,'formula');await link(page,'n1','n2');await page.click('#execute');await expect(page.locator('#experiments article')).toHaveCount(1);
+ const points=await page.locator('#chart polyline').getAttribute('points');await page.click('#chartZoomIn');expect(await page.locator('#chart polyline').getAttribute('points')).not.toBe(points);await page.click('#chartPanRight');await page.click('#chartReset');expect(await page.locator('#chart polyline').getAttribute('points')).toBe(points);
+ await page.locator('#seriesLegend input').first().uncheck();await expect(page.locator('#chart polyline')).toHaveCount(0);await page.locator('#seriesLegend input').first().check();await expect(page.locator('#chart polyline')).toHaveCount(1);
+ await page.locator('#experiments article details.trace summary').click();await expect(page.locator('.trace table')).toContainText('n2');await expect(page.locator('#chart .time-tick')).not.toHaveCount(0);
+ await page.click('#chartZoomIn');await page.locator('[data-handle="n1"]').click();await page.fill('#edit_values','[1,2]');await page.fill('#edit_timestamps','[0,1000]');await page.fill('#edit_availableAt','[0,1000]');await page.click('#applyNode');for(let i=0;i<5;i++){const response=page.waitForResponse(r=>r.url().endsWith('/api/math/scientific'));await page.click('#execute');await response;await expect(page.locator('#status')).toContainText('RESEARCH_ONLY');}await expect(page.locator('#chartWindow')).toHaveText('00:00:00Z → 00:00:01Z');
+});
+test('drag ports creates branches and relinking can change target input',async({page})=>{
+ await add(page,'source');await add(page,'formula');await add(page,'average');
+ const a=await(await port(page,'n1','out')).boundingBox(),b=await(await port(page,'n2','in')).boundingBox();await page.mouse.move(a.x+a.width/2,a.y+a.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:8});await page.mouse.up();await expect(page.locator('.edge')).toHaveCount(1);
+ await page.selectOption('#edgeSelect','e-n1-n2-0');await page.selectOption('#edgeTo','n3');await page.selectOption('#edgePort','1');await page.click('#relinkEdge');await expect(page.locator('.edge')).toHaveAttribute('data-edge','e-n1-n3-1');
+});
+test('ADMINIT reported chain is reproduced with literal results on isolated real Math',async({page},info)=>{
+ test.skip(!process.env.MATH_REPO,'Requires pinned real Math');await add(page,'source');await add(page,'formula');await page.fill('#editFormula','x*2');await page.click('#applyNode');await add(page,'formula');await page.fill('#editFormula','x^2+1');await page.click('#applyNode');await link(page,'n1','n2');await link(page,'n2','n3');
+ const response=page.waitForResponse(r=>r.url().endsWith('/api/math/scientific'));await page.click('#execute');const r=await(await response).json();expect(r.outputs[0].values).toEqual([5,17,37]);expect(r.execution_authority).toBe(false);expect(r.trading_authorized).toBe(false);await expect(page.locator('#experiments article')).toHaveCount(1);
+ await info.attach('isolated-host-chain',{body:Buffer.from(JSON.stringify({scope:'ISOLATED_AUTOMATED_WINDOWS_HOST_REPRODUCTION',reported_physical:'USER_REPORTED_NOT_INDEPENDENTLY_ATTESTED',result:r},null,2)),contentType:'application/json'});await info.attach('physical-chain-preview',{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
+});
+test('failed catalogue insertion preserves nodes and Escape cancels a port drag',async({page})=>{
+ for(let i=0;i<12;i++)await add(page,'method');await page.fill('#blockSearch','sine');await page.locator('#blockLibrary button').click();await expect(page.locator('#editMethod')).toHaveValue('polynomial');await expect(page.locator('.node')).toHaveCount(12);
+ await page.click('#clearGraph');await add(page,'source');await add(page,'formula');const a=await(await port(page,'n1','out')).boundingBox(),b=await(await port(page,'n2','in')).boundingBox();await page.mouse.move(a.x+8,a.y+8);await page.mouse.down();await page.mouse.move(b.x+8,b.y+8);await page.keyboard.press('Escape');await page.mouse.up();await expect(page.locator('.edge')).toHaveCount(0);await link(page,'n1','n2');await expect(page.locator('.edge')).toHaveCount(1);
 });

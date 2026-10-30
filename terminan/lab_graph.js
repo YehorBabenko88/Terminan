@@ -2,7 +2,7 @@
 (function(root){
 'use strict';
 const LIMIT=262144,UNITS=['dimensionless','USD','USDT','BTC','1','m','km','s','min','h','kg','g','A','K','mol','cd','N','J','W','Hz','Pa','m/s','km/h','m/s²'];
-const kinds={source:[],formula:['x'],model:['x'],method:['x'],difference:['a','b'],average:['a','b'],multiply:['a','b'],divide:['a','b'],convert:['x'],lag:['x'],hypothesis:[],result:['x']};
+const kinds={source:[],formula:['x'],model:['x'],method:['x'],knowledge:['x'],difference:['a','b'],average:['a','b'],multiply:['a','b'],divide:['a','b'],convert:['x'],lag:['x'],hypothesis:[],result:['x']};
 const fail=code=>{throw Error(code)};
 const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
 const exact=(x,keys)=>object(x)&&Object.keys(x).every(k=>keys.includes(k));
@@ -15,6 +15,7 @@ function node(kind,id,x,y){
  let parameters={};
  if(kind==='source')parameters={values:[1,2,3],timestamps:[0,60000,120000],availableAt:[0,60000,120000],sourceId:'manual-unattested',version:'1',sha256:'0'.repeat(64)};
  if(kind==='formula'||kind==='model')parameters={formula:'x+1'};
+ if(kind==='knowledge')parameters={reference:{id:'unselected',sha256:'0'.repeat(64)}};
  if(kind==='lag')parameters={steps:1};
  if(kind==='method')parameters={method:'polynomial',parameter:2};
  if(kind==='hypothesis')parameters={schema:'terminan.hypothesis.v1',title:'Unverified hypothesis',sourceId:'manual',page:1,version:'1',attested:false};
@@ -40,6 +41,8 @@ function validate(d,complete=false){
    if(!exact(p,['formula'])||!str(p.formula,160))fail('INVALID_FORMULA');
   }else if(n.kind==='method'){
    if(!exact(p,['method','parameter'])||!['polynomial','sine','gaussian'].includes(p.method)||!finite(p.parameter)||Math.abs(p.parameter)>1e6)fail('INVALID_NUMERIC_PARAMETER');
+  }else if(n.kind==='knowledge'){
+   if(!exact(p,['reference'])||!exact(p.reference,['id','sha256'])||!str(p.reference.id,64)||!/^[a-z][a-z0-9_-]{0,63}$/.test(p.reference.id)||!/^([a-f0-9]{64})$/.test(p.reference.sha256))fail('INVALID_KNOWLEDGE_REFERENCE');
   }else if(n.kind==='lag'){
    if(!exact(p,['steps'])||!Number.isSafeInteger(p.steps)||p.steps<1||p.steps>1999)fail('INVALID_NUMERIC_PARAMETER');
   }else if(n.kind==='hypothesis'){
@@ -53,7 +56,7 @@ function validate(d,complete=false){
   if(!exact(e,['id','from','to','port'])||!str(e.id,80)||edgeIds.has(e.id)||!ids.has(e.from)||!ids.has(e.to)||ids.get(e.from).kind==='result')fail('INVALID_EDGE');
   const a=ids.get(e.from),b=ids.get(e.to),input=inputs(b).find(p=>p.port===e.port);
   const type=outputType(a);if(!input||!(input.type===type||input.type==='numeric'&&type!=='knowledge'||input.type==='series'&&type==='comparison-series'))fail('TYPE_MISMATCH');
-  if(input.type!=='knowledge'&&!['convert','multiply','divide','formula','model','result'].includes(b.kind)&&a.unit!==b.unit)fail('UNIT_MISMATCH');
+  if(input.type!=='knowledge'&&!['convert','multiply','divide','formula','model','knowledge','result'].includes(b.kind)&&a.unit!==b.unit)fail('UNIT_MISMATCH');
   const key=e.to+':'+e.port;if(ports.has(key))fail('PORT_OCCUPIED');ports.add(key);edgeIds.add(e.id);
  }
  const state=new Map();function visit(id){if(state.get(id)===1)fail('GRAPH_CYCLE');if(state.get(id)===2)return;state.set(id,1);for(const e of d.edges.filter(e=>e.to===id))visit(e.from);state.set(id,2)}

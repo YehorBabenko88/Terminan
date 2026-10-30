@@ -31,3 +31,4 @@ test('scientific methods require finite bounded parameters and allow explicit SI
  G.connect(d,'s','m',0);G.connect(d,'m','c',0);G.validate(d,true);
  d.nodes[1].parameters.parameter=NaN;assert.throws(()=>G.validate(d),/PARAMETER/);
 });
+test('knowledge documents retain a reference, reject expression overrides and invalid digests',()=>{const d=G.empty();d.nodes=[G.node('source','s',0,0),G.node('knowledge','k',300,0)];d.nodes[1].parameters.reference={id:'reviewed-book',sha256:'a'.repeat(64)};G.connect(d,'s','k',0);G.validate(d,true);const imported=G.parse(JSON.stringify(d));assert.deepEqual(imported.nodes[1].parameters.reference,{id:'reviewed-book',sha256:'a'.repeat(64)});d.nodes[1].parameters.expression='x';assert.throws(()=>G.validate(d),/KNOWLEDGE_REFERENCE/)});

@@ -32,3 +32,15 @@ Semantic errors: INVALID_SCIENTIFIC_REQUEST (422), BRIDGE_DISABLED, BODY_LIMIT, 
 Math pin and source-file digests are in `math-engine.lock.json`. Run `npm ci`, `node --test tests/test_lab_graph.cjs`, `python -m unittest discover -s tests`, then set MATH_REPO to the pinned checkout and run `npx playwright test -c playwright.math.config.cjs`. Python full-suite tests also require Grid/Strattester exact checkouts from contracts.lock.json. Dedicated CI checks exact source heads, installs Chromium/Firefox and requires the real offline Math case with no skips.
 
 Acceptance is limited to software/UI/protocol and offline-engine integration. ADMINIT physical acceptance remains NOT_RUN until the separate instructions are performed.
+
+## Interactive laboratory increment (base PR51)
+
+The searchable library contains editor definitions plus methods and knowledge references actually advertised by the pinned Math catalogue. Catalogue methods are bounded/deduplicated; a missing/invalid catalogue is reported explicitly. No book record is fabricated. Catalogue knowledge is an additive `knowledge` editor node with `parameters:{reference:{id,sha256}}`; it maps exactly to the Math knowledge node. Expressions, edition/page, hypothesis and confidence are displayed as inert catalogue metadata, never executable client code or an expression override. The user-facing reference/unit remains bound to the server definition. The old local `hypothesis` node remains non-executable metadata.
+
+Editor usability: transactional creation from templates, bounded40-step undo/redo, duplicate, fit graph, click/keyboard/drag connections, Escape cancellation, explicit source/target/input selection and relinking. Failed creation/import/validation preserves the current graph. History is local and is not sent to Math. Imported v1 documents remain accepted; old code will reject the additive knowledge kind rather than silently treating it as a formula.
+
+Result usability: UTC time ticks, time zoom/pan/reset (buttons, wheel and keyboard), per-output visibility, experiment naming, unit-separated lanes and searchable trace tables. A shared timestamp domain aligns branches; shrinking history clamps the viewport to the current domain. Chart coordinate projection is presentation only; all returned values, scientific metrics and AST operations belong to Math.
+
+`TERMINAN_MATH_PORT` is an optional integer1..65535. It changes only the port of fixed127.0.0.1 for **every** Math call, including health and legacy APIs; default remains8788. No URL/host/proxy may be supplied. Test fixtures obtain a free port from an owned Math listener and use an ephemeral Terminan port, preserving installed listeners.
+
+The user-reported Source→Formula→Formula scenario is reproduced with source[1,2,3], formula x*2, then x^2+1 and literal expected output[5,17,37]. This is an isolated automated Windows/browser observation, not independent attestation of the working ADMINIT installation or the original human acceptance receipt. No original human receipt was found in the accessible PR discussion.
