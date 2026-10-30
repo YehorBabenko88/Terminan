@@ -21,8 +21,10 @@ def untouched_levels(candles, timeframe, as_of_ms, *, tick_size=0, max_levels=20
     seen = set()
     duration = PERIODS[timeframe]
     for candle in candles:
-        if not isinstance(candle, dict) or candle.get("complete") is not True and candle.get("complete") is not None:
-            raise ValueError("incomplete candle")
+        if not isinstance(candle, dict):
+            raise ValueError("invalid candle")
+        if candle.get("complete") is False:
+            continue
         t = candle.get("t")
         if type(t) is not int or t < 0 or t % duration or t in seen:
             raise ValueError("invalid or duplicate candle timestamp")
