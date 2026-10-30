@@ -6,7 +6,7 @@ Task 1 complete: formula POST allowlist RED (404) -> GREEN; real local HTTP case
 
 Task 2 complete: native JavaScript/SVG document/editor tests RED -> GREEN; types, cycles, occupied ports, import transactionality, keyboard/pointer editing, method parameter bounds, view controls and free formula chains. Legacy static string-presence tests were replaced by runtime document/script checks and browser behavior; keeping their fixed-four-node assertions would contradict the approved editor.
 
-Task 3 code complete: Codex №1 agreed separate scientific v2 request/result/catalogue contract; Math PR #101 pinned at 972676e4d2e5ee7bc37411c4c7405cb71b3a8095, tree 2f2da077a9c588f7aec3b3d5708ed9157733a15f. Real offline Math browser E2E exercises a two-formula chain plus a parallel method, multiple outputs, overlays and recovery after invalid AST. Hosted CI evidence is collected separately at the final exact HEAD; this document does not assert hosted success.
+Task 3 code complete: Codex №1 agreed separate scientific v2 request/result/catalogue contract; Math PR #101 pinned at 321c4cd94d9ee0aba7a5d709042612f5ad4c5a05, tree 5c1d213ce8851acee10c00642fba123c0c041948. Real offline Math browser E2E exercises a two-formula chain plus a parallel method, multiple outputs, overlays and recovery after invalid AST. Hosted CI evidence is collected separately at the final exact HEAD; this document does not assert hosted success.
 
 Independent reviewer reviewed d10d5a0..6784e22 read-only and raised four important findings. All received reproducing regressions and fixes:
 

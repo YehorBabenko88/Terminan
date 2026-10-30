@@ -1,15 +1,15 @@
 {
   "repository": "YehorBabenko88/math",
-  "sha": "972676e4d2e5ee7bc37411c4c7405cb71b3a8095",
-  "tree": "2f2da077a9c588f7aec3b3d5708ed9157733a15f",
+  "sha": "321c4cd94d9ee0aba7a5d709042612f5ad4c5a05",
+  "tree": "5c1d213ce8851acee10c00642fba123c0c041948",
   "files": {
     "src/math-engine-server.mjs": "e38ea8eb544895b6794ab1a90d4acbcd21ac8983e48b307c7b8ec4bf14014704",
-    "src/scientific-engine.mjs": "c4ba7882f6ec81edbedf8408084682c94627e863da938d89fde3022b45b7a349",
+    "src/scientific-engine.mjs": "ea4d03e0489e3b2d554ad2b6bd28735d77ae5b0f03ac7c3700b19b5642397ede",
     "src/scientific-data.mjs": "72618003c80749a864fa1b642b08378f53464e995cb2ec6efd3e639f8584ea7b",
     "src/scientific-units.mjs": "f5369caf3f718a9ca3a364a68758dafd6a4d134bc43718ba1a2c2e302454be85",
     "src/expression.mjs": "0b22a08159413c41fdf35411dc90eeefe8b802d6fda091acc4850dcba136caf9",
     "src/si-dimensions.mjs": "aff9fdb499a730fd4d9f13b30a754aebdff62562dc2d3a76c08f2f9916990e4c",
-    "docs/central-scientific-engine-v2.md": "d16bf59bcb5d162415942409f7c92840419e0a9f8832da1f8a61d1253a9331ca"
+    "docs/central-scientific-engine-v2.md": "069cc87ebff50564a4756cb77a687f36c61284f2caf595721cb8d541378b4f26"
   },
   "source_authenticity": "UNATTESTED",
   "execution_authority": false

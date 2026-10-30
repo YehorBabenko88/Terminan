@@ -18,6 +18,8 @@ if git('rev-parse','HEAD')!=a.expected_sha:raise SystemExit('HEAD_MISMATCH')
 if git('rev-parse','HEAD',root=a.math_repo)!=a.math_sha:raise SystemExit('MATH_HEAD_MISMATCH')
 if git('status','--porcelain','--untracked-files=no') or git('status','--porcelain','--untracked-files=no',root=a.math_repo):raise SystemExit('DIRTY_TRACKED_SOURCE')
 r=json.loads(Path('reports/math-browser.json').read_text(encoding='utf-8-sig'))
+meta=r.get('config',{}).get('metadata',{})
+if meta.get('source_head')!=a.expected_sha or meta.get('source_tree')!=git('rev-parse','HEAD^{tree}') or meta.get('math_head')!=a.math_sha:raise SystemExit('REPORT_SOURCE_MISMATCH')
 cases=[]
 def visit(suites):
     for suite in suites:
@@ -30,6 +32,7 @@ def visit(suites):
 visit(r['suites'])
 projects=a.projects.split(',')
 if sorted(set(c['project'] for c in cases))!=sorted(projects):raise SystemExit('BROWSER_PROJECT_MISSING')
+if any(sum(c['project']==project for c in cases)<5 for project in projects):raise SystemExit('BROWSER_CASES_MISSING')
 if any(not any(c['project']==project and c['name'].startswith('real pinned Math') for c in cases) for project in projects):raise SystemExit('REAL_ENGINE_CASE_MISSING')
 if r.get('errors') or r['stats'].get('unexpected') or r['stats'].get('skipped'):raise SystemExit('BROWSER_ERRORS')
 out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
