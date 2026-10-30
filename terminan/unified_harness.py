@@ -3,6 +3,7 @@ import argparse,json,os,queue,socket,subprocess,sys,tempfile,threading,time,uuid
 from pathlib import Path
 from urllib.request import urlopen
 from .unified_runner import provenance
+from .unified_process import run_browser
 from .unified_evidence import atomic_json,seal,validate_browser,verify_previous
 
 def main():
@@ -47,7 +48,7 @@ def main():
         stage='browser';error='BROWSER_INCOMPLETE_OR_UNBOUND';code=31
         with tempfile.TemporaryDirectory(prefix='terminan-unified-browser-') as tmp:
             raw=Path(tmp)/'report.json';env={**os.environ,'UNIFIED_URL':url,'UNIFIED_REPORT':str(raw),'UNIFIED_RESULTS':str(Path(tmp)/'screenshots'),'UNIFIED_INVOCATION':invocation,'R2_PYTHON':sys.executable}
-            browser=subprocess.run(['node','node_modules/@playwright/test/cli.js','test','-c','playwright.unified.config.cjs'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=300)
+            browser=run_browser(['node','node_modules/@playwright/test/cli.js','test','-c','playwright.unified.config.cjs'],env=env,timeout=300)
             if not raw.is_file() or raw.stat().st_size>8*1024*1024:raise ValueError()
             report=json.loads(raw.read_text(encoding='utf8'))
             # Public report retains assertions/status/identities; local paths are redacted.

@@ -4,7 +4,7 @@ from pathlib import Path
 TITLE='six workspaces preserve chart state and fail closed without engines'
 def validate_browser(report,sha,tree,invocation):
     try:
-        meta=report['metadata']
+        meta=report['config']['metadata']
         if any(meta.get(k)!=v for k,v in dict(source_sha=sha,tree=tree,invocation=invocation).items()):raise ValueError()
         if report.get('errors'):raise ValueError()
         stats=report['stats']
