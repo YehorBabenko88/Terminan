@@ -1,0 +1,8 @@
+{
+  "schema": "terminan.visual-fixtures.v1",
+  "evidence_class": "SYNTHETIC",
+  "base_sha": "c08de12dbee5bcb64efe91641438efcdf9e96796",
+  "files": {
+    "tests\\fixtures\\visual-history-v1.json": "ff9f7fe0dc5b47f2351ae7f1e6aefafec4ea256437dbf23679d39ffbb812d226"
+  }
+}
