@@ -86,7 +86,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(403,'Local origin required')
         if len(self.path)>2048:return self.send_error(414)
         url = urlsplit(self.path)
-        if url.path in ('/math-assets/lab.css','/math-assets/lab_graph.js','/math-assets/lab_ui.js','/math-assets/lab_catalog.js','/math-assets/lab_results.js','/math-assets/lab_protocol.js','/math-assets/math-example.json'):
+        if url.path == '/workspace-nav.js':
+            body = files('terminan').joinpath('workspace_nav.js').read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type','application/javascript; charset=utf-8')
+        elif url.path in ('/math-assets/lab.css','/math-assets/lab_graph.js','/math-assets/lab_ui.js','/math-assets/lab_catalog.js','/math-assets/lab_results.js','/math-assets/lab_protocol.js','/math-assets/math-example.json'):
             name = url.path.rsplit('/', 1)[1]
             body = files('terminan').joinpath(name).read_bytes()
             self.send_response(200)
