@@ -48,7 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if host not in allowed or origin!='http://'+host:
             return self.send_error(403,'Local origin required')
-        if self.path not in ('/api/math/evaluate','/api/math/graph','/api/math/ports'):
+        if self.path not in ('/api/math/evaluate','/api/math/graph','/api/math/ports','/api/math/formula'):
             return self.send_error(404)
         if self.headers.get('Content-Type')!='application/json':
             return self.send_error(415)
