@@ -8,7 +8,7 @@ from .infrastructure import infrastructure_snapshot
 from .cache_monitor import HTML as CACHE_HTML
 
 PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache'}
-ASSETS={'/unified.js':'unified.js','/unified.css':'unified.css'}
+ASSETS={'/unified.js':'unified.js','/unified.css':'unified.css','/unified_theme.css':'unified_theme.css'}
 class UnifiedServer(SavedServer):
     # Track/join our bounded workers explicitly; a failed deadline cannot hang exit.
     daemon_threads=True
