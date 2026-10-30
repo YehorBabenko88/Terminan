@@ -11,6 +11,12 @@
 <p><button id="clear" type="button">Очистить схему</button> <button id="export" type="button">Показать схему JSON</button></p><pre id="result" aria-live="polite"></pre>
 <section class="box"><h2>Math Engine — проверка связи</h2><p>Доступность центрального вычислителя. Исследовательские запросы и торговые действия отключены до доверенного подключения.</p><button id="checkMath" type="button">Проверить Math Engine</button><pre id="mathHealth" aria-live="polite">NOT_CONNECTED</pre></section>
 <section class="box"><h2>Вычисляемый научный граф</h2><p>Синтетические ряды A и B → разность → среднеквадратичная энергия. Перетащи четыре блока A, B, разность и энергия в любом порядке. Связи собираются по типам: A и B → разность → энергия. Недостающие и повторные узлы отклоняются. Вычисление выполняется только Math Engine. Результат не является торговым сигналом.</p><p><label>Разность · вход 1 <select id="diffInput1"><option value="a">Ряд A</option><option value="b">Ряд B</option></select></label> <label>Вход 2 <select id="diffInput2"><option value="b">Ряд B</option><option value="a">Ряд A</option></select></label></p><p><label>Энергия · источник <select id="energyInput"><option value="difference">Разность рядов</option></select></label></p><p id="graphLinks" class="notice" aria-live="polite">A, B → Разность → Энергия</p><button id="computeGraph" type="button">Выполнить граф в Math</button><pre id="graphComputeResult" aria-live="polite">NOT_RUN</pre><canvas id="graphChart" width="660" height="160" style="width:100%;background:#0c1928"></canvas></section>
+<section class="box"><h2>Научная формула и источник знаний</h2><p>Формула от одной безразмерной переменной x. Ссылка на книгу фиксирует гипотезу, но не подтверждает её научную достоверность.</p>
+<label>Формула <input id="formulaText" value="sin(x)+x^2" maxlength="160"></label>
+<label>Название книги / статьи <input id="knowledgeTitle" placeholder="Необязательно" maxlength="160"></label>
+<label>ID источника <input id="knowledgeId" placeholder="Необязательно" maxlength="128"></label>
+<label>Страница <input id="knowledgePage" type="number" value="1" min="1"></label>
+<button type="button" id="runFormula">Вычислить в Math</button><pre id="formulaResult" aria-live="polite">NOT_RUN</pre></section>
 <section class="box"><h2>Эксперимент: входной ряд → Math Engine</h2>
 <p>Введи 500–2000 положительных цен, разделённых пробелами или переносами. Данные считаются НЕДОВЕРЕННЫМИ; результаты не разрешают обучение или торговлю.</p>
 <textarea id="closeValues" rows="4" style="width:100%;background:#0d1b28;color:white" aria-label="Исторические цены"></textarea>
@@ -48,6 +54,20 @@ document.getElementById('computeGraph').onclick=async()=>{
  const c=document.getElementById('graphChart'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
  for(const [data,color] of [[a,'#40b9ff'],[b,'#edbd69']]){ctx.beginPath();ctx.strokeStyle=color;data.forEach((v,i)=>{const x=i*(c.width-1)/(data.length-1),y=c.height/2-v*58;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke()}
  }catch{output.textContent='MATH_GRAPH_UNAVAILABLE'}finally{clearTimeout(timer)}
+};
+document.getElementById('runFormula').onclick=async()=>{
+ const output=document.getElementById('formulaResult');output.textContent='CALCULATING';
+ const formula=document.getElementById('formulaText').value;
+ const title=document.getElementById('knowledgeTitle').value.trim(),sourceId=document.getElementById('knowledgeId').value.trim();
+ const page=Number(document.getElementById('knowledgePage').value);
+ if(!formula||formula.length>160||(Boolean(title)!==Boolean(sourceId))||(title&&(!Number.isSafeInteger(page)||page<1))){output.textContent='INVALID_FORMULA_OR_SOURCE';return}
+ const payload={schema:'math.formula.v1',execution_authority:false,
+ formula,values:[0,.25,.5,.75,1,1.25,1.5,1.75,2],inputUnit:'dimensionless',outputUnit:'dimensionless'};
+ if(title)payload.knowledge={title,sourceId,page,attested:false};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/formula',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
+ const result=await response.json();output.textContent=response.ok&&result.schema==='math.formula.result.v1'&&result.trading_authorized===false?JSON.stringify(result,null,2):'MATH_FORMULA_REJECTED';
+ }catch{output.textContent='MATH_FORMULA_UNAVAILABLE'}finally{clearTimeout(timer)}
 };
 document.getElementById('loadDemo').onclick=()=>{document.getElementById('closeValues').value=Array.from({length:500},(_,i)=>(70000+20*Math.sin(i/10)+i*.03).toFixed(5)).join(' ');document.getElementById('mathEvaluation').textContent='SYNTHETIC_INPUT_NOT_MARKET_DATA'};
 document.getElementById('evaluateMath').onclick=async()=>{
