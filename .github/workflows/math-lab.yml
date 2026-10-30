@@ -56,7 +56,7 @@ jobs:
           mkdir -p reports
           python -m unittest discover -s tests -v > reports/python-all.txt 2>&1
       - name: Structural editor tests
-        run: node --test tests/test_lab_graph.cjs > reports/graph-unit.txt 2>&1
+        run: node --test tests/test_lab_graph.cjs tests/test_lab_catalog.cjs > reports/graph-unit.txt 2>&1
       - name: Install existing browser test dependencies
         run: |
           npm ci

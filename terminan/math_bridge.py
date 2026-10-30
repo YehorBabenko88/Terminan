@@ -11,6 +11,13 @@ URL = "http://127.0.0.1:8788"
 LIMIT = 262144
 RESPONSE_LIMIT = 2097152
 
+def engine_url():
+    raw=os.environ.get('TERMINAN_MATH_PORT')
+    if raw is None:return URL
+    if not raw.isascii() or not raw.isdecimal() or len(raw)>5 or not 1<=int(raw)<=65535:
+        raise ValueError('INVALID_MATH_LOOPBACK_PORT')
+    return 'http://127.0.0.1:'+str(int(raw))
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -29,7 +36,7 @@ def _read_object(response):
 def scientific_catalog():
     if not enabled(): raise ValueError('BRIDGE_DISABLED')
     try:
-        with scientific_urlopen(URL+'/v2/catalog', timeout=3) as response:
+        with scientific_urlopen(engine_url()+'/v2/catalog', timeout=3) as response:
             body=response.read(RESPONSE_LIMIT+1)
         if len(body)>RESPONSE_LIMIT: raise ValueError('RESPONSE_LIMIT')
         result=json.loads(body)
@@ -61,7 +68,7 @@ def execute_scientific(raw):
     for key, limit in [('nodes',12),('edges',24),('outputs',12)]:
         if not isinstance(payload[key],list) or len(payload[key])>limit: raise ValueError('INVALID_SCIENTIFIC_REQUEST')
     if not payload['nodes'] or not payload['outputs']: raise ValueError('INVALID_SCIENTIFIC_REQUEST')
-    req = Request(URL+'/v2/graph/execute', data=raw, headers={'Content-Type':'application/json'}, method='POST')
+    req = Request(engine_url()+'/v2/graph/execute', data=raw, headers={'Content-Type':'application/json'}, method='POST')
     try:
         with scientific_urlopen(req, timeout=5) as response:
             body = response.read(RESPONSE_LIMIT+1)
@@ -109,7 +116,7 @@ def check():
     if not enabled():
         return result
     try:
-        with urlopen(URL+"/healthz", timeout=2) as response:
+        with urlopen(engine_url()+"/healthz", timeout=2) as response:
             data=_read_object(response)
         if data.get("schema")=="math.engine.v1" and data.get("state")=="READY_OFFLINE" and data.get("trading_authorized") is False:
             return {**result,"state":"READY_OFFLINE_UNTRUSTED","research_enabled":True}
@@ -127,7 +134,7 @@ def evaluate(raw):
     if not isinstance(closes,list) or not 500<=len(closes)<=2000 or any(type(x) not in (float,int) or not 0<x<1e12 for x in closes):
         raise ValueError("INVALID_SERIES")
     body=json.dumps(payload,allow_nan=False,separators=(",",":")).encode()
-    req=Request(URL+"/v1/evaluate",data=body,headers={"Content-Type":"application/json","Host":"127.0.0.1:8788"},method="POST")
+    req=Request(engine_url()+"/v1/evaluate",data=body,headers={"Content-Type":"application/json"},method="POST")
     try:
         with urlopen(req,timeout=5) as response:
             result=_read_object(response)
@@ -144,7 +151,7 @@ def execute_graph(raw):
     if not isinstance(payload,dict) or set(payload)!={"schema","mode","execution_authority","nodes"} or payload.get("schema")!="math.graph.execute.v1" or payload.get("mode")!="HISTORICAL_RESEARCH" or payload.get("execution_authority") is not False:
         raise ValueError("INVALID_GRAPH")
     if not isinstance(payload["nodes"],list) or len(payload["nodes"])>12:raise ValueError("INVALID_GRAPH_NODES")
-    req=Request(URL+"/v1/graph/execute",data=raw,headers={"Content-Type":"application/json","Host":"127.0.0.1:8788"},method="POST")
+    req=Request(engine_url()+"/v1/graph/execute",data=raw,headers={"Content-Type":"application/json"},method="POST")
     try:
         with urlopen(req,timeout=5) as response:result=_read_object(response)
     except (HTTPError, URLError, OSError, ValueError) as exc:
@@ -161,7 +168,7 @@ def execute_port_graph(raw):
         raise ValueError("INVALID_PORT_GRAPH")
     if not isinstance(payload["nodes"],list) or not 2<=len(payload["nodes"])<=12 or not isinstance(payload["edges"],list) or len(payload["edges"])>24:
         raise ValueError("INVALID_PORT_GRAPH")
-    req=Request(URL+"/v1/graph/ports",data=raw,headers={"Content-Type":"application/json"},method="POST")
+    req=Request(engine_url()+"/v1/graph/ports",data=raw,headers={"Content-Type":"application/json"},method="POST")
     try:
         with urlopen(req,timeout=5) as response:result=_read_object(response)
     except (HTTPError, URLError, OSError, ValueError) as exc:
@@ -178,7 +185,7 @@ def evaluate_formula(raw):
         raise ValueError("INVALID_FORMULA")
     if not isinstance(payload.get("values"),list) or not 2<=len(payload["values"])<=2000 or not isinstance(payload.get("formula"),str) or len(payload["formula"])>160:
         raise ValueError("INVALID_FORMULA")
-    req=Request(URL+"/v1/formula",data=raw,headers={"Content-Type":"application/json"},method="POST")
+    req=Request(engine_url()+"/v1/formula",data=raw,headers={"Content-Type":"application/json"},method="POST")
     try:
         with urlopen(req,timeout=5) as response:result=_read_object(response)
     except (HTTPError, URLError, OSError, ValueError) as exc:
