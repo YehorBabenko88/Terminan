@@ -38,6 +38,7 @@ class BrowserInventoryTests(unittest.TestCase):
         'aborted stale response cannot overwrite new snapshot',
         'actual A states filter and selected detail follows latest metrics',
         'stalled local refresh becomes explicitly unavailable at deadline',
+        'actual Python consumer rejects forged nested observation before Chromium renders',
     )
 
     def make_bundle(self, root, scope='all'):
@@ -80,6 +81,7 @@ class BrowserInventoryTests(unittest.TestCase):
             mutations={
                 'missing_r2':baseline[1:],
                 'missing_infrastructure':baseline[:5]+baseline[6:],
+                'missing_consumer_assertion':[t for t in baseline if t['title']!='actual Python consumer rejects forged nested observation before Chromium renders'],
                 'duplicate':baseline+[baseline[0]],
                 'substituted':[{**baseline[0],'title':'unrelated assertion'}]+baseline[1:],
                 'unknown_project':[{**baseline[0],'project':'chromium-dpr3'}]+baseline[1:],

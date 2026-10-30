@@ -19,6 +19,7 @@ BROWSER_ASSERTIONS={
     'aborted stale response cannot overwrite new snapshot',
     'actual A states filter and selected detail follows latest metrics',
     'stalled local refresh becomes explicitly unavailable at deadline',
+    'actual Python consumer rejects forged nested observation before Chromium renders',
 }
 REPO=Path(__file__).resolve().parents[1]
 
