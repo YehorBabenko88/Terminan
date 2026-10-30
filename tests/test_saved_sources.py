@@ -1,4 +1,4 @@
-import copy, hashlib, json, sqlite3, tempfile, unittest
+import copy, hashlib, json, os, sqlite3, tempfile, unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 from pathlib import Path
@@ -73,7 +73,7 @@ class SavedTests(unittest.TestCase):
    self.assertEqual(e.exception.code,'SHARD_NOT_READY');self.assertEqual(sorted(x.name for x in p.iterdir()),['manifest.sqlite3'])
  def test_catalog_source_hashes(self):
   for source,folder in [('grid','grid'),('strattester','strattester')]:
-   root=Path(__file__).resolve().parents[2]/folder
+   root=Path(os.environ.get(source.upper()+'_REPO',Path(__file__).resolve().parents[2]/folder))
    if not root.exists():self.fail('Pinned source checkout required')
    for name,expected in CATALOG[source]['files'].items():self.assertEqual(hashlib.sha256((root/name).read_text(encoding='utf8').encode()).hexdigest(),expected)
  def test_postgres_query_plan_readonly_without_server(self):

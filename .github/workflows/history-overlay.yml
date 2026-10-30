@@ -1,0 +1,96 @@
+name: Instrument research producer-consumer E2E
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: history-overlay-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  synthetic-overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: candidate
+    env:
+      GRID_REPO: ${{ github.workspace }}/grid-legacy
+      STRATTESTER_REPO: ${{ github.workspace }}/strattester-legacy
+      GRID_REFERENCE: ${{ github.workspace }}/grid-history
+      MATH_REFERENCE: ${{ github.workspace }}/math-history
+      MATH_REPO: ${{ github.workspace }}/math-scientific
+      TERMINAN_REFERENCE: ${{ github.workspace }}/candidate
+      HISTORY_REQUIRE_CROSSREPO: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: 28d4ae46c8ddbc0238b351e8d6b2bd29c6602ef2
+          path: grid-history
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: 3a9c542841e160f8b1924f155aaa2d1a676dfd04
+          path: math-history
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 2669c433333b811b0eaedf88ea13b0e955b0836b
+          path: producer
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: 1f97e56701c0fce01dc8dd05952111fa8df3f2d1
+          path: math-scientific
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid-legacy
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+          path: strattester-legacy
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Full Python and existing UI regressions
+        run: |
+          mkdir -p reports
+          python -m unittest discover -s tests -v > reports/python-all.txt 2>&1
+          npm ci
+          npm run test:ui > reports/ui-regression.txt 2>&1
+          node --test tests/test_history_overlay_script.cjs tests/test_lab*.cjs > reports/node-regression.txt 2>&1
+      - name: Real producer tests
+        working-directory: producer
+        run: python -m unittest tests.research.test_history_scientific_handoff tests.research.test_history_terminan_review tests.research.test_grid_math_history_v11 -v
+      - name: Replay, review, real CLI export and separate Scientific v2.1 execution
+        run: python scripts/build_history_overlay_evidence.py --grid ../grid-history --math ../math-history --strattester ../producer --scientific ../math-scientific --output reports/history-evidence
+      - name: Chromium and Firefox causal UI acceptance
+        run: |
+          npx playwright install --with-deps chromium firefox
+          npm run test:history
+      - name: Record exact consumer head
+        if: always()
+        run: git rev-parse HEAD > reports/consumer-head.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: instrument-overlay-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: candidate/reports/
+          if-no-files-found: error
+          retention-days: 14

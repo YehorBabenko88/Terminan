@@ -11,6 +11,7 @@ from .levels import merge_levels, level_history_quality
 from .monitor import fleet_snapshot
 from .g0_sources import all_sources, snapshot
 from . import math_bridge
+from . import history_overlay
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -48,20 +49,23 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if host not in allowed or origin!='http://'+host:
             return self.send_error(403,'Local origin required')
-        if self.path not in ('/api/math/evaluate','/api/math/graph','/api/math/ports','/api/math/formula','/api/math/scientific','/api/math/units'):
+        if self.path not in ('/api/history-overlay/validate','/api/math/evaluate','/api/math/graph','/api/math/ports','/api/math/formula','/api/math/scientific','/api/math/units'):
             return self.send_error(404)
         if self.headers.get('Content-Type')!='application/json':
             return self.send_error(415)
         rawlen=self.headers.get('Content-Length','')
-        if not rawlen.isascii() or not rawlen.isdecimal() or not 2<=int(rawlen)<=262144:
+        limit=history_overlay.LIMIT if self.path=='/api/history-overlay/validate' else 262144
+        if not rawlen.isascii() or not rawlen.isdecimal() or len(rawlen)>8 or not 2<=int(rawlen)<=limit:
             return self.send_error(413)
         try:
             raw=self.rfile.read(int(rawlen))
-            result=math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
+            result=history_overlay.admit(raw) if self.path=='/api/history-overlay/validate' else math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
         except (ValueError, TypeError) as exc:
             safe = str(exc) if self.path in ('/api/math/scientific','/api/math/units') and str(exc) in ('BRIDGE_DISABLED','BODY_LIMIT','RESPONSE_LIMIT','INVALID_SCIENTIFIC_REQUEST','MATH_ENGINE_UNAVAILABLE','UNTRUSTED_GRAPH_RESULT') else 'MATH_RESEARCH_UNAVAILABLE'
+            if self.path=='/api/history-overlay/validate':
+                safe=str(exc) if str(exc).isascii() and str(exc).replace('_','').isalnum() and len(str(exc))<=64 else 'INVALID_PACKET'
             body=json.dumps({'error':safe,'execution_authority':False,'trading_authorized':False}).encode()
             code=422
         self.send_response(code)
