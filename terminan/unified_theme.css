@@ -1,0 +1,27 @@
+/* Unified shell palette. Loaded only inside the six same-origin workspace frames.
+   Deliberately does not restyle canvas/SVG chart primitives, price heatmaps,
+   cluster bid/ask cells, signal colors, or research plot legends. */
+:root {
+  color-scheme:dark;
+  --terminan-bg:#0b121c;
+  --terminan-panel:#14202e;
+  --terminan-panel-raised:#192a3c;
+  --terminan-border:#30465c;
+  --terminan-text:#e2edf8;
+  --terminan-muted:#a3b6ca;
+  --terminan-accent:#89baf2;
+  --terminan-focus:#a4d8ff;
+  --terminan-positive:#47c5a6;
+  --terminan-negative:#ed8495;
+}
+html,body{background-color:var(--terminan-bg);color:var(--terminan-text)}
+body{font-family:Segoe UI,Arial,sans-serif}
+a{color:var(--terminan-accent)}
+button,select,input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea{
+  border-color:var(--terminan-border);color:var(--terminan-text);
+}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
+  outline:2px solid var(--terminan-focus);outline-offset:2px;
+}
+button:disabled{opacity:.55;cursor:not-allowed}
+::selection{background:#355a79;color:#fff}
