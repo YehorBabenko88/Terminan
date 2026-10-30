@@ -1,0 +1,99 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminan · Math Laboratory</title>
+<style>:root{font-family:Segoe UI,Arial;background:#0c121b;color:#d9e5ef}body{margin:0}header{padding:16px;background:#132536;display:flex;justify-content:space-between}a{color:#76c9ee}main{padding:20px;max-width:1100px;margin:auto}.notice{border:1px solid #405064;padding:12px;border-radius:8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}.box{border:1px solid #37516b;background:#15283a;padding:18px;border-radius:10px;min-height:120px}.source{cursor:grab}.target{border-style:dashed}button{background:#245574;color:white;padding:9px;border:0;border-radius:5px;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:800px){.grid{grid-template-columns:1fr}}</style>
+<header><strong>TERMINAN / MATH LABORATORY</strong><a href="/">Вернуться в терминал</a></header><main>
+<h1>Научный конструктор</h1><p class="notice">RESEARCH ONLY · Торговля отключена · PostgreSQL не подключён · Доверенные исторические данные не подтверждены</p>
+<p>Перетащи блок научной модели на область композиции. Связь создаётся как исследовательская схема, а не как исполняемая стратегия.</p>
+<div class="grid"><section class="box source" draggable="true" data-kind="market">Рыночный ряд · OHLCV<p>Источник: Grid / PostgreSQL (не подключён)</p></section>
+<section class="box source" draggable="true" data-kind="math">Математическая модель<p>Math Engine · отдельный сервис</p></section>
+<section class="box source" draggable="true" data-kind="knowledge">Научная гипотеза / книга<p>Доказательства и единицы измерения обязательны</p></section>
+<section class="box source" draggable="true" data-kind="series-a">Синтетический ряд A · числовой источник</section><section class="box source" draggable="true" data-kind="series-b">Синтетический ряд B · числовой источник</section><section class="box source" draggable="true" data-kind="difference">Разность рядов · Math</section><section class="box source" draggable="true" data-kind="energy">Энергия разности · Math</section><section id="composition" class="box target" tabindex="0"><strong>Область композиции</strong><p id="placeholder">Перетащи сюда научные блоки</p><ol id="nodes"></ol></section></div>
+<p><button id="saveGraph" type="button">Показать JSON схемы</button> <label>Импорт схемы <input id="importGraph" type="file" accept=".json,application/json"></label></p><pre id="graphDocumentStatus" aria-live="polite">NOT_SAVED</pre>
+<p><button id="clear" type="button">Очистить схему</button> <button id="export" type="button">Показать схему JSON</button></p><pre id="result" aria-live="polite"></pre>
+<section class="box"><h2>Math Engine — проверка связи</h2><p>Доступность центрального вычислителя. Исследовательские запросы и торговые действия отключены до доверенного подключения.</p><button id="checkMath" type="button">Проверить Math Engine</button><pre id="mathHealth" aria-live="polite">NOT_CONNECTED</pre></section>
+<section class="box"><h2>Вычисляемый научный граф</h2><p>Синтетические ряды A и B → разность → среднеквадратичная энергия. Перетащи четыре блока A, B, разность и энергия в любом порядке. Связи собираются по типам: A и B → разность → энергия. Недостающие и повторные узлы отклоняются. Вычисление выполняется только Math Engine. Результат не является торговым сигналом.</p><p><label>Разность · вход 1 <select id="diffInput1"><option value="a">Ряд A</option><option value="b">Ряд B</option></select></label> <label>Вход 2 <select id="diffInput2"><option value="b">Ряд B</option><option value="a">Ряд A</option></select></label></p><p><label>Энергия · источник <select id="energyInput"><option value="difference">Разность рядов</option></select></label></p><p id="graphLinks" class="notice" aria-live="polite">A, B → Разность → Энергия</p><button id="computeGraph" type="button">Выполнить граф в Math</button><pre id="graphComputeResult" aria-live="polite">NOT_RUN</pre><canvas id="graphChart" width="660" height="160" style="width:100%;background:#0c1928"></canvas></section>
+<section class="box"><h2>Научная формула и источник знаний</h2><p>Формула от одной безразмерной переменной x. Ссылка на книгу фиксирует гипотезу, но не подтверждает её научную достоверность.</p>
+<label>Формула <input id="formulaText" value="sin(x)+x^2" maxlength="160"></label>
+<label>Название книги / статьи <input id="knowledgeTitle" placeholder="Необязательно" maxlength="160"></label>
+<label>ID источника <input id="knowledgeId" placeholder="Необязательно" maxlength="128"></label>
+<label>Страница <input id="knowledgePage" type="number" value="1" min="1"></label>
+<button type="button" id="runFormula">Вычислить в Math</button><pre id="formulaResult" aria-live="polite">NOT_RUN</pre></section>
+<section class="box"><h2>Эксперимент: входной ряд → Math Engine</h2>
+<p>Введи 500–2000 положительных цен, разделённых пробелами или переносами. Данные считаются НЕДОВЕРЕННЫМИ; результаты не разрешают обучение или торговлю.</p>
+<textarea id="closeValues" rows="4" style="width:100%;background:#0d1b28;color:white" aria-label="Исторические цены"></textarea>
+<p><button type="button" id="evaluateMath">Вычислить в Math Engine</button> <button type="button" id="loadDemo">Создать синтетический пример</button></p>
+<pre id="mathEvaluation" aria-live="polite">NOT_RUN</pre></section>
+<p class="notice">Здесь пока нет исполнения исследований: API Math, учёт происхождения данных, обучение Strattester и стратегический симулятор должны пройти независимую приёмку. Граф не предоставляет полномочий на реальные сделки.</p></main>
+<script>
+'use strict';
+const permitted=new Set(['market','math','knowledge','series-a','series-b','difference','energy']),selected=[];
+const nodes=document.getElementById('nodes'),out=document.getElementById('result'),target=document.getElementById('composition');
+function render(){nodes.replaceChildren();selected.forEach((v,i)=>{const li=document.createElement('li');li.textContent=(i+1)+'. '+v;nodes.append(li)});document.getElementById('placeholder').hidden=selected.length>0}
+document.querySelectorAll('[data-kind]').forEach(el=>el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',el.dataset.kind);e.dataTransfer.effectAllowed='copy'}));
+target.addEventListener('dragover',e=>e.preventDefault());target.addEventListener('drop',e=>{e.preventDefault();const kind=e.dataTransfer.getData('text/plain');if(permitted.has(kind)&&selected.length<24){selected.push(kind);out.textContent='';render()}});
+document.getElementById('checkMath').onclick=async()=>{const target=document.getElementById('mathHealth');target.textContent='CHECKING';try{const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),3000);try{const response=await fetch('/api/math/health',{signal:controller.signal,cache:'no-store'});const v=await response.json();target.textContent=JSON.stringify(v,null,2);if(!response.ok||v.state!=='READY_OFFLINE_UNTRUSTED')target.textContent='MATH_ENGINE_NOT_CONNECTED';}finally{clearTimeout(timeout)}}catch{target.textContent='MATH_ENGINE_UNAVAILABLE'}};
+function renderGraphLinks(){const x=document.getElementById('diffInput1').value,y=document.getElementById('diffInput2').value;document.getElementById('graphLinks').textContent=x.toUpperCase()+' + '+y.toUpperCase()+' → Разность → Энергия';}
+for(const id of ['diffInput1','diffInput2','energyInput'])document.getElementById(id).addEventListener('change',renderGraphLinks);
+renderGraphLinks();
+document.getElementById('computeGraph').onclick=async()=>{
+ const output=document.getElementById('graphComputeResult');output.textContent='CALCULATING';
+ const a=Array.from({length:120},(_,i)=>Math.sin(i/9)),b=Array.from({length:120},(_,i)=>Math.cos(i/11));
+ const necessary=['series-a','series-b','difference','energy'];
+ if(selected.length!==4||necessary.some(v=>selected.filter(x=>x===v).length!==1)){
+   output.textContent='INVALID_GRAPH_COMPONENTS: нужны A, B, разность и энергия ровно по одному';return
+ }
+ // Resolve typed dependencies in canonical topological order, not drag order.
+ const input1=document.getElementById('diffInput1').value,input2=document.getElementById('diffInput2').value;
+ if(input1===input2||!['a','b'].includes(input1)||!['a','b'].includes(input2)||document.getElementById('energyInput').value!=='difference'){output.textContent='INVALID_PORT_CONNECTIONS';return}
+ const payload={schema:'math.port-graph.v1',execution_authority:false,nodes:[
+ {id:'energy',kind:'energy'},{id:'a',kind:'source',values:a},{id:'diff',kind:'difference'},{id:'b',kind:'source',values:b}
+ ],edges:[{from:input1,to:'diff',port:0},{from:input2,to:'diff',port:1},{from:'diff',to:'energy',port:0}]};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/ports',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
+ const result=await response.json();if(!response.ok||result.schema!=='math.graph.result.v1'||result.trading_authorized!==false){output.textContent='GRAPH_UNAVAILABLE';return}
+ output.textContent=JSON.stringify(result,null,2);
+ const c=document.getElementById('graphChart'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+ for(const [data,color] of [[a,'#40b9ff'],[b,'#edbd69']]){ctx.beginPath();ctx.strokeStyle=color;data.forEach((v,i)=>{const x=i*(c.width-1)/(data.length-1),y=c.height/2-v*58;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke()}
+ }catch{output.textContent='MATH_GRAPH_UNAVAILABLE'}finally{clearTimeout(timer)}
+};
+document.getElementById('runFormula').onclick=async()=>{
+ const output=document.getElementById('formulaResult');output.textContent='CALCULATING';
+ const formula=document.getElementById('formulaText').value;
+ const title=document.getElementById('knowledgeTitle').value.trim(),sourceId=document.getElementById('knowledgeId').value.trim();
+ const page=Number(document.getElementById('knowledgePage').value);
+ if(!formula||formula.length>160||(Boolean(title)!==Boolean(sourceId))||(title&&(!Number.isSafeInteger(page)||page<1))){output.textContent='INVALID_FORMULA_OR_SOURCE';return}
+ const payload={schema:'math.formula.v1',execution_authority:false,
+ formula,values:[0,.25,.5,.75,1,1.25,1.5,1.75,2],inputUnit:'dimensionless',outputUnit:'dimensionless'};
+ if(title)payload.knowledge={title,sourceId,page,attested:false};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/formula',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
+ const result=await response.json();output.textContent=response.ok&&result.schema==='math.formula.result.v1'&&result.trading_authorized===false?JSON.stringify(result,null,2):'MATH_FORMULA_REJECTED';
+ }catch{output.textContent='MATH_FORMULA_UNAVAILABLE'}finally{clearTimeout(timer)}
+};
+document.getElementById('loadDemo').onclick=()=>{document.getElementById('closeValues').value=Array.from({length:500},(_,i)=>(70000+20*Math.sin(i/10)+i*.03).toFixed(5)).join(' ');document.getElementById('mathEvaluation').textContent='SYNTHETIC_INPUT_NOT_MARKET_DATA'};
+document.getElementById('evaluateMath').onclick=async()=>{
+ const status=document.getElementById('mathEvaluation');status.textContent='CHECKING';
+ const raw=document.getElementById('closeValues').value.trim().split(/\s+/);
+ const values=raw.map(Number);
+ if(values.length<500||values.length>2000||values.some(x=>!Number.isFinite(x)||x<=0)){status.textContent='INVALID_PRICE_SERIES';return}
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),7000);
+ try{const response=await fetch('/api/math/evaluate',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({schema:'math.evaluate.v1',mode:'HISTORICAL_RESEARCH',execution_authority:false,closes:values}),signal:controller.signal});const result=await response.json();status.textContent=response.ok?JSON.stringify(result,null,2):'MATH_RESEARCH_UNAVAILABLE';}catch{status.textContent='MATH_ENGINE_UNAVAILABLE'}finally{clearTimeout(timeout)}
+};
+function buildGraphDocument(){const a=document.getElementById('diffInput1').value,b=document.getElementById('diffInput2').value;
+ return {schema:'terminan.math.composition.v1',nodes:selected.map((kind,i)=>({id:'n'+i,kind})),
+ edges:[{from:a,to:'difference',port:'left'},{from:b,to:'difference',port:'right'},{from:'difference',to:'energy',port:'input'}],
+ executable:false,source_attested:false,trading_authorized:false};}
+function validateGraphDocument(doc){if(!doc||doc.schema!=='terminan.math.composition.v1'||!Array.isArray(doc.nodes)||doc.nodes.length>24||!Array.isArray(doc.edges)||doc.edges.length!==3)throw Error('INVALID_DOCUMENT');
+ const types=['market','math','knowledge','series-a','series-b','difference','energy'];
+ if(doc.nodes.some(n=>!n||typeof n.id!=='string'||!/^n[0-9]+$/.test(n.id)||!types.includes(n.kind))||doc.nodes.some((n,i)=>n.id!=='n'+i))throw Error('INVALID_NODES');
+ if(doc.executable!==false||doc.source_attested!==false||doc.trading_authorized!==false)throw Error('INVALID_AUTHORITY');
+ if(doc.nodes.length!==4||['series-a','series-b','difference','energy'].some(k=>doc.nodes.filter(n=>n.kind===k).length!==1))throw Error('INVALID_COMPOSITION');
+ const e=doc.edges;if(e[0].to!=='difference'||e[0].port!=='left'||e[1].to!=='difference'||e[1].port!=='right'||e[2].from!=='difference'||e[2].to!=='energy'||e[2].port!=='input'||!['a','b'].includes(e[0].from)||!['a','b'].includes(e[1].from)||e[0].from===e[1].from)throw Error('INVALID_EDGES');
+ return doc;}
+document.getElementById('saveGraph').onclick=()=>{const status=document.getElementById('graphDocumentStatus');try{const doc=validateGraphDocument(buildGraphDocument());status.textContent=JSON.stringify(doc,null,2)}catch{status.textContent='GRAPH_DOCUMENT_INVALID'}};
+document.getElementById('importGraph').onchange=async e=>{const status=document.getElementById('graphDocumentStatus');const file=e.target.files?.[0];if(!file)return;
+ try{if(file.size>16384)throw Error('TOO_LARGE');const doc=validateGraphDocument(JSON.parse(await file.text()));
+ selected.length=0;selected.push(...doc.nodes.map(n=>n.kind));document.getElementById('diffInput1').value=doc.edges[0].from;document.getElementById('diffInput2').value=doc.edges[1].from;
+ render();renderGraphLinks();status.textContent='SCHEMA_IMPORTED_UNATTESTED';}catch{status.textContent='GRAPH_IMPORT_REJECTED'}finally{e.target.value=''}};
+document.getElementById('clear').onclick=()=>{selected.length=0;out.textContent='';render()};
+document.getElementById('export').onclick=()=>{out.textContent=JSON.stringify({schema:'math.graph.preview.v1',nodes:selected.map((kind,i)=>({id:'n'+i,kind})),executable:false,source_attested:false,trading_authorized:false},null,2)};
+</script></html>
