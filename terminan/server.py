@@ -87,6 +87,12 @@ class Handler(BaseHTTPRequestHandler):
             body = files('terminan').joinpath(name).read_bytes()
             self.send_response(200)
             self.send_header('Content-Type', 'text/css; charset=utf-8' if name.endswith('.css') else 'application/json; charset=utf-8' if name.endswith('.json') else 'application/javascript; charset=utf-8')
+        elif url.path == "/history-overlay":
+            body = files("terminan").joinpath("history_overlay.html").read_bytes()
+            self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
+        elif url.path == "/history-assets/overlay.js":
+            body = files("terminan").joinpath("history_overlay.js").read_bytes()
+            self.send_response(200); self.send_header("Content-Type","application/javascript; charset=utf-8")
         elif url.path in ("/", "/monitor", "/math"):
             body = files("terminan").joinpath("math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
