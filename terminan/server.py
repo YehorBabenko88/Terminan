@@ -12,6 +12,7 @@ from .monitor import fleet_snapshot
 from .g0_sources import all_sources, snapshot
 from . import math_bridge
 from . import history_overlay
+from .infrastructure import infrastructure_snapshot
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -59,6 +60,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(413)
         try:
             raw=self.rfile.read(int(rawlen))
+            session=getattr(self.server,'session',None)
+            if session is not None and session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':return self.send_error(410,'SESSION_ENDED')
             result=history_overlay.admit(raw) if self.path=='/api/history-overlay/validate' else math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
@@ -101,6 +104,9 @@ class Handler(BaseHTTPRequestHandler):
         elif url.path == "/history-assets/overlay.js":
             body = files("terminan").joinpath("history_overlay.js").read_bytes()
             self.send_response(200); self.send_header("Content-Type","application/javascript; charset=utf-8")
+        elif url.path == "/infrastructure":
+            body=files("terminan").joinpath("infrastructure.html").read_bytes()
+            self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path in ("/", "/monitor", "/math"):
             body = files("terminan").joinpath("math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
@@ -114,7 +120,8 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/math/catalog': result=math_bridge.scientific_catalog()
+                if url.path == '/api/infrastructure': result=infrastructure_snapshot()
+                elif url.path == '/api/math/catalog': result=math_bridge.scientific_catalog()
                 elif url.path == '/api/math/health': result=math_bridge.check()
                 elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()

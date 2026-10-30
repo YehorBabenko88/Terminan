@@ -46,6 +46,7 @@ class TransportIO:
             self.diagnostics.event(kind,stage);raise PeerDisconnected() from None
         except TimeoutError:
             self.diagnostics.event('HTTP_IO_TIMEOUT',stage);raise PeerDisconnected() from None
+    def read(self,*args):return self.call('read','read',*args)
     def readline(self,*args):return self.call('read','readline',*args)
     def write(self,*args):return self.call('write','write',*args)
     def flush(self):return self.call('flush','flush')
