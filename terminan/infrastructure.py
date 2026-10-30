@@ -71,7 +71,7 @@ def validate_fleet(fleet):
                 if key=='last_heartbeat_ms' and v is None:continue
                 if type(v) is not int or not low<=v<=2**53-1:raise ValueError('NODE_COUNTER_INVALID')
             resources=node['available_resources']
-            if resources is not None and (not isinstance(resources,dict) or set(resources)!={'cpu','memory','disk'} or any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=2**53-1 for v in resources.values())):raise ValueError('RESOURCE_INVALID')
+            if resources is not None and (not isinstance(resources,dict) or set(resources)!={'cpu','memory','disk'} or any(type(v) not in (int,float) or not 0<=v<=2**53-1 or not math.isfinite(v) for v in resources.values())):raise ValueError('RESOURCE_INVALID')
         ident=node.get('id')
         if not isinstance(ident,str) or not 1<=len(ident)<=128 or ident in ids:raise ValueError('NODE_ID_INVALID')
         ids.add(ident)

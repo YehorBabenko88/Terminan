@@ -82,3 +82,24 @@ class ProducerV1Boundary(unittest.TestCase):
   for mutate in (lambda f:f.update(extra={'execution_authorized':True}),lambda f:f['stages'][0].update(identity_verified=True),lambda f:f.update(math={'status':'RUNNING','reason':'x','execution_authorized':True})):
    f=fixture();mutate(f)
    with self.assertRaises(ValueError):validate(f)
+
+class HugeIntegerReaderBoundary(unittest.TestCase):
+ def test_huge_capacity_integer_reader_returns_unavailable(self):
+  f=ProducerV1Boundary().full();f['fleet']['nodes'][0]['available_resources']['cpu']=10**400
+  with tempfile.NamedTemporaryFile(mode='w',delete=False) as stream:json.dump(f,stream);name=stream.name
+  try:
+   with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':name}):
+    self.assertEqual(infrastructure_snapshot()['state'],'UNAVAILABLE')
+  finally:os.unlink(name)
+ def test_huge_capacity_integer_actual_http_is_unavailable(self):
+  import threading
+  from urllib.request import urlopen
+  from terminan.server import Handler,ThreadingHTTPServer
+  f=ProducerV1Boundary().full();f['fleet']['nodes'][0]['available_resources']['cpu']=10**400
+  with tempfile.NamedTemporaryFile(mode='w',delete=False) as stream:json.dump(f,stream);name=stream.name
+  server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+  try:
+   with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':name}):
+    with urlopen('http://127.0.0.1:'+str(server.server_port)+'/api/infrastructure') as response:
+     result=json.load(response);self.assertEqual(result['state'],'UNAVAILABLE');self.assertIs(result['execution_authorized'],False);self.assertEqual(result['nodes'],[])
+  finally:server.shutdown();server.server_close();thread.join();os.unlink(name)
