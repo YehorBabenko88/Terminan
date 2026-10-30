@@ -9,6 +9,8 @@ class MathGraphCompositionTests(unittest.TestCase):
             self.assertIn(token,page)
         self.assertIn("necessary.some(v=>selected.filter(x=>x===v).length!==1)",page)
         self.assertIn("source_attested:false",page)
+        for token in ("diffInput1","diffInput2","energyInput","INVALID_PORT_CONNECTIONS","inputs:[input1,input2]"):
+            self.assertIn(token,page)
 
 if __name__=="__main__":
     unittest.main()
