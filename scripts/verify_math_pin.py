@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 
-lock=json.loads(Path('math-engine.lock.json').read_text())
+lock=json.loads(Path(os.environ.get('MATH_LOCK','math-engine.lock.json')).read_text())
 root=os.environ.get('MATH_REPO','../math-engine')
 def git(*args):return subprocess.check_output(['git','-C',root,*args])
 if git('rev-parse','HEAD').decode().strip()!=lock['sha']:raise SystemExit('MATH_HEAD_MISMATCH')

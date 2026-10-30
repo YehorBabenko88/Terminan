@@ -1,15 +1,18 @@
 {
   "repository": "YehorBabenko88/math",
-  "sha": "321c4cd94d9ee0aba7a5d709042612f5ad4c5a05",
-  "tree": "5c1d213ce8851acee10c00642fba123c0c041948",
+  "sha": "1f97e56701c0fce01dc8dd05952111fa8df3f2d1",
+  "tree": "45f7b0fc99efac7d611bb7717c8ee23703b3bace",
   "files": {
-    "src/math-engine-server.mjs": "e38ea8eb544895b6794ab1a90d4acbcd21ac8983e48b307c7b8ec4bf14014704",
-    "src/scientific-engine.mjs": "ea4d03e0489e3b2d554ad2b6bd28735d77ae5b0f03ac7c3700b19b5642397ede",
+    "src/math-engine-server.mjs": "ef7debaeb91b6a3646e483bfcaaebf51a6cccecdab4e7405ab535aef3fde76fa",
+    "src/scientific-engine.mjs": "56b38316a14536c342ddc30f4eab815d5a9f57e34ba985b20f8e9043e4355242",
     "src/scientific-data.mjs": "72618003c80749a864fa1b642b08378f53464e995cb2ec6efd3e639f8584ea7b",
-    "src/scientific-units.mjs": "f5369caf3f718a9ca3a364a68758dafd6a4d134bc43718ba1a2c2e302454be85",
+    "src/scientific-units.mjs": "b6f363f77f656c31fbb846fc56e9f8d32253e68bf4f57709357b1f43e96bbf17",
     "src/expression.mjs": "0b22a08159413c41fdf35411dc90eeefe8b802d6fda091acc4850dcba136caf9",
     "src/si-dimensions.mjs": "aff9fdb499a730fd4d9f13b30a754aebdff62562dc2d3a76c08f2f9916990e4c",
-    "docs/central-scientific-engine-v2.md": "069cc87ebff50564a4756cb77a687f36c61284f2caf595721cb8d541378b4f26"
+    "docs/central-scientific-engine-v2.md": "fc6dc896c59d3667aaaf038d403ccbd26d8233e415fb7166551951088af2fc13",
+    "src/scientific-operations.mjs": "f893a24790d1a568837e06df6dfff53320d6b8f7fd00b8bbf4476afd480ced55",
+    "docs/scientific-engine-v21.md": "32ad337f2b2266dec757def1e5c1651684a55d6dd4c094ebed336a6273e5859b",
+    "examples/scientific-composition.v21.json": "c848f900882c08a89fd3b25805568a3b246bd224a709dc0959d3aa86a56c8e46"
   },
   "source_authenticity": "UNATTESTED",
   "execution_authority": false

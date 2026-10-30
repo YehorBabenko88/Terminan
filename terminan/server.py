@@ -48,7 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         origin=self.headers.get('Origin')
         if host not in allowed or origin!='http://'+host:
             return self.send_error(403,'Local origin required')
-        if self.path not in ('/api/math/evaluate','/api/math/graph','/api/math/ports','/api/math/formula','/api/math/scientific'):
+        if self.path not in ('/api/math/evaluate','/api/math/graph','/api/math/ports','/api/math/formula','/api/math/scientific','/api/math/units'):
             return self.send_error(404)
         if self.headers.get('Content-Type')!='application/json':
             return self.send_error(415)
@@ -57,11 +57,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_error(413)
         try:
             raw=self.rfile.read(int(rawlen))
-            result=math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
+            result=math_bridge.describe_units(raw) if self.path=='/api/math/units' else math_bridge.execute_scientific(raw) if self.path=='/api/math/scientific' else math_bridge.evaluate_formula(raw) if self.path=='/api/math/formula' else math_bridge.execute_port_graph(raw) if self.path=='/api/math/ports' else math_bridge.execute_graph(raw) if self.path=='/api/math/graph' else math_bridge.evaluate(raw)
             body=json.dumps(result,allow_nan=False).encode()
             code=200
         except (ValueError, TypeError) as exc:
-            safe = str(exc) if self.path=='/api/math/scientific' and str(exc) in ('BRIDGE_DISABLED','BODY_LIMIT','RESPONSE_LIMIT','INVALID_SCIENTIFIC_REQUEST','MATH_ENGINE_UNAVAILABLE','UNTRUSTED_GRAPH_RESULT') else 'MATH_RESEARCH_UNAVAILABLE'
+            safe = str(exc) if self.path in ('/api/math/scientific','/api/math/units') and str(exc) in ('BRIDGE_DISABLED','BODY_LIMIT','RESPONSE_LIMIT','INVALID_SCIENTIFIC_REQUEST','MATH_ENGINE_UNAVAILABLE','UNTRUSTED_GRAPH_RESULT') else 'MATH_RESEARCH_UNAVAILABLE'
             body=json.dumps({'error':safe,'execution_authority':False,'trading_authorized':False}).encode()
             code=422
         self.send_response(code)
@@ -82,11 +82,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(403,'Local origin required')
         if len(self.path)>2048:return self.send_error(414)
         url = urlsplit(self.path)
-        if url.path in ('/math-assets/lab.css','/math-assets/lab_graph.js','/math-assets/lab_ui.js','/math-assets/lab_catalog.js','/math-assets/lab_results.js'):
+        if url.path in ('/math-assets/lab.css','/math-assets/lab_graph.js','/math-assets/lab_ui.js','/math-assets/lab_catalog.js','/math-assets/lab_results.js','/math-assets/lab_protocol.js','/math-assets/math-example.json'):
             name = url.path.rsplit('/', 1)[1]
             body = files('terminan').joinpath(name).read_bytes()
             self.send_response(200)
-            self.send_header('Content-Type', 'text/css; charset=utf-8' if name.endswith('.css') else 'application/javascript; charset=utf-8')
+            self.send_header('Content-Type', 'text/css; charset=utf-8' if name.endswith('.css') else 'application/json; charset=utf-8' if name.endswith('.json') else 'application/javascript; charset=utf-8')
         elif url.path in ("/", "/monitor", "/math"):
             body = files("terminan").joinpath("math_lab.html" if url.path == "/math" else "monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")

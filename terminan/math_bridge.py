@@ -55,6 +55,30 @@ def scientific_catalog():
             raise ValueError('UNTRUSTED_CATALOG')
     return result
 
+def describe_units(raw):
+    if not enabled(): raise ValueError('BRIDGE_DISABLED')
+    if not isinstance(raw,bytes) or not 2<=len(raw)<=LIMIT: raise ValueError('BODY_LIMIT')
+    d=json.loads(raw)
+    if (not isinstance(d,dict) or set(d)!={'schema','execution_authority','units'} or d['schema']!='math.units.describe.v1'
+            or d['execution_authority'] is not False or not isinstance(d['units'],list) or not 1<=len(d['units'])<=16
+            or any(not isinstance(u,str) or not 1<=len(u)<=96 for u in d['units']) or len(set(d['units']))!=len(d['units'])):
+        raise ValueError('INVALID_SCIENTIFIC_REQUEST')
+    req=Request(engine_url()+'/v2/units/describe',data=raw,headers={'Content-Type':'application/json'},method='POST')
+    try:
+        with scientific_urlopen(req,timeout=5) as response: r=_read_object(response)
+    except HTTPError as exc:
+        exc.close();raise ValueError('INVALID_SCIENTIFIC_REQUEST' if exc.code==422 else 'MATH_ENGINE_UNAVAILABLE') from None
+    except (URLError,OSError):raise ValueError('MATH_ENGINE_UNAVAILABLE') from None
+    if (r.get('schema')!='math.units.result.v1' or r.get('execution_authority') is not False or r.get('trading_authorized') is not False
+            or any(k in r and r[k] is not False for k in ('training_authorized','mathematicallyVerified'))
+            or not isinstance(r.get('units'),list) or len(r['units'])!=len(d['units'])):raise ValueError('UNTRUSTED_GRAPH_RESULT')
+    for name,entry in zip(d['units'],r['units']):
+        if (not isinstance(entry,dict) or entry.get('unit')!=name or type(entry.get('factor')) not in (int,float)
+                or not math.isfinite(entry['factor']) or entry['factor']<=0 or not isinstance(entry.get('dimensions'),list)
+                or len(entry['dimensions'])!=10 or any(type(v) is not int or abs(v)>16 for v in entry['dimensions'])):
+            raise ValueError('UNTRUSTED_GRAPH_RESULT')
+    return r
+
 def execute_scientific(raw):
     if not enabled(): raise ValueError('BRIDGE_DISABLED')
     if not isinstance(raw, bytes) or not 2 <= len(raw) <= LIMIT: raise ValueError('BODY_LIMIT')
@@ -65,7 +89,7 @@ def execute_scientific(raw):
             or payload.get('execution_authority') is not False or type(payload.get('asOf')) is not int
             or not 0 <= payload['asOf'] <= 9007199254740991):
         raise ValueError('INVALID_SCIENTIFIC_REQUEST')
-    for key, limit in [('nodes',12),('edges',24),('outputs',12)]:
+    for key, limit in [('nodes',12),('edges',24),('outputs',64)]:
         if not isinstance(payload[key],list) or len(payload[key])>limit: raise ValueError('INVALID_SCIENTIFIC_REQUEST')
     if not payload['nodes'] or not payload['outputs']: raise ValueError('INVALID_SCIENTIFIC_REQUEST')
     req = Request(engine_url()+'/v2/graph/execute', data=raw, headers={'Content-Type':'application/json'}, method='POST')
@@ -84,10 +108,10 @@ def execute_scientific(raw):
             or not isinstance(result.get('requestSHA256'),str) or not re.fullmatch('[a-f0-9]{64}',result['requestSHA256'])
             or not isinstance(result.get('trace'),list) or len(result['trace'])>12
             or not isinstance(result.get('order'),list) or len(result['order'])>12
-            or not isinstance(result.get('outputs'),list) or not 1<=len(result['outputs'])<=12):
+            or not isinstance(result.get('outputs'),list) or not 1<=len(result['outputs'])<=64):
         raise ValueError('UNTRUSTED_GRAPH_RESULT')
     for out in result['outputs']:
-        if (not isinstance(out,dict) or not isinstance(out.get('node'),str) or out.get('port')!='value'
+        if (not isinstance(out,dict) or not isinstance(out.get('node'),str) or out.get('port') not in ('value','reference','absolute','rmse','mae','bias')
                 or out.get('type') not in ('series','scalar') or not isinstance(out.get('unit'),str)
                 or not isinstance(out.get('values'),list) or not 1<=len(out['values'])<=2000
                 or any(type(v) not in (int,float) or not math.isfinite(v) for v in out['values'])
@@ -103,7 +127,7 @@ def execute_scientific(raw):
     if (len(node_ids)!=len(payload['nodes']) or len(set(node_ids))!=len(node_ids)
             or set(result['order'])!=set(node_ids) or len(result['order'])!=len(node_ids)
             or [t.get('node') if isinstance(t,dict) else None for t in result['trace']]!=result['order']
-            or actual_outputs!=expected_outputs):
+            or len(set(actual_outputs))!=len(actual_outputs) or actual_outputs!=expected_outputs):
         raise ValueError('UNTRUSTED_GRAPH_RESULT')
     return result
 
