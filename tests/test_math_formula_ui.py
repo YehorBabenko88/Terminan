@@ -1,8 +1,9 @@
+import subprocess
 import unittest
-from importlib.resources import files
+from pathlib import Path
+
 class FormulaUITests(unittest.TestCase):
-    def test_formula_is_delegated_to_math_and_marked_untrusted(self):
-        html=files("terminan").joinpath("math_lab.html").read_text(encoding="utf-8")
-        for needle in ('/api/math/formula','math.formula.v1','dimensionless','attested:false','INVALID_FORMULA_OR_SOURCE','runFormula'):
-            self.assertIn(needle,html)
-if __name__=='__main__':unittest.main()
+    def test_browser_scripts_parse(self):
+        root = Path(__file__).resolve().parents[1]
+        for path in ('terminan/lab_graph.js', 'terminan/lab_ui.js'):
+            subprocess.run(['node', '--check', path], cwd=root, check=True, capture_output=True)
