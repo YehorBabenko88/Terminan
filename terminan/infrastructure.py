@@ -15,6 +15,10 @@ def validate(value):
         raise ValueError('CONTRACT_INVALID')
     UUID(value['epoch'])
     if type(value.get('sequence')) is not int or value['sequence']<0:raise ValueError('SEQUENCE_INVALID')
+    version=value.get('api_version',{'major':1,'minor':0})
+    if not isinstance(version,dict) or version.get('major')!=1:raise ValueError('VERSION_INVALID')
+    modules=value.get('available_modules',[])
+    if not isinstance(modules,list) or len(modules)>5 or any(not isinstance(m,str) or m not in ('unified-system','terminan','strattester','grid','math') for m in modules) or len(set(modules))!=len(modules):raise ValueError('MODULES_INVALID')
     stages=value.get('stages',[])
     if len(stages)>7:raise ValueError('STAGES_INVALID')
     for stage in stages:
@@ -26,6 +30,10 @@ def validate(value):
     nodes=[{**node,'node_id':node.get('node_id',node.get('id'))} for node in nodes]
     ids=[node.get('node_id') for node in nodes]
     if any(not isinstance(n,str) or not 1<=len(n)<=128 for n in ids) or len(set(ids))!=len(ids):raise ValueError('NODE_ID_INVALID')
+    for node in nodes:
+        for metric in ('cpu','memory','disk'):
+            v=node.get(metric)
+            if v is not None and (type(v) not in (int,float) or not 0<=v<1e18):raise ValueError('METRIC_INVALID')
     # Links require independently qualified endpoint identity; absent qualification renders no edges.
     links=[link for link in fleet.get('links',[]) if link.get('verified') is True and link.get('source') in ids and link.get('target') in ids]
     return {**unavailable(),**value,'schema':'terminan.infrastructure.v1','state':'AVAILABLE_UNVERIFIED','nodes':nodes,'links':links,'source_provenance':'UNVERIFIED','physical_acceptance':'NOT_RUN'}

@@ -20,3 +20,16 @@ class Infrastructure(unittest.TestCase):
    with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':name}):self.assertEqual(len(infrastructure_snapshot()['nodes']),6)
   finally:os.unlink(name)
 if __name__=='__main__':unittest.main()
+
+class HttpInfrastructure(unittest.TestCase):
+ def test_read_only_http_route(self):
+  import threading
+  from urllib.request import urlopen
+  from terminan.server import Handler,ThreadingHTTPServer
+  server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+  thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+  try:
+   with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':'missing-fixture'}):
+    with urlopen('http://127.0.0.1:'+str(server.server_port)+'/api/infrastructure') as response:self.assertEqual(json.load(response)['state'],'UNAVAILABLE')
+    with urlopen('http://127.0.0.1:'+str(server.server_port)+'/infrastructure') as response:self.assertIn(b'Read-only infrastructure',response.read())
+  finally:server.shutdown();server.server_close();thread.join()
