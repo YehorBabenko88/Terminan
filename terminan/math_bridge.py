@@ -59,3 +59,20 @@ def execute_graph(raw):
     if result.get("schema")!="math.graph.result.v1" or result.get("source")!="CALLER_SUPPLIED_UNATTESTED" or result.get("trading_authorized") is not False or result.get("execution_authority") is not False:
         raise ValueError("UNTRUSTED_GRAPH_RESULT")
     return result
+
+def execute_port_graph(raw):
+    if not enabled():raise ValueError("BRIDGE_DISABLED")
+    if not isinstance(raw,bytes) or not 2<=len(raw)<=LIMIT:raise ValueError("BODY_LIMIT")
+    payload=json.loads(raw)
+    if not isinstance(payload,dict) or set(payload)!={"schema","execution_authority","nodes","edges"} or payload.get("schema")!="math.port-graph.v1" or payload.get("execution_authority") is not False:
+        raise ValueError("INVALID_PORT_GRAPH")
+    if not isinstance(payload["nodes"],list) or not 2<=len(payload["nodes"])<=12 or not isinstance(payload["edges"],list) or len(payload["edges"])>24:
+        raise ValueError("INVALID_PORT_GRAPH")
+    req=Request(URL+"/v1/graph/ports",data=raw,headers={"Content-Type":"application/json"},method="POST")
+    try:
+        with urlopen(req,timeout=5) as response:result=json.load(response)
+    except (HTTPError, URLError, OSError, ValueError) as exc:
+        raise ValueError("MATH_PORT_GRAPH_UNAVAILABLE") from exc
+    if result.get("schema")!="math.graph.result.v1" or result.get("source")!="CALLER_SUPPLIED_UNATTESTED" or result.get("trading_authorized") is not False or result.get("execution_authority") is not False:
+        raise ValueError("UNTRUSTED_GRAPH_RESULT")
+    return result
