@@ -23,6 +23,7 @@ test('six workspaces preserve chart state and fail closed without engines',async
  await page.locator('#workspaces a[href="/"]').click();expect((await metric()).spanMs).toBe(zoom);
  await page.setViewportSize({width:1100,height:900});await expect.poll(()=>terminal.locator('#chart').evaluate(c=>Math.abs(c.width-c.clientWidth*devicePixelRatio))).toBeLessThanOrEqual(2);
  await page.locator('#workspaces a[href="/saved"]').click();expect(await saved.locator('body').evaluate(()=>window.saved.metrics().span)).toBe(savedSpan);await expect(saved.locator('#saved-body tr')).toHaveCount(4);
+ await saved.locator('#from-utc').fill('2026-01-01T00:46');await saved.locator('#from-utc').press('Tab');await expect(saved.locator('#saved-body tr')).toHaveCount(2);await saved.locator('#zoom-in').click();expect(await saved.locator('body').evaluate(()=>window.saved.metrics().span)).toBeLessThanOrEqual(2);expect(await saved.locator('body').evaluate(()=>window.saved.metrics().span)).toBeGreaterThanOrEqual(1);
  expect(await page.evaluate(()=>unified.count())).toBe(6);expect(errors).toEqual([]);
  await page.screenshot({path:info.outputPath('unified.png'),fullPage:true});
 });

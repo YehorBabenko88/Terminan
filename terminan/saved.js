@@ -316,7 +316,7 @@
  }
  for(const id of ['saved-symbol','limit','from-utc','to-utc'])on(id,'change',()=>load());on('saved-source','change',()=>{options();load();});on('dataset','change',()=>{syncTimeframe();load();});on('saved-timeframe','change',()=>{if(['footprint_1m','candles_1m'].includes(dataset()?.name)){span=aggregated().length;pan=0;clearCache();render();if(current)void lookupCache(current,generation);}else load();});on('reload','click',()=>load());on('next','click',()=>load(true));
  on('cache-refresh','click',refreshCache);
- on('zoom-in','click',()=>{span=Math.max(4,Math.min(chartCount(),span*.7));scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(chartCount(),Math.max(4,span*1.4));scheduleDraw();});on('reset','click',()=>{span=chartCount();pan=0;scheduleDraw();});
+ on('zoom-in','click',()=>{span=Math.max(1,Math.min(chartCount(),span*.7));scheduleDraw();});on('zoom-out','click',()=>{span=Math.min(chartCount(),Math.max(1,span*1.4));scheduleDraw();});on('reset','click',()=>{span=chartCount();pan=0;scheduleDraw();});
  on('saved-chart','click',e=>{
   if(closed||drag!==null||dragMoved||!chartTimes.length){dragMoved=false;return;}
   const bounds=$('saved-chart').getBoundingClientRect();
@@ -326,7 +326,7 @@
   const t=chartTimes[i];
   if(Number.isSafeInteger(t))selectTime(t);
  });
- on('saved-chart','wheel',e=>{e.preventDefault();span=Math.max(4,Math.min(chartCount(),span*(e.deltaY>0?1.2:.8)));scheduleDraw();});on('saved-chart','pointerdown',e=>{drag=e.clientX;dragMoved=false;$('saved-chart').setPointerCapture(e.pointerId);});on('saved-chart','pointermove',e=>{if(drag==null)return;if(Math.abs(e.clientX-drag)>3)dragMoved=true;pan=Math.max(0,Math.min(Math.max(0,chartCount()-span),pan+(e.clientX-drag)/$('saved-chart').clientWidth*span));drag=e.clientX;scheduleDraw();});on('saved-chart','pointerup',()=>{drag=null;});on('saved-chart','dblclick',()=>{span=chartCount();pan=0;scheduleDraw();});
+ on('saved-chart','wheel',e=>{e.preventDefault();span=Math.max(1,Math.min(chartCount(),span*(e.deltaY>0?1.2:.8)));scheduleDraw();});on('saved-chart','pointerdown',e=>{drag=e.clientX;dragMoved=false;$('saved-chart').setPointerCapture(e.pointerId);});on('saved-chart','pointermove',e=>{if(drag==null)return;if(Math.abs(e.clientX-drag)>3)dragMoved=true;pan=Math.max(0,Math.min(Math.max(0,chartCount()-span),pan+(e.clientX-drag)/$('saved-chart').clientWidth*span));drag=e.clientX;scheduleDraw();});on('saved-chart','pointerup',()=>{drag=null;});on('saved-chart','dblclick',()=>{span=chartCount();pan=0;scheduleDraw();});
  on('cluster-prev','click',()=>{const times=[...new Set(rows.slice(0,replay).map(time).filter(Number.isSafeInteger))].sort((a,b)=>a-b);const i=times.indexOf(selectedTime);if(times.length)selectTime(times[Math.max(0,i<0?times.length-1:i-1)]);});
  on('cluster-next','click',()=>{const times=[...new Set(rows.map(time).filter(Number.isSafeInteger))].sort((a,b)=>a-b);const i=times.indexOf(selectedTime);if(times.length)selectTime(times[Math.min(times.length-1,i<0?0:i+1)]);});
  on('saved-play','click',()=>{if(timer){stopReplay();return;}if(replay>=rows.length)replay=0;text('saved-play','Pause');tick();});on('saved-step','click',()=>{stopReplay();replay=Math.min(rows.length,replay+1);selectedTime=replay?time(rows[replay-1])??null:null;render();});on('saved-seek','input',()=>{stopReplay();replay=Number($('saved-seek').value);selectedTime=replay?time(rows[replay-1])??null:null;render();});on('close','click',()=>dispose());window.addEventListener('pagehide',()=>dispose(),{signal:controls.signal});
