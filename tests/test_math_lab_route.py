@@ -15,7 +15,7 @@ class MathLabRouteTests(unittest.TestCase):
                 page = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
                 self.assertIn("Math Laboratory", page)
-                self.assertIn("math.graph.preview.v1", page)
+                self.assertIn('id="workspace"', page)
             with urlopen(root + "/api/math/health", timeout=3) as response:
                 data = json.load(response)
                 self.assertEqual(response.status, 200)
@@ -29,3 +29,4 @@ class MathLabRouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
