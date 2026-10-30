@@ -38,13 +38,11 @@ document.getElementById('computeGraph').onclick=async()=>{
  // Resolve typed dependencies in canonical topological order, not drag order.
  const input1=document.getElementById('diffInput1').value,input2=document.getElementById('diffInput2').value;
  if(input1===input2||!['a','b'].includes(input1)||!['a','b'].includes(input2)||document.getElementById('energyInput').value!=='difference'){output.textContent='INVALID_PORT_CONNECTIONS';return}
- const payload={schema:'math.graph.execute.v1',mode:'HISTORICAL_RESEARCH',execution_authority:false,nodes:[
- {id:'a',kind:'source',values:a},{id:'b',kind:'source',values:b},
- {id:'difference',kind:'transform',adapter:'series-difference',inputs:[input1,input2],parameters:{}},
- {id:'energy',kind:'transform',adapter:'comparison-energy',inputs:['difference'],parameters:{}}
- ]};
+ const payload={schema:'math.port-graph.v1',execution_authority:false,nodes:[
+ {id:'energy',kind:'energy'},{id:'a',kind:'source',values:a},{id:'diff',kind:'difference'},{id:'b',kind:'source',values:b}
+ ],edges:[{from:input1,to:'diff',port:0},{from:input2,to:'diff',port:1},{from:'diff',to:'energy',port:0}]};
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);
- try{const response=await fetch('/api/math/graph',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
+ try{const response=await fetch('/api/math/ports',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload),signal:controller.signal});
  const result=await response.json();if(!response.ok||result.schema!=='math.graph.result.v1'||result.trading_authorized!==false){output.textContent='GRAPH_UNAVAILABLE';return}
  output.textContent=JSON.stringify(result,null,2);
  const c=document.getElementById('graphChart'),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
