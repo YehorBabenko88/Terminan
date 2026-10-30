@@ -44,6 +44,12 @@ class UnifiedRuntimeTests(unittest.TestCase):
   s.sendall(('POST /api/history-overlay/validate HTTP/1.0\r\nHost: 127.0.0.1:'+str(self.server.server_port)+'\r\nOrigin: '+self.url+'\r\nContent-Type: application/json\r\nContent-Length: 200\r\n\r\n{').encode())
   time.sleep(.5)
   self.assertEqual(s.recv(1),b'');s.close()
+ def test_occupied_listener_is_never_shared(self):
+  other=None
+  try:
+   with self.assertRaises(OSError):other=UnifiedServer(('127.0.0.1',self.server.server_port),UnifiedHandler)
+  finally:
+   if other:other.server_close()
  def test_gates_and_no_execution(self):
   self.assertEqual(self.get('/saved',{'Host':'evil.invalid'})[0],403)
   self.assertEqual(self.get('/math',{'Origin':'https://evil.invalid'})[0],403)

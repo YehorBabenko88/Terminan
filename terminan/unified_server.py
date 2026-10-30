@@ -1,5 +1,5 @@
 """One loopback dispatcher; existing Saved/R4 transport/session gates stay authoritative."""
-import socket,threading,time
+import os,socket,threading,time
 from pathlib import Path
 from urllib.parse import urlsplit
 from .saved_server import SavedServer, SavedHandler
@@ -14,6 +14,11 @@ class UnifiedServer(SavedServer):
     daemon_threads=True
     block_on_close=False
     request_budget_seconds=5
+    allow_reuse_address=os.name!='nt'
+    allow_reuse_port=False
+    def server_bind(self):
+        if os.name=='nt':self.socket.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1)
+        super().server_bind()
     def __init__(self,*args,**kwargs):
         self.runtime_lock=threading.Lock();self.runtime_workers={}
         super().__init__(*args,**kwargs)
