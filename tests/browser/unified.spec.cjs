@@ -37,6 +37,11 @@ test('six workspaces preserve chart state and fail closed without engines',async
  await expect(page).toHaveURL(url+'/math');
  await expect(page.locator('iframe[data-workspace="math"]')).toBeVisible();
  expect(await page.evaluate(()=>unified.count())).toBe(countBefore);
+ for(const route of ['/','/saved','/math','/history-overlay','/monitor','/cache']){
+  const frame=page.frameLocator('iframe[data-workspace="'+(route==='/'?'terminal':route.slice(1))+'"]');
+  await expect(frame.locator('link[data-terminan-theme]')).toHaveCount(1);
+  await expect(frame.locator('body')).toHaveCSS('background-color','rgb(11, 18, 28)');
+ }
  expect(await page.evaluate(()=>unified.count())).toBe(6);expect(errors).toEqual([]);
  await page.screenshot({path:info.outputPath('unified.png'),fullPage:true});
 });
