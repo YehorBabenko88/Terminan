@@ -48,13 +48,17 @@ def main():
         with tempfile.TemporaryDirectory(prefix='terminan-unified-browser-') as tmp:
             raw=Path(tmp)/'report.json';env={**os.environ,'UNIFIED_URL':url,'UNIFIED_REPORT':str(raw),'UNIFIED_RESULTS':str(Path(tmp)/'screenshots'),'UNIFIED_INVOCATION':invocation,'R2_PYTHON':sys.executable}
             browser=subprocess.run(['node','node_modules/@playwright/test/cli.js','test','-c','playwright.unified.config.cjs'],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=300)
-            if browser.returncode!=0 or not raw.is_file() or raw.stat().st_size>8*1024*1024:raise ValueError()
-            report=json.loads(raw.read_text(encoding='utf8'));validate_browser(report,args.sha,source['tree'],invocation)
+            if not raw.is_file() or raw.stat().st_size>8*1024*1024:raise ValueError()
+            report=json.loads(raw.read_text(encoding='utf8'))
             # Public report retains assertions/status/identities; local paths are redacted.
             text=json.dumps(report,ensure_ascii=False)
             for private in (str(Path.cwd()),str(Path.home()),tmp):
                 text=text.replace(private.replace('\\','\\\\'),'<LOCAL>').replace(private,'<LOCAL>').replace(private.replace('\\','/'),'<LOCAL>')
             atomic_json(root/'browser.json',json.loads(text))
+            if browser.returncode!=0:raise ValueError()
+            validate_browser(report,args.sha,source['tree'],invocation)
+            for i,image in enumerate(sorted((Path(tmp)/'screenshots').rglob('unified.png'))):
+                (root/('browser-'+str(i+1)+'.png')).write_bytes(image.read_bytes())
         stage='child_health';error='CHILD_FAILURE';code=33
         started=time.monotonic();polls=0
         while time.monotonic()-started<args.seconds:
