@@ -76,3 +76,20 @@ def execute_port_graph(raw):
     if result.get("schema")!="math.graph.result.v1" or result.get("source")!="CALLER_SUPPLIED_UNATTESTED" or result.get("trading_authorized") is not False or result.get("execution_authority") is not False:
         raise ValueError("UNTRUSTED_GRAPH_RESULT")
     return result
+
+def evaluate_formula(raw):
+    if not enabled():raise ValueError("BRIDGE_DISABLED")
+    if not isinstance(raw,bytes) or not 2<=len(raw)<=LIMIT:raise ValueError("BODY_LIMIT")
+    payload=json.loads(raw)
+    if not isinstance(payload,dict) or set(payload)-{"schema","execution_authority","values","formula","inputUnit","outputUnit","knowledge"} or payload.get("schema")!="math.formula.v1" or payload.get("execution_authority") is not False:
+        raise ValueError("INVALID_FORMULA")
+    if not isinstance(payload.get("values"),list) or not 2<=len(payload["values"])<=2000 or not isinstance(payload.get("formula"),str) or len(payload["formula"])>160:
+        raise ValueError("INVALID_FORMULA")
+    req=Request(URL+"/v1/formula",data=raw,headers={"Content-Type":"application/json"},method="POST")
+    try:
+        with urlopen(req,timeout=5) as response:result=json.load(response)
+    except (HTTPError, URLError, OSError, ValueError) as exc:
+        raise ValueError("MATH_FORMULA_UNAVAILABLE") from exc
+    if result.get("schema")!="math.formula.result.v1" or result.get("source")!="CALLER_SUPPLIED_UNATTESTED" or result.get("trading_authorized") is not False or result.get("execution_authority") is not False:
+        raise ValueError("UNTRUSTED_FORMULA_RESULT")
+    return result
