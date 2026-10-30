@@ -6,13 +6,13 @@
  function validate(p){
   if(!p||p.schema!=='terminan.history.scientific-handoff.v1'||p.evidence_class!=='SYNTHETIC'||p.source_authenticity!=='UNATTESTED'||p.scientific_api!=='NOT_EXECUTED')throw Error('UNSUPPORTED_OR_UNTRUSTED_PACKET');
   if(p.execution_authority!==false||p.trading_authorized!==false||p.training_authorized!==false)throw Error('AUTHORITY_DENIED');
-  if(typeof p.handoff_sha256!=='string'||!(/^[a-f0-9]{64}$/i).test(p.handoff_sha256))throw Error('RECEIPT_REQUIRED');
+  if(!p.market||typeof p.market!=='object'||typeof p.market.symbol!=='string'||!p.market.symbol||typeof p.strategy!=='string')throw Error('MARKET_IDENTITY_REQUIRED');\n  if(typeof p.handoff_sha256!=='string'||!(/^[a-f0-9]{64}$/i).test(p.handoff_sha256))throw Error('RECEIPT_REQUIRED');
   if(!Array.isArray(p.observed_prices)||!p.observed_prices.length||p.observed_prices.length>2000||!Array.isArray(p.forecast_points)||p.forecast_points.length>2000)throw Error('ROW_LIMIT');
   let previous=-1;
   for(const r of p.observed_prices){const {event_end_ms:e,available_at_ms:a,watermark_ms:w,value:v}=r;
    if(![e,a,w].every(n=>Number.isSafeInteger(n)&&n>=0)||!(previous<e&&e<=w&&w<=a)||!Number.isFinite(v)||v<=0)throw Error('INVALID_SOURCE_CLOCK_OR_PRICE');previous=e;}
   for(const r of p.forecast_points){const {feature_event_end_ms:e,feature_available_at_ms:a,decision_ms:d,target_event_end_ms:t,value:v}=r;
-   if(![e,a,d,t].every(n=>Number.isSafeInteger(n)&&n>=0)||!(e<=a&&a<=d&&d<t)||!Number.isFinite(v)||v<=0)throw Error('INVALID_FORECAST_CLOCK');}
+   if(![e,a,d,t].every(n=>Number.isSafeInteger(n)&&n>=0)||!(e<=a&&a<=d&&d<t)||!Number.isFinite(v)||v<=0||typeof r.request_digest!=='string'||!(/^[a-f0-9]{64}$/).test(r.request_digest))throw Error('INVALID_FORECAST_CLOCK');}
   return p;
  }
  const el=(tag,attrs)=>{const n=document.createElementNS(svgNS,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,String(v)));return n;};
@@ -41,7 +41,7 @@
  }
  $('upload').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024)throw Error('FILE_LIMIT');const p=validate(JSON.parse(await f.text()));packet=p;
   const rows=p.observed_prices;$('from').value=rows[0].event_end_ms;$('to').value=Math.max(rows.at(-1).event_end_ms,...p.forecast_points.map(f=>f.target_event_end_ms));
-  $('asof').value=rows.at(-1).available_at_ms;$('identity').textContent='Dataset '+p.dataset_id+' · snapshot '+p.snapshot_fingerprint+' · source '+JSON.stringify(p.source?.identity||{})+' · receipt '+p.handoff_sha256+' (not independently verified)';
+  $('asof').value=rows.at(-1).available_at_ms;$('identity').textContent='Dataset '+p.dataset_id+' · snapshot '+p.snapshot_fingerprint+' · market '+JSON.stringify(p.market)+' · receipt '+p.handoff_sha256+' (not independently verified)';
   draw();
  }catch(err){packet=null;$('chart').replaceChildren();issue('IMPORT_REJECTED: '+err.message)}finally{e.target.value=''}};
  for(const id of ['from','to','asof','mode','prices','forecast'])$(id).addEventListener('change',draw);
