@@ -48,7 +48,9 @@ compatibility also compares actual observation rows. These checks establish
 internal consistency, not that an engine or market source is independently
 authenticated. Retain UNATTESTED even when every checksum matches.
 
-Outputs retain exact `timestamps`, `availableAt`, `unit`, and `values`. Math's
+Outputs retain exact `timestamps`, `availableAt`, `unit`, and `values`. Historical
+scientific outputs require both availability and event timestamp <= display
+asOf, including lagged series whose availableAt precedes their timestamp. Math's
 historical source convention (`availableAt <= timestamp <= request.asOf`) is
 different from delayed market publication. No event-to-availability relabeling
 is performed. A delayed market snapshot incompatible with this convention is
@@ -87,9 +89,9 @@ npm run test:history
 The output directory must not already exist. This executes the actual pinned
 Grid export fixture, historical Math stdio process, Strattester replay/review
 and exporter CLI for two fee policies, followed by a separate pinned Scientific
-engine invocation producing mean and formula layers. No mock forecast endpoint
+engine invocation producing mean, formula and lag layers. No mock forecast endpoint
 or browser-generated forecast is used. Each history packet has 60 predictions;
-the Scientific packet has two series. The initial test split has zero trades,
+the Scientific packet has three series. The initial test split has zero trades,
 so its zero OOS PnL is a producer result, not evidence of predictive performance.
 
 The manifest records upstream commits/trees, runtime SHA256 and file/packet

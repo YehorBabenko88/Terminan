@@ -54,9 +54,10 @@ def main():
             'availableAt':[r['available_at_ms'] for r in rows],
             'provenance':{'sourceId':p['dataset_id'],'version':p['snapshot_fingerprint'],'sha256':p['snapshot_fingerprint']}},
             {'id':'mean','kind':'rolling-mean','window':3},
+            {'id':'lag','kind':'lag','steps':1},
             {'id':'affine','kind':'formula','expression':'x*1.01','outputUnit':p['units']['price']}],
-        'edges':[{'from':{'node':'source','port':'value'},'to':{'node':n,'port':'x'}} for n in ('mean','affine')],
-        'outputs':[{'node':n,'port':'value'} for n in ('mean','affine')]}
+        'edges':[{'from':{'node':'source','port':'value'},'to':{'node':n,'port':'x'}} for n in ('mean','affine','lag')],
+        'outputs':[{'node':n,'port':'value'} for n in ('mean','affine','lag')]}
     req=out/'scientific-request.json';req.write_bytes(canonical(request))
     # Execute the actual pinned engine, no browser or Python reimplementation of mathematics.
     engine=(roots['scientific']/'src/scientific-engine.mjs').as_uri()

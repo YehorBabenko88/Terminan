@@ -75,13 +75,14 @@
   let v;try{v=view()}catch(e){$('counts').textContent='INVALID_VIEW · данные скрыты';$('oos').textContent='INVALID_VIEW';$('timeline').replaceChildren();issue(e.message);return}
   const {start,end,asof}=v,within=r=>r.time>=start&&r.time<=end;
   const observations=$('prices').checked?base.observations.filter(r=>within(r)&&r.available<=asof):[];
-  const rendered=layers.filter(l=>l.visible).map(l=>({...l,eligible:l.points.filter(r=>within(r)&&r.available<=asof&&(l.kind!=='forecast'||r.decision<=asof&&($('mode').value!=='forward'||r.time>asof)))}));
+  const rendered=layers.filter(l=>l.visible).map(l=>({...l,eligible:l.points.filter(r=>within(r)&&r.available<=asof&&(l.kind!=='scientific'||r.time<=asof)&&(l.kind!=='forecast'||r.decision<=asof&&($('mode').value!=='forward'||r.time>asof)))}));
   const values=[...observations.map(r=>r.value),...rendered.flatMap(l=>l.eligible.map(r=>r.value))],lo=values.length?Math.min(...values):0,hi=values.length?Math.max(...values):1;
   const scale=Math.max(1,Math.abs(lo),Math.abs(hi)),low=lo/scale,high=hi/scale,pad=Math.max(1e-9,(high-low)*.08);
-  const x=t=>72+900*(t-start)/(end-start),y=value=>350-300*(value/scale-low+pad)/(high-low+2*pad);
+  const bottom=Math.max(-Number.MAX_VALUE/scale,low-pad),top=Math.min(Number.MAX_VALUE/scale,high+pad);
+  const x=t=>72+900*(t-start)/(end-start),y=value=>350-300*(value/scale-bottom)/(top-bottom);
   projection={...v,x,y};svg.append(node('rect',{x:0,y:0,width:1000,height:420,fill:'#0e1a28'}));
   const defs=node('defs'),clip=node('clipPath',{id:'plotClip'});clip.append(node('rect',{x:70,y:25,width:905,height:335}));defs.append(clip);svg.append(defs);
-  for(let i=0;i<=4;i++){const yy=50+75*i;svg.append(node('line',{x1:72,y1:yy,x2:972,y2:yy,stroke:'#263a50'}));const value=(low+(high-low)*(4-i)/4)*scale;svg.append(node('text',{x:65,y:yy+4,fill:'#9eb2c8','font-size':11,'text-anchor':'end'},value.toPrecision(6)))}
+  for(let i=0;i<=4;i++){const yy=50+75*i;svg.append(node('line',{x1:72,y1:yy,x2:972,y2:yy,stroke:'#263a50'}));const value=(bottom+(top-bottom)*(4-i)/4)*scale;svg.append(node('text',{x:65,y:yy+4,fill:'#9eb2c8','font-size':11,'text-anchor':'end'},value.toPrecision(6)))}
   for(let i=0;i<=4;i++){const t=Math.round(start+(end-start)*i/4);svg.append(node('text',{x:x(t),y:382,fill:'#9eb2c8','font-size':10,'text-anchor':i===0?'start':i===4?'end':'middle'},safeUTC(t)))}
   svg.append(node('text',{x:72,y:18,fill:'#5ee0c3','font-size':12},base.identity.market.symbol+' · '+base.identity.units.price),node('text',{x:970,y:18,fill:'#9eb2c8','font-size':10,'text-anchor':'end'},'SYNTHETIC / UNATTESTED'));
   const plot=node('g',{'clip-path':'url(#plotClip)'});svg.append(plot);

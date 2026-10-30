@@ -22,26 +22,26 @@ Historical Math #100 and Scientific Math #102 remain distinct immutable pins.
 
 ### Task 1: Producer and P0 regression
 
-- [ ] Add executing JS syntax regression; observe failure before correcting P0.
-- [ ] Confirm producer failure; minimally repair isolated Strattester producer/test syntax.
-- [ ] Provision exact Grid/Math pins; run real replay/review/export and producer negatives.
-- [ ] Preserve producer patch/commit and exported receipts in reproducible evidence.
+- [x] Add executing JS syntax regression; observe failure before correcting P0.
+- [x] Confirm producer failure; minimally repair isolated Strattester producer/test syntax.
+- [x] Provision exact Grid/Math pins; run real replay/review/export and producer negatives.
+- [x] Preserve producer patch/commit and exported receipts in reproducible evidence.
 
 ### Task 2: Validated multi-layer consumer
 
-- [ ] Write browser acceptance for real export, hash corruption, causal clocks and layers; observe red.
-- [ ] Implement pure bounded admission in `terminan/history_overlay.js`, including wire SHA256 validation.
-- [ ] Render model layers, source metadata and producer OOS with publication gating.
-- [ ] Add explicit Scientific v2.1 display-envelope adapter using real engine outputs and original axes.
+- [x] Write browser acceptance for real export, hash corruption, causal clocks and layers; observe red.
+- [x] Implement pure bounded admission in `terminan/history_overlay.js`, including wire SHA256 validation.
+- [x] Render model layers, source metadata and producer OOS with publication gating.
+- [x] Add explicit Scientific v2.1 display-envelope adapter using real engine outputs and original axes.
 
 ### Task 3: View interactions and persistence
 
-- [ ] Add interaction/visibility/persistence tests and observe red.
-- [ ] Implement UTC range/asOf timeline, zoom/pan, crosshair/tooltip and receipt-scoped view settings.
-- [ ] Test invalid intervals, hidden layers, delayed data and recovery.
+- [x] Add interaction/visibility/persistence tests and observe red.
+- [x] Implement UTC range/asOf timeline, zoom/pan, crosshair/tooltip and receipt-scoped view settings.
+- [x] Test invalid intervals, hidden layers, delayed data and recovery.
 
 ### Task 4: Reproducibility and delivery
 
-- [ ] Add pinned cross-repository runner and CI; generate real fixtures rather than fabricate forecasts.
-- [ ] Run Python/Node regressions and Chromium/Firefox E2E; inspect screenshot and review full diff.
-- [ ] Record limitations and exact evidence, commit/push own branch and create stacked Draft PR.
+- [x] Add pinned cross-repository runner and CI; generate real fixtures rather than fabricate forecasts.
+- [ ] Obtain Firefox PASS in Linux CI (local Windows spawn UNKNOWN). Python/Node and 9 Chromium E2E pass; screenshot and independent review completed.
+- [x] Record limitations and exact evidence, commit/push own branch and create stacked Draft PR.

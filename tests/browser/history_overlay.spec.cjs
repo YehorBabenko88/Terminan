@@ -24,17 +24,21 @@ async function uploadBuffer(page,buffer){await page.setInputFiles('#upload',{nam
 
 test('real producer exports compose independent forecast and scientific layers',async({page},info)=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await load(page);
- await expect(page.locator('.layer-toggle')).toHaveCount(4);
+ await expect(page.locator('.layer-toggle')).toHaveCount(5);
  await expect(page.locator('.forecast-past')).toHaveCount(120);
  await expect(page.locator('.forecast-future')).toHaveCount(0);
- await expect(page.locator('.scientific-line')).toHaveCount(2);
+ await expect(page.locator('.scientific-line')).toHaveCount(3);
  await expect(page.locator('#identity')).toContainText('BTCUSDT');
  await expect(page.locator('#provenance')).toContainText('grid-frozen-analog-v1');
  await expect(page.locator('#provenance')).toContainText('1f97e567');
  await expect(page.locator('#provenance')).toContainText('SHA256_MATCH');
  await expect(page.locator('#oos')).toContainText('PRODUCER_REPORTED_OOS_UNATTESTED');
  await expect(page.locator('#oos')).toContainText('net_pnl');
- const colors=await page.locator('.layer-toggle').evaluateAll(ns=>ns.map(n=>n.dataset.color));expect(new Set(colors).size).toBe(4);
+ // Real fixture range is [101,109.989]; 8% axis padding gives
+ // [100.28088,110.70812]. Tick labels must describe the plotted scale.
+ await expect(page.locator('#chart text').filter({hasText:/^110\.708$/})).toHaveCount(1);
+ await expect(page.locator('#chart text').filter({hasText:/^100\.281$/})).toHaveCount(1);
+ const colors=await page.locator('.layer-toggle').evaluateAll(ns=>ns.map(n=>n.dataset.color));expect(new Set(colors).size).toBe(5);
  expect(errors).toEqual([]);await info.attach('research-overlay',{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
 });
 
@@ -98,12 +102,19 @@ test('tampered, forged trust, clock inversions and incompatible units fail witho
 });
 
 test('scientific results keep event axes and reject rehashed request or output substitutions',async({page})=>{
- await load(page,[files[0],files[2]]);await expect(page.locator('.layer-toggle')).toHaveCount(3);
+ await load(page,[files[0],files[2]]);await expect(page.locator('.layer-toggle')).toHaveCount(4);
  const p=JSON.parse(fs.readFileSync(files[2]));p.request.nodes[1].window=7;
  await uploadBuffer(page,reseal(p));await expect(page.locator('#status')).toContainText('SCIENTIFIC_REQUEST_DIGEST');
  const q=JSON.parse(fs.readFileSync(files[2]));q.result.outputs[0].values[0]=999;
  await uploadBuffer(page,reseal(q));await expect(page.locator('#status')).toContainText('SCIENTIFIC_OUTPUT_DIGEST');
- await expect(page.locator('.layer-toggle')).toHaveCount(3);
+ await expect(page.locator('.layer-toggle')).toHaveCount(4);
+});
+
+test('real Scientific lag is historical even when Math reports earlier availability',async({page})=>{
+ await load(page);await page.fill('#asof','3000000');await page.locator('#asof').dispatchEvent('change');
+ // Engine lag shifts known values to later timestamps: it is not a frozen forecast.
+ // mean=48, affine=50, lag=49 event timestamps no later than asOf.
+ await expect(page.locator('.scientific-point')).toHaveCount(147);
 });
 
 test('clear and a newer import cannot be overwritten by an older asynchronous validation',async({page})=>{
