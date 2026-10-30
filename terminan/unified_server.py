@@ -65,7 +65,7 @@ class UnifiedHandler(SavedHandler):
         url=self.gate()
         if url is None:return
         path=url.path
-        if path.startswith('/api/') and path not in ('/api/session','/api/status') and self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':
+        if path.startswith('/api/') and path not in ('/api/session','/api/status','/api/synthetic/status') and self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':
             return self.send(410,{'error':'SESSION_ENDED'})
         if path in PAGES:
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
@@ -76,12 +76,15 @@ class UnifiedHandler(SavedHandler):
         if path.startswith('/workspace/'):
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
             page=path[len('/workspace/'):]
-            if page=='terminal':return self.mount('/')
+            if page=='terminal':return self.terminal()
             if page=='saved':return self.mount('/saved')
             if page in ('math','history-overlay'):return self.legacy('/'+page)
             if page=='monitor':return self.send(200,Path(__file__).with_name('infrastructure.html').read_bytes(),'text/html; charset=utf-8')
             if page=='cache':return self.send(200,CACHE_HTML.encode(),'text/html; charset=utf-8')
             return self.send(404,{'error':'NOT_FOUND'})
+        if path=='/preview':return self.terminal()
+        if path=='/api/synthetic/status':return self.mount('/api/status'+('?' + url.query if url.query else ''))
+        if path=='/api/status':return self.legacy(self.path)
         if path=='/api/infrastructure':
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
             return self.send(200,infrastructure_snapshot())
@@ -92,6 +95,10 @@ class UnifiedHandler(SavedHandler):
         if path in ('/api/session','/api/status','/preview','/r2_preview.js','/r2_preview.css','/r4_protocol.js','/saved.js','/saved_mtf.js','/saved.css','/favicon.ico') or path.startswith(('/api/saved/','/api/synthetic/')):
             return super().do_GET()
         return self.legacy(self.path)
+    def terminal(self):
+        body=Path(__file__).with_name('r4_preview.html').read_bytes()
+        body=body.replace(b'<body ',b'<body data-runtime="unified" ',1)
+        return self.send(200,body,'text/html; charset=utf-8')
     def mount(self,target):
         original=self.path
         try:self.path=target;return super().do_GET()

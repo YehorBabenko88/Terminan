@@ -20,7 +20,7 @@ class UnifiedRuntimeTests(unittest.TestCase):
   for path,marker in (('/workspace/terminal',b'chart'),('/workspace/saved',b'saved-chart'),('/workspace/math',b'workspace'),('/workspace/history-overlay',b'overlay.js'),('/workspace/monitor',b'nodes'),('/workspace/cache',b'cache')):
    code,body,headers=self.get(path);self.assertEqual(code,200,path);self.assertIn(marker.lower(),body.lower(),path)
  def test_sources_disabled_and_session_end(self):
-  self.assertEqual(json.loads(self.get('/api/status')[1])['mode'],'SYNTHETIC')
+  self.assertEqual(json.loads(self.get('/api/status')[1])['mode'],'READ_ONLY')
   self.assertEqual(json.loads(self.get('/api/infrastructure')[1])['state'],'UNAVAILABLE')
   self.assertEqual(json.loads(self.get('/api/cache/status')[1])['mode'],'DISABLED')
   self.server.session.end()
@@ -50,6 +50,12 @@ class UnifiedRuntimeTests(unittest.TestCase):
    with self.assertRaises(OSError):other=UnifiedServer(('127.0.0.1',self.server.server_port),UnifiedHandler)
   finally:
    if other:other.server_close()
+ def test_legacy_and_r4_status_contracts_are_both_preserved(self):
+  legacy=json.loads(self.get('/api/status')[1]);synthetic=json.loads(self.get('/api/synthetic/status')[1])
+  self.assertEqual(legacy['mode'],'READ_ONLY')
+  for key in ('grid','strattester','research'):self.assertIs(type(legacy[key]),bool)
+  self.assertEqual(synthetic['mode'],'SYNTHETIC');self.assertEqual(synthetic['sources'],'DISABLED');self.assertEqual(synthetic['candidate_sha'],'a'*40)
+  self.assertIn(b'data-runtime="unified"',self.get('/workspace/terminal')[1])
  def test_gates_and_no_execution(self):
   self.assertEqual(self.get('/saved',{'Host':'evil.invalid'})[0],403)
   self.assertEqual(self.get('/math',{'Origin':'https://evil.invalid'})[0],403)

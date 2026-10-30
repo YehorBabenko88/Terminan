@@ -261,7 +261,7 @@ window.r4={metrics,pause:stop,close:()=>terminal('VIEW_CLOSED')};
 async function start(){
  try{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),1500);
-  s.startupController=controller;let status;try{const response=await fetch('/api/status',{signal:controller.signal});status=await response.json();if(!response.ok)throw Error();}finally{clearTimeout(timeout);s.startupController=null;}
+  s.startupController=controller;let status;try{const response=await fetch(document.body.dataset.runtime==='unified'?'/api/synthetic/status':'/api/status',{signal:controller.signal});status=await response.json();if(!response.ok)throw Error();}finally{clearTimeout(timeout);s.startupController=null;}
   if(s.disposed)return;
   if(status.mode!=='SYNTHETIC'||status.sources!=='DISABLED'||status.execution!=='DISABLED'||status.source_clean!==true)throw Error();
   let initialized=false,previousSessionState='UNVERIFIED';

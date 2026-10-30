@@ -41,9 +41,9 @@ def main():
                 if response.status!=200:raise ValueError()
                 return response.read(2097153)
         stage='smoke';error='SMOKE_FAILED';code=30
-        for path in ('/','/saved','/math','/history-overlay','/monitor','/cache','/api/status','/api/session','/api/saved/catalog','/api/infrastructure','/api/cache/status'):
+        for path in ('/','/saved','/math','/history-overlay','/monitor','/cache','/api/status','/api/synthetic/status','/api/session','/api/saved/catalog','/api/infrastructure','/api/cache/status'):
             body=get(path);smoke.append(dict(route=path,status=200,bytes=len(body)))
-        if json.loads(get('/api/status'))['sources']!='DISABLED' or json.loads(get('/api/infrastructure'))['state']!='UNAVAILABLE':raise ValueError()
+        if json.loads(get('/api/synthetic/status'))['sources']!='DISABLED' or json.loads(get('/api/infrastructure'))['state']!='UNAVAILABLE':raise ValueError()
         atomic_json(root/'smoke.json',smoke)
         stage='browser';error='BROWSER_INCOMPLETE_OR_UNBOUND';code=31
         with tempfile.TemporaryDirectory(prefix='terminan-unified-browser-') as tmp:
