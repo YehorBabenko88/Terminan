@@ -1,0 +1,74 @@
+name: Math Laboratory exact-head integration
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: math-lab-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  scientific-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: candidate
+    env:
+      MATH_REPO: ${{ github.workspace }}/math-engine
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      MATH_HEAD: 972676e4d2e5ee7bc37411c4c7405cb71b3a8095
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: 972676e4d2e5ee7bc37411c4c7405cb71b3a8095
+          path: math-engine
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+          path: strattester
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Exact source and immutable contract pins
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git -C "$MATH_REPO" rev-parse HEAD)" = "$MATH_HEAD"
+          python scripts/verify_math_pin.py
+      - name: Full Python regressions
+        run: |
+          mkdir -p reports
+          python -m unittest discover -s tests -v > reports/python-all.txt 2>&1
+      - name: Structural editor tests
+        run: node --test tests/test_lab_graph.cjs > reports/graph-unit.txt 2>&1
+      - name: Install existing browser test dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox
+      - name: Real offline Math and browser acceptance
+        run: npx playwright test -c playwright.math.config.cjs
+      - name: Independently check report and hash evidence
+        run: python scripts/math_lab_evidence.py --expected-sha "$EXPECTED_HEAD" --math-repo "$MATH_REPO" --math-sha "$MATH_HEAD"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: math-laboratory-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: candidate/reports/
+          if-no-files-found: error
+          retention-days: 14

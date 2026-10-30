@@ -100,7 +100,8 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/math/health': result=math_bridge.check()
+                if url.path == '/api/math/catalog': result=math_bridge.scientific_catalog()
+                elif url.path == '/api/math/health': result=math_bridge.check()
                 elif url.path == '/api/sources': result=all_sources(symbol,timeframe)
                 elif url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()

@@ -13,14 +13,14 @@ def payload():
                          values=[1, 2, 3], timestamps=[0, 60000, 120000], availableAt=[0, 60000, 120000],
                          provenance=dict(sourceId='manual', version='1', sha256='0'*64)),
                     dict(id='f', kind='formula', expression='x+1', outputUnit='dimensionless')],
-                edges=[dict(from_={})], outputs=[dict(node='f', port='value')])
+                edges=[{'from':dict(node='s',port='value'),'to':dict(node='f',port='x')}], outputs=[dict(node='f', port='value')])
 
 
 def result():
     return dict(schema='math.scientific.result.v2', status='RESEARCH_ONLY',
                 requestSHA256='a'*64, source='CALLER_SUPPLIED_UNATTESTED',
                 execution_authority=False, trading_authorized=False, training_authorized=False,
-                mathematicallyVerified=False, order=['s', 'f'], trace=[], outputs=[
+                mathematicallyVerified=False, order=['s', 'f'], trace=[dict(node='s'),dict(node='f')], outputs=[
                     dict(node='f', port='value', type='series', unit='dimensionless',
                          values=[2, 3, 4], timestamps=[0, 60000, 120000], availableAt=[0, 60000, 120000])])
 
@@ -61,4 +61,23 @@ class ScientificBridgeTests(unittest.TestCase):
         error=HTTPError('http://127.0.0.1',422,'bad',{},io.BytesIO(b'{"schema":"math.error.v2","error":"INVALID_SCIENTIFIC_REQUEST","private":"secret"}'))
         with patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch('terminan.math_bridge.scientific_urlopen', side_effect=error):
             with self.assertRaisesRegex(ValueError,'INVALID_SCIENTIFIC_REQUEST'): self.call()
+
+    def test_catalog_requires_non_authoritative_metadata(self):
+        catalog=dict(schema='math.scientific.capabilities.v2', units=['m'],
+                     unitMetadata=[dict(unit='m',dimensions=[1,0,0,0,0,0,0,0,0,0])],
+                     dimensionBasis=['length','mass','time','current','temperature','amount','luminousIntensity','USD','USDT','BTC'],
+                     execution_authority=False,training_authorized=False,trading_authorized=False,mathematicallyVerified=False)
+        with patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch('terminan.math_bridge.scientific_urlopen', return_value=io.BytesIO(json.dumps(catalog).encode())):
+            self.assertEqual(math_bridge.scientific_catalog()['unitMetadata'][0]['dimensions'][0],1)
+
+    def test_unrelated_and_noncausal_responses_refused(self):
+        for change in ('output','order','trace','time','availability'):
+            r=result()
+            if change=='output':r['outputs'][0]['node']='other'
+            if change=='order':r['order']=[]
+            if change=='trace':r['trace']=[]
+            if change=='time':r['outputs'][0]['timestamps']=[120000,60000,0]
+            if change=='availability':r['outputs'][0]['availableAt']=[60000,60000,120000]
+            with self.subTest(change=change), patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch('terminan.math_bridge.scientific_urlopen', return_value=io.BytesIO(json.dumps(r).encode())):
+                with self.assertRaisesRegex(ValueError,'UNTRUSTED_GRAPH_RESULT'):self.call()
 

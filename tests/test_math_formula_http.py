@@ -82,3 +82,27 @@ class FormulaHTTPTests(unittest.TestCase):
         with patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE': '1'}), patch(
                 'terminan.math_bridge.urlopen', return_value=io.BytesIO(json.dumps(result).encode())):
             self.assertEqual(self.request(self.formula())[0], 422)
+
+    def test_nonobject_and_oversized_upstream_are_controlled_errors(self):
+        for raw in (b'[]', b' '*2097153):
+            with self.subTest(size=len(raw)), patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch(
+                    'terminan.math_bridge.urlopen', return_value=io.BytesIO(raw)):
+                self.assertEqual(self.request(self.formula())[0],422)
+
+    def test_loopback_redirect_is_not_followed(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer as FixtureServer
+        hits=[]
+        class Redirect(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.rfile.read(int(self.headers['Content-Length']))
+                self.send_response(302);self.send_header('Location','/should-not-follow');self.send_header('Content-Length','0');self.end_headers()
+            def do_GET(self):
+                hits.append(self.path);self.send_error(500)
+            def log_message(self,*args):pass
+        fixture=FixtureServer(('127.0.0.1',0),Redirect)
+        thread=threading.Thread(target=fixture.serve_forever,daemon=True);thread.start()
+        try:
+            with patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch('terminan.math_bridge.URL',f'http://127.0.0.1:{fixture.server_port}'):
+                self.assertEqual(self.request(self.formula())[0],422)
+            self.assertEqual(hits,[])
+        finally:fixture.shutdown();fixture.server_close();thread.join()

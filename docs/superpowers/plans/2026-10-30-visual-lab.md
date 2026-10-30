@@ -16,18 +16,18 @@ Stale responses after edits; malicious imports/labels; unit mismatch; upstream a
 ### Task 1: Formula HTTP regression
 Files: tests/test_math_formula_http.py, terminan/server.py, terminan/math_bridge.py.
 Interface: POST /api/math/formula -> evaluate_formula(bytes), preserving same-origin and limits.
-- [ ] Write real HTTP tests for success, malformed JSON, size, engine absent, authority refusal, cross-origin.
-- [ ] Run RED, repair route, run GREEN and full Python suite; commit.
+- [x] Write real HTTP tests for success, malformed JSON, size, engine absent, authority refusal, cross-origin.
+- [x] Run RED, repair route, run GREEN and full Python suite; commit.
 
 ### Task 2: Document and SVG editor
 Files: terminan/math_lab.html, terminan/lab_graph.js, tests/test_lab_graph.cjs, tests/browser/math_lab.spec.cjs, playwright.math.config.cjs.
 Interface: LabGraph validates bounded documents and builds only the coordinated Math request; UI consumes it without evaluating formulas.
-- [ ] Write unit/browser tests for free creation, typed mouse/keyboard connections, cycle, relink/delete, drag/zoom/pan, transactional import, stale responses.
-- [ ] Observe RED, implement document validator and editor, run GREEN. Keep legacy formula/evaluation features accessible; commit.
+- [x] Write unit/browser tests for free creation, typed mouse/keyboard connections, cycle, relink/delete, drag/zoom/pan, transactional import, stale responses.
+- [x] Observe RED, implement document validator and editor, run GREEN. Keep legacy formula/evaluation features accessible; commit.
 
 ### Task 3: Engine integration and evidence
 Files: bridge/server, tests/test_math_scientific_bridge.py, scripts/math_lab_integration.*, .github/workflows/math-lab.yml, docs/math-lab-contract.md, docs/math-lab-adminit-acceptance.md.
 Interface: agreed versioned Math graph request/result; same-origin route, fixed loopback upstream, engine-owned validation.
-- [ ] Pin agreed Math SHA and contract; add negative bridge and real-engine browser tests before implementation.
-- [ ] Observe RED, implement forwarding and safe result rendering, run all relevant suites.
+- [x] Pin agreed Math SHA and contract; add negative bridge and real-engine browser tests before implementation.
+- [x] Observe RED, implement forwarding and safe result rendering, run all relevant suites.
 - [ ] Publish own Draft PR, run exact-head CI, independently collect run/job/artifact pins and SHA256 evidence; document remaining physical NOT_RUN.
