@@ -10,3 +10,5 @@ Additional regression verifies that a downstream formula consuming comparison:ma
 Ruling: request audit data for every actual dependency and default output. This is necessary to recompute data SHA256 instead of trusting an opaque trace claim. Cost: additional output bytes/value budget, subject to stricter local64-output/2MiB limits and independent Math work/value limits. Visual results exclude audit-only outputs, while snapshots retain the verified raw reply.
 
 Ruling: preserve legacy editor model as a user formula; new engine-model maps to pinned fixed Math model contracts. Cost: two explicitly different block kinds rather than silent schema reinterpretation. V2.0 pin is preserved in a separate lock and tested against the real old engine. All new operations require revision/features/named-port support.
+
+A final negative regression exposed that unrelated formula trace nodes could carry invented source/book attribution even with NOT_VERIFIED flags. RED/GREEN now rejects provenance on non-source nodes and knowledge metadata on non-knowledge nodes. This enforces the exact engine attribution boundary without claiming source authenticity.

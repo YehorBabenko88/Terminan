@@ -44,6 +44,7 @@ async function verify(r,p,cap){
   const inputs=cap.ports[n.kind].inputs.map(port=>{const edge=expected.find(e=>e.to.port===port);return edge&&refs.get(key(edge.from.node,edge.from.port))});temporal(n,inputs,r.outputs.filter(o=>o.node===n.id),cap);
   if(n.kind==='compare'){for(const port of ['rmse','mae','bias']){const o=refs.get(key(n.id,port));if(o){const deps=expected.map(e=>refs.get(key(e.from.node,e.from.port)));if(o.type!=='scalar'||deps.some(d=>!d||o.timestamps[0]!==d.timestamps.at(-1))||o.availableAt[0]<o.timestamps[0])fail('SCALAR_FINAL_TIME_MISMATCH')}}}
   if(n.kind==='source'&&canonical({values:defaultOutput.values,timestamps:defaultOutput.timestamps,availableAt:defaultOutput.availableAt,unit:defaultOutput.unit})!==canonical({values:n.type==='scalar'?[n.value]:n.values,timestamps:n.type==='scalar'?[n.timestamp]:n.timestamps,availableAt:n.type==='scalar'?[n.availableAt]:n.availableAt,unit:n.unit}))fail('SOURCE_BINDING_MISMATCH');
+  if(n.kind!=='source'&&t.provenance!=null||n.kind!=='knowledge'&&t.knowledge!=null)fail('UNEXPECTED_SOURCE_BOOK_ATTRIBUTION');
   if(n.kind==='source'&&defaultOutput.type!==n.type)fail('SOURCE_TYPE_MISMATCH');
   if(n.kind==='source'&&canonical(t.provenance)!==canonical(n.provenance))fail('PROVENANCE_BINDING_MISMATCH');
   if(n.kind==='knowledge'&&(!t.knowledge||t.knowledge.id!==n.reference.id||t.knowledge.sha256!==n.reference.sha256))fail('KNOWLEDGE_BINDING_MISMATCH');
