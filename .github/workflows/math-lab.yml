@@ -15,7 +15,7 @@ jobs:
     env:
       MATH_REPO: ${{ github.workspace }}/math-engine
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-      MATH_HEAD: 321c4cd94d9ee0aba7a5d709042612f5ad4c5a05
+      MATH_HEAD: 1f97e56701c0fce01dc8dd05952111fa8df3f2d1
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: YehorBabenko88/math
-          ref: 321c4cd94d9ee0aba7a5d709042612f5ad4c5a05
+          ref: 1f97e56701c0fce01dc8dd05952111fa8df3f2d1
           path: math-engine
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -56,7 +56,7 @@ jobs:
           mkdir -p reports
           python -m unittest discover -s tests -v > reports/python-all.txt 2>&1
       - name: Structural editor tests
-        run: node --test tests/test_lab_graph.cjs tests/test_lab_catalog.cjs > reports/graph-unit.txt 2>&1
+        run: node --test tests/test_lab_graph.cjs tests/test_lab_catalog.cjs tests/test_lab_v21.cjs tests/test_lab_protocol.cjs > reports/graph-unit.txt 2>&1
       - name: Install existing browser test dependencies
         run: |
           npm ci
@@ -69,6 +69,54 @@ jobs:
         if: always()
         with:
           name: math-laboratory-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: candidate/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  compatibility-v20:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: candidate
+    env:
+      MATH_REPO: ${{ github.workspace }}/math-v20
+      MATH_LOCK: math-engine.v20.lock.json
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: 321c4cd94d9ee0aba7a5d709042612f5ad4c5a05
+          path: math-v20
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify exact source and v2.0 pin
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          python scripts/verify_math_pin.py
+      - name: Real v2.0 compatibility
+        run: |
+          mkdir -p reports
+          node --test tests/test_v20_compat.cjs > reports/v20-unit.txt 2>&1
+          npm ci
+          npx playwright install --with-deps chromium firefox
+          npx playwright test -c playwright.math.config.cjs --grep-invert 'v2.1 control|downgrade hides|compound units'
+          python scripts/math_lab_evidence.py --expected-sha "$EXPECTED_HEAD" --math-repo "$MATH_REPO" --math-sha 321c4cd94d9ee0aba7a5d709042612f5ad4c5a05 --profile v20 --min-cases 12
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: math-v20-compat-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
           path: candidate/reports/
           if-no-files-found: error
           retention-days: 14

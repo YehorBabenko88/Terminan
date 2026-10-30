@@ -9,6 +9,8 @@ p=argparse.ArgumentParser()
 p.add_argument('--expected-sha',required=True)
 p.add_argument('--math-repo',required=True)
 p.add_argument('--math-sha',required=True)
+p.add_argument('--profile',choices=['v20','v21'],default='v21')
+p.add_argument('--min-cases',type=int,default=15)
 p.add_argument('--projects',default='chromium,firefox')
 p.add_argument('--out',default='reports/math-evidence')
 a=p.parse_args()
@@ -32,12 +34,13 @@ def visit(suites):
 visit(r['suites'])
 projects=a.projects.split(',')
 if sorted(set(c['project'] for c in cases))!=sorted(projects):raise SystemExit('BROWSER_PROJECT_MISSING')
-if any(sum(c['project']==project for c in cases)<11 for project in projects):raise SystemExit('BROWSER_CASES_MISSING')
+if any(sum(c['project']==project for c in cases)<a.min_cases for project in projects):raise SystemExit('BROWSER_CASES_MISSING')
 if any(not any(c['project']==project and c['name'].startswith('real pinned Math') for c in cases) for project in projects):raise SystemExit('REAL_ENGINE_CASE_MISSING')
+if a.profile=='v21' and any(not any(c['project']==project and c['name'].startswith('v2.1 control experiment') for c in cases) for project in projects):raise SystemExit('V21_CONTROL_MISSING')
 if r.get('errors') or r['stats'].get('unexpected') or r['stats'].get('skipped'):raise SystemExit('BROWSER_ERRORS')
 out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
 summary=dict(schema='terminan.math-evidence.v1',head=a.expected_sha,tree=git('rev-parse','HEAD^{tree}'),
-             math_head=a.math_sha,math_tree=git('rev-parse','HEAD^{tree}',root=a.math_repo),cases=cases,
+             profile=a.profile,math_head=a.math_sha,math_tree=git('rev-parse','HEAD^{tree}',root=a.math_repo),cases=cases,
              scope='CONTROLLED_UI_PROTOCOL_AND_REAL_OFFLINE_MATH',source_authenticity='UNATTESTED',
              physical_ADMINIT='USER_REPORTED_ORIGINAL_RECEIPT_NOT_AVAILABLE',isolated_reproduction='AUTOMATED_REAL_MATH_BROWSER_TEST',installed_ADMINIT_changes=False,execution_authority=False,trading_authorized=False)
 (out/'summary.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')

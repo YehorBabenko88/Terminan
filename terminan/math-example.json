@@ -1,0 +1,172 @@
+{
+  "schema": "math.scientific.graph.v2",
+  "mode": "HISTORICAL_RESEARCH",
+  "execution_authority": false,
+  "asOf": 2000,
+  "nodes": [
+    {
+      "id": "s",
+      "kind": "source",
+      "type": "series",
+      "values": [
+        1,
+        2,
+        3
+      ],
+      "timestamps": [
+        0,
+        1000,
+        2000
+      ],
+      "availableAt": [
+        0,
+        1000,
+        2000
+      ],
+      "unit": "dimensionless",
+      "provenance": {
+        "sourceId": "synthetic-composition",
+        "version": "v1",
+        "sha256": "2b950ebc944ab22c03766b56ac4eb25ea23b9c0c8592cfbe6d652f7e59d01e96"
+      }
+    },
+    {
+      "id": "twice",
+      "kind": "formula",
+      "expression": "x*2",
+      "outputUnit": "dimensionless"
+    },
+    {
+      "id": "square",
+      "kind": "formula",
+      "expression": "x^2+1",
+      "outputUnit": "dimensionless"
+    },
+    {
+      "id": "mean",
+      "kind": "rolling-mean",
+      "window": 2
+    },
+    {
+      "id": "prior",
+      "kind": "lag",
+      "steps": 1
+    },
+    {
+      "id": "overlay",
+      "kind": "overlay"
+    },
+    {
+      "id": "comparison",
+      "kind": "compare"
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "node": "s",
+        "port": "value"
+      },
+      "to": {
+        "node": "twice",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "twice",
+        "port": "value"
+      },
+      "to": {
+        "node": "square",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "square",
+        "port": "value"
+      },
+      "to": {
+        "node": "mean",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "square",
+        "port": "value"
+      },
+      "to": {
+        "node": "prior",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "mean",
+        "port": "value"
+      },
+      "to": {
+        "node": "overlay",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "prior",
+        "port": "value"
+      },
+      "to": {
+        "node": "overlay",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "overlay",
+        "port": "value"
+      },
+      "to": {
+        "node": "comparison",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "overlay",
+        "port": "reference"
+      },
+      "to": {
+        "node": "comparison",
+        "port": "b"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "node": "square",
+      "port": "value"
+    },
+    {
+      "node": "overlay",
+      "port": "value"
+    },
+    {
+      "node": "overlay",
+      "port": "reference"
+    },
+    {
+      "node": "comparison",
+      "port": "value"
+    },
+    {
+      "node": "comparison",
+      "port": "mae"
+    },
+    {
+      "node": "comparison",
+      "port": "rmse"
+    }
+  ]
+}
