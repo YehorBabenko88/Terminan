@@ -1,0 +1,45 @@
+name: Unified display contracts (no Math execution)
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: unified-contract-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  contract-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Pure adapter, publication and receipt contracts
+        run: |
+          mkdir -p reports
+          python -m unittest tests.test_unified_display_adapter tests.test_unified_delayed_contract tests.test_history_overlay_admission tests.test_history_overlay_route tests.test_unified_bundle_oracle -v > reports/unified-contract-python.txt 2>&1
+          node --test tests/test_delayed_protocol.cjs tests/test_history_overlay_script.cjs > reports/unified-contract-node.txt 2>&1
+      - name: Browser contract fixtures only (no engine or source service)
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium firefox
+          npx playwright test -c playwright.unified-contract.config.cjs
+      - name: Source and fixture identity
+        if: always()
+        run: |
+          git rev-parse HEAD > reports/unified-contract-head.txt
+          git rev-parse 'HEAD^{tree}' > reports/unified-contract-tree.txt
+          sha256sum tests/fixtures/unified-contract.v1.json > reports/unified-contract-fixture.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: unified-contract-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: reports/
+          if-no-files-found: error
+          retention-days: 14
