@@ -37,7 +37,7 @@ def validate(value):
             if v is not None and (type(v) not in (int,float) or not 0<=v<1e18):raise ValueError('METRIC_INVALID')
     # Links require independently qualified endpoint identity; absent qualification renders no edges.
     links=[]  # No independent owner-link receipt admission exists yet.
-    return {**unavailable(),**value,'schema':'terminan.infrastructure.v1','state':'AVAILABLE_UNVERIFIED','nodes':nodes,'links':links,'link_status':'UNVERIFIED','source_provenance':'UNVERIFIED','physical_acceptance':'NOT_RUN'}
+    return {**unavailable(),**value,'schema':'terminan.infrastructure.v1','state':'AVAILABLE_UNVERIFIED','reason':'SOURCE_UNATTESTED','nodes':nodes,'links':links,'link_status':'UNVERIFIED','source_provenance':'UNVERIFIED','physical_acceptance':'NOT_RUN'}
 
 def infrastructure_snapshot():
     raw=os.environ.get('TERMINAN_LIFECYCLE_SNAPSHOT')

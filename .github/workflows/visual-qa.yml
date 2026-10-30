@@ -1,0 +1,44 @@
+name: Unified visual QA
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: visual-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  visual:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - run: python -m unittest discover -s tests -q
+      - name: Windows PS5.1 visual evidence
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $sha=git rev-parse HEAD
+          powershell.exe -NoProfile -File scripts/Invoke-VisualQA.ps1 -ExpectedSha $sha -EvidenceRoot reports/visual-ci
+          exit $LASTEXITCODE
+      - name: Linux visual evidence
+        if: runner.os == 'Linux'
+        shell: bash
+        run: python scripts/visual_qa.py --expected-sha "$(git rev-parse HEAD)" --out reports/visual-ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-${{ matrix.os }}-${{ github.run_attempt }}
+          path: reports/
