@@ -12,3 +12,11 @@ The dashboard is read only. It displays local supervisor observations; Grid rema
 
 Focused verification: `python -m unittest tests.test_runtime_v2 -v`.
 For a local HTTP fixture, run `tests/check_runtime_v2.cjs` with `RUNTIME_TEST_URL` and an installed Playwright dependency (`RUNTIME_PLAYWRIGHT` may provide its absolute module path). Chromium verification uses an ephemeral loopback server and no office services or databases.
+
+## Authenticated Terminan functional readiness
+
+The actual unified dispatcher serves `GET /internal/v2/module/health` through its existing loopback Host/Origin gate. Query strings are forbidden. The adapter defaults unavailable until the owned ProcessDriver supplies `UNIFIED_MODULE_ID=terminan`, module version, release ID and its private 64-hex instance token. A single exact Bearer token is required and compared with `hmac.compare_digest`; unauthorized replies never echo the token.
+
+For an authenticated caller, the exact response fields are `module_id`, `version`, `release_id`, `instance_token` and `ready`. Readiness requires the actual server's clean source provenance, a valid candidate SHA, an active session and a valid independently consumed local runtime v2 snapshot with the same release and Terminan version. Missing snapshots and physical/trading authority forgeries fail closed. Global core readiness is deliberately unnecessary during startup. The adapter never writes the snapshot, starts modules or promotes data/source authenticity.
+
+`python -m unittest tests.test_module_readiness -v` exercises real loopback HTTP using clearly synthetic test snapshots. This implements one module's local functional adapter. It does not establish readiness for the other five modules or physical acceptance. Postcommit owned ProcessDriver proof remains separate.
