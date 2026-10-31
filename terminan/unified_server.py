@@ -5,9 +5,10 @@ from urllib.parse import urlsplit
 from .saved_server import SavedServer, SavedHandler
 from .server import Handler as LegacyHandler
 from .infrastructure import infrastructure_snapshot
+from .runtime_v2 import runtime_snapshot
 from .cache_monitor import HTML as CACHE_HTML
 
-PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache'}
+PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache','/runtime':'runtime'}
 ASSETS={'/unified.js':'unified.js','/unified.css':'unified.css','/unified_theme.css':'unified_theme.css'}
 class UnifiedServer(SavedServer):
     # Track/join our bounded workers explicitly; a failed deadline cannot hang exit.
@@ -79,12 +80,16 @@ class UnifiedHandler(SavedHandler):
             if page=='terminal':return self.terminal()
             if page=='saved':return self.mount('/saved')
             if page in ('math','history-overlay'):return self.legacy('/'+page)
+            if page=='runtime':return self.send(200,Path(__file__).with_name('runtime_v2.html').read_bytes(),'text/html; charset=utf-8')
             if page=='monitor':return self.send(200,Path(__file__).with_name('infrastructure.html').read_bytes(),'text/html; charset=utf-8')
             if page=='cache':return self.send(200,CACHE_HTML.encode(),'text/html; charset=utf-8')
             return self.send(404,{'error':'NOT_FOUND'})
         if path=='/preview':return self.terminal()
         if path=='/api/synthetic/status':return self.mount('/api/status'+('?' + url.query if url.query else ''))
         if path=='/api/status':return self.legacy(self.path)
+        if path=='/api/runtime-v2':
+            if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
+            return self.send(200,runtime_snapshot())
         if path=='/api/infrastructure':
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
             return self.send(200,infrastructure_snapshot())
