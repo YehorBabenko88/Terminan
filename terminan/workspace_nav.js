@@ -5,6 +5,7 @@
   const pages = [
     ['/', 'Терминал'],
     ['/monitor', 'Мониторинг'],
+    ['/runtime', 'Node runtime'],
     ['/math', 'Научная лаборатория'],
     ['/history-overlay', 'Исследования / история']
   ];

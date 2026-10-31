@@ -9,6 +9,7 @@ import shutil
 
 BASE='0ad0f36edce2ac7717c753d35ebe113dc6334fd0'
 PROJECTS=[engine+'-dpr'+str(dpr) for engine in ('chromium','firefox') for dpr in (1,1.5,2)]
+BROWSER_CONTRACT_VERSION=2
 BROWSER_ASSERTIONS={
     'zoom pan resize DPR and complete synthetic identity',
     'fault recovery contracts and bounded replay',
@@ -20,6 +21,10 @@ BROWSER_ASSERTIONS={
     'actual A states filter and selected detail follows latest metrics',
     'stalled local refresh becomes explicitly unavailable at deadline',
     'actual Python consumer rejects forged nested observation before Chromium renders',
+    'delayed facts, frozen forecasts and joint publication remain distinct',
+    'OOS is displayed only after its declared publication, outside diagnostics',
+    'rehashed envelope cannot bypass scientific output trace integrity',
+    'asOf slider reaches publication later than every event and forecast target',
 }
 REPO=Path(__file__).resolve().parents[1]
 
@@ -62,6 +67,10 @@ def verify(root,sha):
     summary=read(root/'summary.json')
     if summary.get('candidate_sha')!=sha or summary.get('physical')!='PENDING' or summary.get('mode')!='SYNTHETIC':raise ValueError('wrong evidence identity')
     if summary.get('kind')=='browser':
+        # Current evidence must account for the full additive browser contract.
+        # No implicit legacy inventory can qualify this source's collected suite.
+        if type(summary.get('browser_contract_version')) is not int or summary['browser_contract_version']!=BROWSER_CONTRACT_VERSION:raise ValueError('unsupported browser contract')
+        if summary.get('scope') not in ('all','chromium'):raise ValueError('unsupported browser scope')
         expected=[p for p in PROJECTS if p.startswith('chromium')] if summary['scope']=='chromium' else PROJECTS
         required={'summary.json','tests.json','contract-pins.json','fixture-v1.json'}
         for project in expected:required.update({project+'/performance.json',project+'/preview.png'})
@@ -122,7 +131,7 @@ def bundle(report,results,out,sha,scope='all'):
         write(folder/'performance.json',perf)
         screenshot=path.with_name('stress-preview.png')
         if screenshot.exists():shutil.copyfile(screenshot,folder/'preview.png')
-    summary=dict(kind='browser',candidate_sha=sha,mode='SYNTHETIC',physical='PENDING',
+    summary=dict(kind='browser',browser_contract_version=BROWSER_CONTRACT_VERSION,candidate_sha=sha,mode='SYNTHETIC',physical='PENDING',
                  result='PASS',scope=scope,base_g0_sha=BASE,fixture_sha256=digest(out/'fixture-v1.json'),
                  run_id=os.environ.get('GITHUB_RUN_ID'),run_attempt=os.environ.get('GITHUB_RUN_ATTEMPT'),
                  tests=len(tests),failures=sum(t['status']!='passed' for t in tests))

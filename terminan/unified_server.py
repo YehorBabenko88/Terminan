@@ -1,13 +1,14 @@
 """One loopback dispatcher; existing Saved/R4 transport/session gates stay authoritative."""
-import os,socket,threading,time
+import os,socket,threading,time,re,hmac
 from pathlib import Path
 from urllib.parse import urlsplit
 from .saved_server import SavedServer, SavedHandler
 from .server import Handler as LegacyHandler
 from .infrastructure import infrastructure_snapshot
+from .runtime_v2 import runtime_snapshot
 from .cache_monitor import HTML as CACHE_HTML
 
-PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache'}
+PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache','/runtime':'runtime'}
 ASSETS={'/unified.js':'unified.js','/unified.css':'unified.css','/unified_theme.css':'unified_theme.css'}
 class UnifiedServer(SavedServer):
     # Track/join our bounded workers explicitly; a failed deadline cannot hang exit.
@@ -65,6 +66,9 @@ class UnifiedHandler(SavedHandler):
         url=self.gate()
         if url is None:return
         path=url.path
+        if path=='/internal/v2/module/health':
+            if '?' in self.path:return self.send(400,{'error':'INVALID_REQUEST'})
+            return self.module_health()
         if path.startswith('/api/') and path not in ('/api/session','/api/status','/api/synthetic/status') and self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':
             return self.send(410,{'error':'SESSION_ENDED'})
         if path in PAGES:
@@ -79,12 +83,16 @@ class UnifiedHandler(SavedHandler):
             if page=='terminal':return self.terminal()
             if page=='saved':return self.mount('/saved')
             if page in ('math','history-overlay'):return self.legacy('/'+page)
+            if page=='runtime':return self.send(200,Path(__file__).with_name('runtime_v2.html').read_bytes(),'text/html; charset=utf-8')
             if page=='monitor':return self.send(200,Path(__file__).with_name('infrastructure.html').read_bytes(),'text/html; charset=utf-8')
             if page=='cache':return self.send(200,CACHE_HTML.encode(),'text/html; charset=utf-8')
             return self.send(404,{'error':'NOT_FOUND'})
         if path=='/preview':return self.terminal()
         if path=='/api/synthetic/status':return self.mount('/api/status'+('?' + url.query if url.query else ''))
         if path=='/api/status':return self.legacy(self.path)
+        if path=='/api/runtime-v2':
+            if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
+            return self.send(200,runtime_snapshot())
         if path=='/api/infrastructure':
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
             return self.send(200,infrastructure_snapshot())
@@ -95,6 +103,33 @@ class UnifiedHandler(SavedHandler):
         if path in ('/api/session','/api/status','/preview','/r2_preview.js','/r2_preview.css','/r4_protocol.js','/saved.js','/saved_mtf.js','/saved.css','/favicon.ico') or path.startswith(('/api/saved/','/api/synthetic/')):
             return super().do_GET()
         return self.legacy(self.path)
+    def module_health(self):
+        # Only the authenticated owned-process caller receives its nonce back.
+        version=os.environ.get('UNIFIED_MODULE_VERSION','')
+        release=os.environ.get('UNIFIED_RELEASE_ID','')
+        token=os.environ.get('UNIFIED_INSTANCE_TOKEN','')
+        if (os.environ.get('UNIFIED_MODULE_ID')!='terminan'
+                or len(version)>128 or not re.fullmatch(r'\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]{1,40})?',version)
+                or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',release)
+                or not re.fullmatch(r'[a-f0-9]{64}',token)):
+            return self.send(503,{'error':'MODULE_HEALTH_UNAVAILABLE'})
+        authorization=self.headers.get_all('Authorization',[])
+        if (len(authorization)!=1 or len(authorization[0])>256
+                or not hmac.compare_digest(authorization[0].encode('utf-8'),('Bearer '+token).encode('ascii'))):
+            return self.send(403,{'error':'MODULE_HEALTH_FORBIDDEN'})
+        candidate=getattr(self.server,'candidate_sha','')
+        source_ready=(getattr(self.server,'source_clean',False) is True
+                      and type(candidate) is str and re.fullmatch('[a-f0-9]{40}',candidate) is not None)
+        snapshot=runtime_snapshot()
+        ready=bool(source_ready and self.server.session.receipt(candidate)['state']!='SESSION_ENDED'
+                   and snapshot.get('schema')=='unified.runtime.v2'
+                   and snapshot['release_id']==release
+                   and snapshot['modules']['terminan']['version']==version
+                   and snapshot['physical']=='NOT_RUN' and snapshot['trading_authorized'] is False
+                   and snapshot['physical_deployment_allowed'] is False)
+        return self.send(200,dict(module_id='terminan',version=version,release_id=release,
+                                  instance_token=token,ready=ready))
+
     def terminal(self):
         body=Path(__file__).with_name('r4_preview.html').read_bytes()
         body=body.replace(b'<body ',b'<body data-runtime="unified" ',1)
