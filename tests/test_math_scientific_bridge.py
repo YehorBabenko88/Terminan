@@ -77,7 +77,7 @@ class ScientificBridgeTests(unittest.TestCase):
             if change=='order':r['order']=[]
             if change=='trace':r['trace']=[]
             if change=='time':r['outputs'][0]['timestamps']=[120000,60000,0]
-            if change=='availability':r['outputs'][0]['availableAt']=[60000,60000,120000]
+            if change=='availability':r['outputs'][0]['availableAt']=[120001,60000,120000]
             with self.subTest(change=change), patch.dict('os.environ', {'TERMINAN_MATH_OFFLINE_BRIDGE':'1'}), patch('terminan.math_bridge.scientific_urlopen', return_value=io.BytesIO(json.dumps(r).encode())):
                 with self.assertRaisesRegex(ValueError,'UNTRUSTED_GRAPH_RESULT'):self.call()
 

@@ -53,3 +53,53 @@ class AdversarialInfrastructure(unittest.TestCase):
    with open(p,'w') as stream:stream.write('['*2000+'0'+']'*2000)
    for path in (p,folder,r'\\server\share\file',r'\\.\pipe\test'):
     with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':path}):self.assertEqual(infrastructure_snapshot()['state'],'UNAVAILABLE')
+
+class NestedBoundary(unittest.TestCase):
+ def test_unqualified_nested_claims_rejected(self):
+  for key,value in [('identity_verified',True),('execution_authorized',True),('db_sizes',{'main':123}),('cpu',12),('memory',float('nan')),('telemetry',{'verified':True})]:
+   f=fixture(1);f['fleet']['nodes'][0][key]=value
+   with self.subTest(key=key),self.assertRaises(ValueError):validate(f)
+ def test_fleet_claims_rejected(self):
+  for key,value in [('execution_authorized',True),('databases',[{'bytes':123}]),('source_provenance','VERIFIED')]:
+   f=fixture();f['fleet'][key]=value
+   with self.subTest(key=key),self.assertRaises(ValueError):validate(f)
+ def test_missing_metrics_project_unavailable_identity_unattested(self):
+  n=validate(fixture(1))['nodes'][0]
+  self.assertIsNone(n['db_sizes']);self.assertIs(n['identity_verified'],False)
+
+class ProducerV1Boundary(unittest.TestCase):
+ def full(self):
+  f=fixture();f['fleet']=dict(mode='PLAN_ONLY',status='PLAN_ONLY',execution_authorized=False,links=[],databases=[],alerts=[],source_provenance='NOT_EVALUATED',physical='NOT_RUN',production='NO_GO',nodes=[dict(id='owned-source-fixture',epoch=1,sequence=0,state='ACTIVE',zone='fixture-zone',modules=[],last_heartbeat_ms=None,cpu=None,memory=None,disk=None,available_resources={'cpu':4,'memory':8,'disk':16},db_sizes=None,identity_verified=False)])
+  return f
+ def test_exact_producer_projection_preserves_capacity_not_utilization(self):
+  f=self.full();n=validate(f)['nodes'][0]
+  self.assertEqual(n['available_resources'],{'cpu':4,'memory':8,'disk':16});self.assertIsNone(n['cpu']);self.assertEqual(n['observation_status'],'UNATTESTED')
+ def test_each_producer_nested_claim_and_bounds_fail_closed(self):
+  for key,bad in [('cpu',0.5),('db_sizes',123),('identity_verified',True),('modules',['grid']),('sequence',True),('last_heartbeat_ms',-1),('available_resources',{'cpu':float('inf'),'memory':1,'disk':1}),('available_resources',{'cpu':True,'memory':1,'disk':1}),('execution_authorized',True)]:
+   f=self.full();f['fleet']['nodes'][0][key]=bad
+   with self.subTest(key=key),self.assertRaises(ValueError):validate(f)
+ def test_unknown_nested_stage_module_and_top_level_fields(self):
+  for mutate in (lambda f:f.update(extra={'execution_authorized':True}),lambda f:f['stages'][0].update(identity_verified=True),lambda f:f.update(math={'status':'RUNNING','reason':'x','execution_authorized':True})):
+   f=fixture();mutate(f)
+   with self.assertRaises(ValueError):validate(f)
+
+class HugeIntegerReaderBoundary(unittest.TestCase):
+ def test_huge_capacity_integer_reader_returns_unavailable(self):
+  f=ProducerV1Boundary().full();f['fleet']['nodes'][0]['available_resources']['cpu']=10**400
+  with tempfile.NamedTemporaryFile(mode='w',delete=False) as stream:json.dump(f,stream);name=stream.name
+  try:
+   with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':name}):
+    self.assertEqual(infrastructure_snapshot()['state'],'UNAVAILABLE')
+  finally:os.unlink(name)
+ def test_huge_capacity_integer_actual_http_is_unavailable(self):
+  import threading
+  from urllib.request import urlopen
+  from terminan.server import Handler,ThreadingHTTPServer
+  f=ProducerV1Boundary().full();f['fleet']['nodes'][0]['available_resources']['cpu']=10**400
+  with tempfile.NamedTemporaryFile(mode='w',delete=False) as stream:json.dump(f,stream);name=stream.name
+  server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+  try:
+   with patch.dict(os.environ,{'TERMINAN_LIFECYCLE_SNAPSHOT':name}):
+    with urlopen('http://127.0.0.1:'+str(server.server_port)+'/api/infrastructure') as response:
+     result=json.load(response);self.assertEqual(result['state'],'UNAVAILABLE');self.assertIs(result['execution_authorized'],False);self.assertEqual(result['nodes'],[])
+  finally:server.shutdown();server.server_close();thread.join();os.unlink(name)

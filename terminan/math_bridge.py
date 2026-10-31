@@ -118,8 +118,7 @@ def execute_scientific(raw):
                 or any(not isinstance(out.get(k),list) or len(out[k])!=len(out['values'])
                        or any(type(v) is not int or not 0<=v<=payload['asOf'] for v in out[k]) for k in ('timestamps','availableAt'))):
             raise ValueError('UNTRUSTED_GRAPH_RESULT')
-        if (any(t<=out['timestamps'][i-1] for i,t in enumerate(out['timestamps']) if i)
-                or any(a>t for a,t in zip(out['availableAt'],out['timestamps']))):
+        if any(t<=out['timestamps'][i-1] for i,t in enumerate(out['timestamps']) if i):
             raise ValueError('UNTRUSTED_GRAPH_RESULT')
     node_ids=[n.get('id') for n in payload['nodes'] if isinstance(n,dict)]
     expected_outputs=[(o.get('node'),o.get('port')) for o in payload['outputs'] if isinstance(o,dict)]

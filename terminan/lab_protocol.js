@@ -17,7 +17,7 @@ function temporal(n,inputs,outputs,cap){
   if(['sum','average','difference','multiply','divide','overlay','compare'].includes(n.kind)){
    const b=inputs[1];if(!b||a.type!==b.type||canonical(a.timestamps)!==canonical(b.timestamps))fail('TEMPORAL_ALIGNMENT_MISMATCH');
    availability=a.availableAt.map((t,i)=>Math.max(t,b.availableAt[i]));
-   if(n.kind==='compare'&&['rmse','mae','bias'].includes(o.port)){times=[a.timestamps.at(-1)];availability=[a.timestamps.at(-1)];}
+   if(n.kind==='compare'&&['rmse','mae','bias'].includes(o.port)){times=[a.timestamps.at(-1)];availability=[Math.max(a.timestamps.at(-1),...availability)];}
   }else if(n.kind==='lag'){times=a.timestamps.slice(n.steps);availability=a.availableAt.slice(0,-n.steps);}
   else if(n.kind==='rolling-mean'){times=a.timestamps.slice(n.window-1);availability=times.map((_,i)=>Math.max(...a.availableAt.slice(i,i+n.window)));}
   else if(n.kind==='derivative'){times=a.timestamps.slice(1);availability=times.map((_,i)=>Math.max(a.availableAt[i],a.availableAt[i+1]));}
@@ -33,7 +33,7 @@ async function verify(r,p,cap){
  if(canonical(r.outputs.map(o=>({node:o.node,port:o.port})))!==canonical(p.outputs))fail('OUTPUT_IDENTITY_MISMATCH');
  const refs=new Map(),portHashes=new Map(),nodes=new Map(p.nodes.map(n=>[n.id,n])),trace=new Map(),receipt=[];
  for(const o of r.outputs){const k=key(o.node,o.port),n=nodes.get(o.node);if(!n||refs.has(k)||!cap.ports?.[n.kind]?.outputs?.includes(o.port)||!['series','scalar'].includes(o.type)||typeof o.unit!=='string'||!Array.isArray(o.values)||o.values.length<1||o.values.length>2000||o.values.some(v=>typeof v!=='number'||!Number.isFinite(v))||o.type==='scalar'&&o.values.length!==1)fail('INVALID_OUTPUT');
-  if(!Array.isArray(o.timestamps)||!Array.isArray(o.availableAt)||o.timestamps.length!==o.values.length||o.availableAt.length!==o.values.length||o.timestamps.some((t,i)=>!Number.isSafeInteger(t)||t<0||t>p.asOf||i&&t<=o.timestamps[i-1]||!Number.isSafeInteger(o.availableAt[i])||o.availableAt[i]<0||o.availableAt[i]>t))fail('INVALID_AVAILABILITY');
+  if(!Array.isArray(o.timestamps)||!Array.isArray(o.availableAt)||o.timestamps.length!==o.values.length||o.availableAt.length!==o.values.length||o.timestamps.some((t,i)=>!Number.isSafeInteger(t)||t<0||t>p.asOf||i&&t<=o.timestamps[i-1]||!Number.isSafeInteger(o.availableAt[i])||o.availableAt[i]<0||o.availableAt[i]>p.asOf))fail('INVALID_AVAILABILITY');
   refs.set(k,o);const hash=await digest({type:o.type,unit:o.unit,values:o.values,timestamps:o.timestamps,availableAt:o.availableAt});portHashes.set(k,hash);receipt.push({node:o.node,port:o.port,sha256:hash});
  }
  for(let i=0;i<r.trace.length;i++){const t=r.trace[i],n=nodes.get(t.node);if(!n||r.order[i]!==n.id||trace.has(n.id)||t.kind!==n.kind||t.definitionSHA256!==await digest(n)||!Array.isArray(t.dependencies))fail('DEFINITION_TRACE_MISMATCH');
