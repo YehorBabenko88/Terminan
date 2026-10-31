@@ -49,7 +49,7 @@ jobs:
       - name: Python contracts (failure retained)
         shell: pwsh
         run: |
-          python -m unittest discover -s tests -v *> reports/python.txt
+          python scripts/ci_unittest.py *> reports/python.txt
           $result=$LASTEXITCODE
           Get-Content reports/python.txt
           exit $result
