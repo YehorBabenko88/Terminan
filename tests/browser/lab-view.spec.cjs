@@ -29,5 +29,3 @@ test('SYNTHETIC_TEST_INPUT: quotes, XSS safety, freshness, timeout and recovery'
  await page.clock.install();await page.clock.setSystemTime(new Date(Date.now()+16000));await page.clock.runFor(600);await expect(page.locator('#state')).toContainText('STALE');
  await info.attach('synthetic-test-input-lab',{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
 });
-
-

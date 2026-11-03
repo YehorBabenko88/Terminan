@@ -86,6 +86,3 @@ def overview(path=None,*,now_ms=None):
   base.update(d,state='STALE' if stale else 'AVAILABLE',error='LAB_SNAPSHOT_STALE' if stale else None)
  except (OSError,ValueError,TypeError,KeyError,OverflowError,RecursionError):pass
  return base
-
-
-

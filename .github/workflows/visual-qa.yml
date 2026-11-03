@@ -61,4 +61,3 @@ jobs:
         with:
           name: visual-${{ matrix.os }}-${{ github.run_attempt }}
           path: candidate/reports/
-

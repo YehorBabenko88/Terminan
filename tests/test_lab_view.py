@@ -57,4 +57,3 @@ class LabTests(unittest.TestCase):
  def test_reserved_node_labels_and_alternate_stream_paths(self):
   self.data['release_id']='ADMINIT';self.assertEqual(self.read()['state'],'UNAVAILABLE')
   self.assertEqual(lab_view.overview(str(self.path)+':stream')['state'],'UNAVAILABLE')
-

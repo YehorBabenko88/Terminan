@@ -151,4 +151,3 @@ class UnifiedHandler(SavedHandler):
         if self.gate() is None:return
         if self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':return self.send(410,{'error':'SESSION_ENDED'})
         return LegacyHandler.do_POST(self)
-
