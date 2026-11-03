@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Market / Paper Lab</title><style>body{background:#101722;color:#e4edf5;font:15px system-ui;margin:2rem}a{color:#8ccfff}h1{margin-bottom:.2rem}#state{font-weight:bold;color:#ffd47b}section{border:1px solid #354457;border-radius:8px;padding:1rem;margin:1rem 0;overflow:auto}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:.4rem;border-bottom:1px solid #26374a}p{max-width:90ch}</style><h1>Public Market / Paper Lab</h1><p>LAB_SIMULATION · Read only · REPORTED_UNATTESTED · Trading authorized: false</p><p>Reported public Bybit market observations and paper simulation. This view does not attest source authenticity, physical acceptance, or authorize execution. Existing terminal data remains synthetic.</p><a href="/">Terminal workspace</a><p id="state">UNAVAILABLE</p><p id="meta"></p><main id="content"></main><script>
+const state=document.getElementById('state'),content=document.getElementById('content'),meta=document.getElementById('meta');
+function section(title,rows,keys){const s=document.createElement('section'),h=document.createElement('h2');h.textContent=title;s.append(h);if(!rows.length){const p=document.createElement('p');p.textContent='No reported observations';s.append(p)}else{const table=document.createElement('table'),head=document.createElement('tr');for(const k of keys){const th=document.createElement('th');th.textContent=k;head.append(th)}table.append(head);for(const row of rows){const tr=document.createElement('tr');for(const k of keys){const td=document.createElement('td');td.textContent=row[k]===null?'—':String(row[k]);tr.append(td)}table.append(tr)}s.append(table)}content.append(s)}
+let inFlight=false,lastReport=null;
+function unavailable(){lastReport=null;state.textContent='UNAVAILABLE · LAB_VIEW_UNAVAILABLE';meta.textContent='';content.replaceChildren()}
+function checkFreshness(){if(!lastReport)return;const now=Date.now();if(now-lastReport.generated_at_ms>15000||lastReport.quotes.some(q=>now-q.event_ts_ms>15000)){state.textContent='STALE · LAB_SNAPSHOT_STALE'}}
+async function refresh(){
+ if(inFlight)return;
+ inFlight=true;const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),2000);
+ try{
+  const r=await fetch('/api/lab/overview',{cache:'no-store',signal:controller.signal});if(!r.ok)throw Error();const d=await r.json();
+  lastReport=d.state==='UNAVAILABLE'?null:d;
+  state.textContent=d.state+(d.error?' · '+d.error:'');meta.textContent=d.generated_at_ms?'Reported: '+new Date(d.generated_at_ms).toISOString()+' · release '+d.release_id+' · run '+d.run_id+' · sequence '+d.sequence:'';
+  content.replaceChildren();section('10 public market quotes',d.quotes,['symbol','last_price','bid','ask','event_ts_ms','source']);section('Paper simulation trades',d.trades,['trade_id','symbol','strategy','side','status','entry_price','exit_price','qty','fees','funding','slippage','pnl']);section('Strategies',d.strategies,['id','status','trades','error_code']);section('Six office nodes',d.nodes,['node_id','role','state','last_heartbeat_ms','error_code']);section('Reported errors',d.errors,['code','component','ts_ms']);checkFreshness();
+ }catch(e){unavailable()}finally{clearTimeout(deadline);inFlight=false}
+}
+refresh();setInterval(refresh,5000);setInterval(checkFreshness,500);
+</script></html>

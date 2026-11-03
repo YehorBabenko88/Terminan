@@ -6,6 +6,7 @@ from .saved_server import SavedServer, SavedHandler
 from .server import Handler as LegacyHandler
 from .infrastructure import infrastructure_snapshot
 from .runtime_v2 import runtime_snapshot
+from .lab_view import overview as lab_overview
 from .cache_monitor import HTML as CACHE_HTML
 
 PAGES={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache','/runtime':'runtime'}
@@ -71,6 +72,10 @@ class UnifiedHandler(SavedHandler):
             return self.module_health()
         if path.startswith('/api/') and path not in ('/api/session','/api/status','/api/synthetic/status') and self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':
             return self.send(410,{'error':'SESSION_ENDED'})
+        if path in ('/lab','/api/lab/overview'):
+            if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
+            if path=='/lab':return self.send(200,Path(__file__).with_name('lab_view.html').read_bytes(),'text/html; charset=utf-8')
+            return self.send(200,lab_overview())
         if path in PAGES:
             if url.query:return self.send(400,{'error':'INVALID_REQUEST'})
             return self.send(200,Path(__file__).with_name('unified.html').read_bytes(),'text/html; charset=utf-8')
@@ -146,3 +151,4 @@ class UnifiedHandler(SavedHandler):
         if self.gate() is None:return
         if self.server.session.receipt(self.server.candidate_sha)['state']=='SESSION_ENDED':return self.send(410,{'error':'SESSION_ENDED'})
         return LegacyHandler.do_POST(self)
+

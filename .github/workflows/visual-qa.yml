@@ -54,8 +54,11 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: python scripts/visual_qa.py --expected-sha "$(git rev-parse HEAD)" --out reports/visual-ci
+      - name: Synthetic lab view browser regression
+        run: node node_modules/@playwright/test/cli.js test -c playwright.lab.config.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: visual-${{ matrix.os }}-${{ github.run_attempt }}
           path: candidate/reports/
+
