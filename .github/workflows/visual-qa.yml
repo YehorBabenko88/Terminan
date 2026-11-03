@@ -13,10 +13,27 @@ jobs:
         os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: candidate
     steps:
       - uses: actions/checkout@v4
         with:
+          path: candidate
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+          path: strattester
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -41,4 +58,4 @@ jobs:
         if: always()
         with:
           name: visual-${{ matrix.os }}-${{ github.run_attempt }}
-          path: reports/
+          path: candidate/reports/
