@@ -145,3 +145,23 @@ class BrowserInventoryTests(unittest.TestCase):
             summary=json.loads((output/'summary.json').read_text())
             self.assertEqual(summary['browser_contract_version'],2);self.assertEqual(summary['tests'],84)
             verify(output,'a'*40)
+
+class BrowserCollectionIsolationTests(unittest.TestCase):
+    def test_r2_exact_inventory_and_dedicated_lab_collection(self):
+        # Execute actual config and spec registration in Node; no npm install or
+        # browser is needed for Python CI's pre-install contract stage.
+        import shutil, subprocess
+        from terminan.r2_evidence import BROWSER_ASSERTIONS, PROJECTS
+        node=shutil.which('node')
+        if node is None:self.fail('Node is required to verify browser collection')
+        repo=Path(__file__).resolve().parents[1]
+        data=json.loads(subprocess.check_output([node,'tests/check_browser_collection.cjs'],cwd=repo,text=True))
+        expected={(project,title) for project in PROJECTS for title in BROWSER_ASSERTIONS}
+        observed=[(row['project'],row['title']) for row in data['r2']]
+        self.assertEqual(len(observed),84)
+        self.assertEqual(set(observed),expected)
+        self.assertEqual({r['file'] for r in data['r2']},{'r2.spec.cjs','infrastructure.spec.cjs','unified_contract.spec.cjs'})
+        self.assertEqual(len(data['lab']),1)
+        self.assertEqual(data['lab'][0]['project'],'chromium-lab-view')
+        self.assertEqual(data['lab'][0]['file'],'lab-view.spec.cjs')
+        self.assertTrue(data['lab'][0]['title'].startswith('SYNTHETIC_TEST_INPUT:'))
