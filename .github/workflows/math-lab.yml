@@ -3,7 +3,7 @@ on: [push, pull_request]
 permissions:
   contents: read
 concurrency:
-  group: math-lab-${{ github.event.pull_request.head.sha || github.sha }}
+  group: math-lab-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 jobs:
   scientific-ui:

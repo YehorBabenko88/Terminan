@@ -3,7 +3,7 @@ on: [push, pull_request]
 permissions:
   contents: read
 concurrency:
-  group: visual-${{ github.event.pull_request.head.sha || github.sha }}
+  group: visual-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 jobs:
   visual:

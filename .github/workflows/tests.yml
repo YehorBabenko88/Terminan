@@ -1,7 +1,7 @@
 name: R4 exact offline session candidate
 on: [push, pull_request]
 concurrency:
-  group: terminan-${{ github.event.pull_request.head.sha || github.sha }}
+  group: terminan-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 permissions:
   contents: read
