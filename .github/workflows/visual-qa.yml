@@ -60,4 +60,10 @@ jobs:
         if: always()
         with:
           name: visual-${{ matrix.os }}-${{ github.run_attempt }}
-          path: candidate/reports/
+          path: candidate/reports/visual-ci/
+          include-hidden-files: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lab-view-${{ matrix.os }}-${{ github.run_attempt }}
+          path: candidate/reports/lab-view-ci/

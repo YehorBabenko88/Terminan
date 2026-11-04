@@ -1,5 +1,5 @@
 const {test,expect}=require('@playwright/test');
-const {spawn,spawnSync}=require('node:child_process');const fs=require('node:fs');
+const {spawn,execFile}=require('node:child_process');const fs=require('node:fs');
 let child,url,stderrBytes=0;
 function launch(){const p=spawn(process.env.R2_PYTHON||'python',['-m','terminan.r4_runner'],{stdio:['pipe','pipe','pipe']});p.stderr.on('data',b=>{stderrBytes+=b.length;});return p;}
 async function ready(p){return new Promise((resolve,reject)=>{let line='';const t=setTimeout(()=>reject(Error('STARTUP_TIMEOUT')),15000);p.once('error',()=>{clearTimeout(t);reject(Error('STARTUP_FAILED'));});p.stdout.on('data',b=>{line+=b;if(line.includes('\n')){clearTimeout(t);resolve('http://127.0.0.1:'+JSON.parse(line.split('\n')[0]).port);}});});}
@@ -32,7 +32,7 @@ test('R4 bounded workloads contracts and session lifecycle',async({page,browserN
  if(cdp)await cdp.send('Performance.enable');
  const sample=async()=>{if(!cdp)return null;await cdp.send('HeapProfiler.collectGarbage');const {metrics}=await cdp.send('Performance.getMetrics');return Object.fromEntries(metrics.map(x=>[x.name,x.value]));};
  const browserCDP=cdp?await page.context().browser().newBrowserCDPSession():null;
- const rss=async()=>{if(!browserCDP)return {state:'UNAVAILABLE',reason:'FIREFOX_CDP_UNSUPPORTED'};const {processInfo}=await browserCDP.send('SystemInfo.getProcessInfo');const result=spawnSync(process.env.R2_PYTHON||'python',['-m','terminan.process_metrics',...processInfo.map(p=>String(p.id))],{encoding:'utf8'});if(result.status!==0)throw Error('Resource sampler failed');return JSON.parse(result.stdout);};
+ const rss=async()=>{if(!browserCDP)return {state:'UNAVAILABLE',reason:'FIREFOX_CDP_UNSUPPORTED'};const {processInfo}=await browserCDP.send('SystemInfo.getProcessInfo');const result=await new Promise((resolve,reject)=>execFile(process.env.R2_PYTHON||'python',['-m','terminan.process_metrics',...processInfo.map(p=>String(p.id))],{encoding:'utf8',timeout:10000,maxBuffer:65536,windowsHide:true},(error,stdout)=>error?reject(Error('Resource sampler failed')):resolve(stdout)));try{return JSON.parse(result);}catch{throw Error('Resource sampler failed');}};
  const rssBefore=await rss();const before=await sample(),results=[];
  for(const updates of [10000,100000]){
   await page.evaluate(()=>window.r2.seek(100));
