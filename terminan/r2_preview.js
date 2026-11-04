@@ -34,6 +34,9 @@ function zoom(factor,anchor=.5){
 }
 function drawChart(){
   const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(3,devicePixelRatio||1);
+  // A retained workspace has zero layout size while hidden. Resizing its
+  // backing store here would destroy the last painted chart before tab return.
+  if(w<=0||h<=0)return;
   if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   const rows=s.data?.candles.filter(r=>r.t+s.data.period_ms>s.start&&r.t<s.end)||[];

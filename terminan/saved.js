@@ -302,7 +302,11 @@
  }
  function scheduleDraw(){if(!closed&&!raf)raf=requestAnimationFrame(draw);}
  function draw(){
-  raf=0;const canvas=$('saved-chart'),rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio;canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,rect.width,rect.height);
+  raf=0;const canvas=$('saved-chart'),rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio;
+  // Preserve the retained backing buffer when a workspace/target is hidden.
+  // Its ResizeObserver will schedule the visible-size redraw on return.
+  if(rect.width<=0||rect.height<=0)return;
+  canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,rect.width,rect.height);
   const footprint=dataset()?.name==='footprint_1m';
   const visibleTimes=new Set(rows.slice(0,replay).map(r=>r.ts));
   const candles=(['footprint_1m','candles_1m'].includes(dataset()?.name)?aggregated().filter(r=>r.ts<=Math.max(...visibleTimes,0)):rows.slice(0,replay)).filter(r=>['open','high','low','close'].every(k=>typeof r[k]==='number'));const n=Math.min(candles.length,Math.max(1,Math.round(span))),maxPan=Math.max(0,candles.length-n),offset=Math.max(0,Math.min(maxPan,Math.round(pan))),end=candles.length-offset,view=candles.slice(Math.max(0,end-n),end);

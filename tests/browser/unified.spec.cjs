@@ -1,6 +1,23 @@
 const {test,expect}=require('@playwright/test');
 const {spawn}=require('node:child_process');
 let child,url,stderr=0;
+async function retainedHiddenCanvas(frame,id){
+ await expect.poll(()=>frame.locator('#'+id).evaluate(c=>c.width>0&&c.height>0)).toBe(true);
+ const observation=await frame.locator('#'+id).evaluate(async c=>{
+  const before={width:c.width,height:c.height,pixels:c.toDataURL()},display=c.style.display;
+  c.style.display='none';window.dispatchEvent(new Event('resize'));
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const hidden={width:c.width,height:c.height,pixels:c.toDataURL()};
+  c.style.display=display;window.dispatchEvent(new Event('resize'));
+  return {before,hidden};
+ });
+ expect(observation.hidden).toEqual(observation.before);
+ await expect.poll(()=>frame.locator('#'+id).evaluate(c=>{
+  const box=c.getBoundingClientRect(),terminal=c.id==='chart',dpr=terminal?Math.min(3,devicePixelRatio):devicePixelRatio;
+  const pending=terminal?window.r2.metrics().rafPending:window.saved.metrics().raf;
+  return Math.abs(c.width-(terminal?c.clientWidth:box.width)*dpr)<=2&&Math.abs(c.height-(terminal?c.clientHeight:box.height)*dpr)<=2&&(pending===0||pending===false);
+ })).toBe(true);
+}
 test.beforeAll(async()=>{
  if(process.env.UNIFIED_URL){url=process.env.UNIFIED_URL;return;}
  child=spawn(process.env.R2_PYTHON||'python',['-m','terminan.unified_runner','--demo','--port','0'],{stdio:['pipe','pipe','pipe']});child.stderr.on('data',b=>stderr+=b.length);
@@ -11,9 +28,11 @@ test('six workspaces preserve chart state and fail closed without engines',async
  const errors=[];page.on('pageerror',e=>errors.push(e.name));await page.goto(url);
  const terminal=page.frameLocator('iframe[data-workspace="terminal"]');
  await expect(terminal.locator('body')).toHaveAttribute('data-loading','false');await expect(terminal.locator('#session-state')).toContainText('ACTIVE');
+ await retainedHiddenCanvas(terminal,'chart');
  const metric=()=>terminal.locator('body').evaluate(()=>window.r2.metrics());const initial=await metric();await terminal.locator('#zoom-in').click();await expect.poll(async()=>(await metric()).spanMs).toBeLessThan(initial.spanMs);const zoom=(await metric()).spanMs;expect((await metric()).bookRows).toBeLessThanOrEqual(100);const ladder=await terminal.locator('#book-body tr').evaluateAll(rows=>rows.map(r=>r.className));const split=ladder.findIndex(c=>c.includes('ladder-bid'));expect(split).toBeGreaterThan(0);expect(ladder.slice(0,split).every(c=>c.includes('ladder-ask'))).toBe(true);expect(ladder.slice(split).every(c=>c.includes('ladder-bid'))).toBe(true);
  const sz=await terminal.locator('#chart').evaluate(c=>({width:c.width,css:c.clientWidth,dpr:devicePixelRatio}));expect(Math.abs(sz.width-sz.css*sz.dpr)).toBeLessThanOrEqual(2);
  await page.locator('#workspaces a[href="/saved"]').click();const saved=page.frameLocator('iframe[data-workspace="saved"]');await expect(saved.locator('body')).toHaveAttribute('data-loading','false');await expect(saved.locator('#mode')).toContainText('SYNTHETIC FIXTURES');await expect(saved.locator('#saved-body tr')).toHaveCount(48);
+ await retainedHiddenCanvas(saved,'saved-chart');
  const span=await saved.locator('body').evaluate(()=>saved.metrics().span);await saved.locator('#zoom-in').click();await expect.poll(()=>saved.locator('body').evaluate(()=>window.saved.metrics().span)).toBeLessThan(span);const savedSpan=await saved.locator('body').evaluate(()=>window.saved.metrics().span);
  await saved.locator('#saved-seek').fill('3');await saved.locator('#saved-step').click();await expect(saved.locator('#saved-body tr')).toHaveCount(4);
  for(const route of ['/math','/history-overlay','/monitor','/cache']){await page.locator(`#workspaces a[href="${route}"]`).click();await expect(page.locator(`iframe[data-workspace="${route.slice(1)}"]`)).toBeVisible();}
