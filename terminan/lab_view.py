@@ -60,6 +60,21 @@ def validate(d,now):
   closed(e,'code component ts_ms');code(e['code'],False);label(e['component']);stamp(e['ts_ms'],generated)
  return d
 
+def _snapshot_fd(path):
+ # Readers must allow the atomic publisher to replace a Windows directory entry.
+ # The open handle retains the old inode. read_snapshot still rejects links,
+ # oversize files, identity replacement and any concurrent content mutation.
+ if os.name!='nt':return os.open(path,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|getattr(os,'O_NONBLOCK',0))
+ import ctypes,msvcrt
+ kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+ create=kernel.CreateFileW;create.argtypes=[ctypes.c_wchar_p,ctypes.c_uint32,ctypes.c_uint32,ctypes.c_void_p,ctypes.c_uint32,ctypes.c_uint32,ctypes.c_void_p];create.restype=ctypes.c_void_p
+ close=kernel.CloseHandle;close.argtypes=[ctypes.c_void_p];close.restype=ctypes.c_int
+ handle=create(str(path),0x80000000,1|2|4,None,3,0x80|0x200000,None)
+ if handle==ctypes.c_void_p(-1).value:raise ctypes.WinError(ctypes.get_last_error())
+ try:return msvcrt.open_osfhandle(handle,os.O_RDONLY|os.O_BINARY)
+ except BaseException:close(handle);raise
+
+
 def read_snapshot(path,*,limit=LIMIT):
  require(type(path) is str and path and not path.startswith(('\\\\','//')))
  p=Path(path);require(p.is_absolute() and '..' not in p.parts and ':' not in path[len(p.drive):])
@@ -67,7 +82,7 @@ def read_snapshot(path,*,limit=LIMIT):
  for part in (*reversed(p.parents),p):
   st=part.lstat();require(not stat.S_ISLNK(st.st_mode) and not getattr(st,'st_file_attributes',0)&0x400)
  initial=p.lstat();require(stat.S_ISREG(initial.st_mode) and initial.st_nlink==1 and initial.st_size<=limit)
- fd=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|getattr(os,'O_BINARY',0)|getattr(os,'O_NONBLOCK',0))
+ fd=_snapshot_fd(p)
  with os.fdopen(fd,'rb') as f:
   before=os.fstat(f.fileno());require(stat.S_ISREG(before.st_mode) and before.st_nlink==1 and (before.st_dev,before.st_ino)==(initial.st_dev,initial.st_ino))
   raw=f.read(limit+1);after=os.fstat(f.fileno())
