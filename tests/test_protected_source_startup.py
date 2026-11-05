@@ -12,6 +12,15 @@ class ProtectedSourceTests(unittest.TestCase):
   from integration import source_guard
   expected=os.environ.get('TERMINAN_TEST_UNIFIED_ROOT')
   if expected:self.assertEqual(Path(source_guard.__file__).resolve(),(Path(expected)/'integration/source_guard.py').resolve())
+  # The foreign-owner negative control needs Git's default ownership policy.
+  # Hosted runners may admit every checkout through global safe.directory=*.
+  # Isolate this disposable fixture before git init; leave product provenance
+  # and the caller's real Git configuration untouched.
+  environment={key:value for key,value in os.environ.items() if not key.startswith('GIT_')}
+  environment.update(GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_SYSTEM=os.devnull,
+                     GIT_CONFIG_GLOBAL=os.devnull,GIT_TERMINAL_PROMPT='0')
+  self.git_environment=patch.dict(os.environ,environment,clear=True)
+  self.git_environment.start();self.addCleanup(self.git_environment.stop)
   self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name).resolve()/'source';(self.root/'terminan').mkdir(parents=True)
   self.file=self.root/'terminan/unified_runner.py';self.file.write_bytes(b'INERT_TEST_SOURCE\n')
   def git(*args):return subprocess.check_output(['git','-C',str(self.root),*args],stderr=subprocess.DEVNULL).decode().strip()
