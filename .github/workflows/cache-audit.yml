@@ -3,7 +3,7 @@ on: [push, pull_request]
 permissions:
   contents: read
 concurrency:
-  group: cache-audit-${{ github.event.pull_request.head.sha || github.sha }}
+  group: cache-audit-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 jobs:
   cache:
@@ -12,7 +12,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 30 || 10 }}
     steps:
       - uses: actions/checkout@v4
         with:

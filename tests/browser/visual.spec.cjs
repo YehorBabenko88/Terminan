@@ -16,7 +16,19 @@ async function palette(frame){return frame.evaluate(()=>{
  return selectors.flatMap(s=>[...document.querySelectorAll(s)].slice(0,4).map(e=>{const c=getComputedStyle(e);return {selector:s,tag:e.tagName,color:['.ask','.bid','.ask-price','.bid-price','.poc','.cluster-poc'].includes(s)?c.color:null,background:c.backgroundColor,gradient:c.backgroundImage,border:c.borderColor,borderLeft:c.borderLeftColor,fill:c.fill,stroke:c.stroke,dash:c.strokeDasharray}}));
 })}
 async function pixels(frame,id){return frame.evaluate(async id=>{const c=document.getElementById(id),data=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=0;i<data.length;i+=4){const a=data[i+3];data[i]=Math.round(data[i]*a/255);data[i+1]=Math.round(data[i+1]*a/255);data[i+2]=Math.round(data[i+2]*a/255)}const v=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(v),n=>n.toString(16).padStart(2,'0')).join('')},id)}
-async function settled(frame){await frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))}
+async function settled(frame){
+ await frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ // RAF count alone cannot prove ResizeObserver delivery or a completed paint.
+ // Require actual visible backing dimensions and the existing renderer queue.
+ await frame.waitForFunction(()=>[...document.querySelectorAll('canvas')].every(c=>{
+  const box=c.getBoundingClientRect();if(box.width<=0||box.height<=0)return false;
+  const terminal=c.id==='chart'&&document.querySelector('#book-body');
+  const dpr=terminal?Math.min(3,devicePixelRatio):devicePixelRatio;
+  const width=terminal?c.clientWidth:box.width,height=terminal?c.clientHeight:box.height;
+  const pending=terminal?window.r2?.metrics?.().rafPending:window.saved?.metrics?.().raf;
+  return c.width>0&&c.height>0&&Math.abs(c.width-width*dpr)<=2&&Math.abs(c.height-height*dpr)<=2&&(pending===0||pending===false);
+ }));
+}
 async function frameFor(page,route){await page.locator(`#workspaces a[href="${route}"]`).click();const f=await (await page.locator(`iframe[data-workspace="${routes[route]}"]`).elementHandle()).contentFrame();await f.waitForURL('**/workspace/'+routes[route]);await expect(f.locator('link[data-terminan-theme]')).toHaveCount(1);await f.waitForFunction(()=>Boolean(document.querySelector('link[data-terminan-theme]').sheet));return f}
 function verifyLayout(metric){expect(metric.scrollWidth).toBeLessThanOrEqual(metric.width+1);expect(metric.controls).toEqual([]);expect(metric.overlaps).toEqual([]);expect(metric.replacementChars).toBe(false);for(const c of metric.canvases){expect(Math.abs(c.width-c.cssWidth*c.dpr)).toBeLessThanOrEqual(2);expect(Math.abs(c.height-c.cssHeight*c.dpr)).toBeLessThanOrEqual(2)}}
 

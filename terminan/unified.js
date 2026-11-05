@@ -1,7 +1,7 @@
-/* Six bounded lazy workspaces. Retained documents preserve chart/graph state. */
+/* Bounded lazy workspaces. Retained documents preserve chart/graph state. */
 'use strict';
 (()=>{
- const pages={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache'};
+ const pages={'/':'terminal','/saved':'saved','/math':'math','/history-overlay':'history-overlay','/monitor':'monitor','/cache':'cache','/runtime':'runtime'};
  const frames=new Map(),host=document.getElementById('workspace-host');
  function show(path,push){
   if(!Object.hasOwn(pages,path))return;

@@ -3,20 +3,47 @@ on: [push, pull_request]
 permissions:
   contents: read
 concurrency:
-  group: unified-${{ github.event.pull_request.head.sha || github.sha }}
+  group: unified-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 jobs:
   runtime:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: candidate
+    env:
+      PYTHONPATH: ${{ github.workspace }}/unified-source-guard
+      TERMINAN_TEST_UNIFIED_ROOT: ${{ github.workspace }}/unified-source-guard
     steps:
+      - name: Pinned shared source-verifier test fixture
+        uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/unified-system
+          ref: 697c0bf546274162942d6b6254168f4df9d0e72c
+          path: unified-source-guard
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
+          path: candidate
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: d537d525296ef34f727996e240ae6c60102c6082
+          path: grid
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/strattester
+          ref: 37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+          path: strattester
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -49,4 +76,4 @@ jobs:
         if: always()
         with:
           name: unified-${{ matrix.os }}-${{ github.run_attempt }}
-          path: reports/
+          path: candidate/reports/

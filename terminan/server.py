@@ -13,6 +13,7 @@ from .g0_sources import all_sources, snapshot
 from . import math_bridge
 from . import history_overlay
 from .infrastructure import infrastructure_snapshot
+from .runtime_v2 import runtime_snapshot
 
 def source_rows(kind,symbol,timeframe='1m'):
     view=snapshot(kind,symbol,timeframe=timeframe)
@@ -105,6 +106,9 @@ class Handler(BaseHTTPRequestHandler):
         elif url.path == "/history-assets/overlay.js":
             body = files("terminan").joinpath("history_overlay.js").read_bytes()
             self.send_response(200); self.send_header("Content-Type","application/javascript; charset=utf-8")
+        elif url.path == "/runtime":
+            body=files("terminan").joinpath("runtime_v2.html").read_bytes()
+            self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path == "/infrastructure":
             body=files("terminan").joinpath("infrastructure.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
@@ -121,7 +125,10 @@ class Handler(BaseHTTPRequestHandler):
             symbol = q.get("symbol",["BTCUSDT"])[0]
             timeframe = q.get("timeframe",["1m"])[0]
             try:
-                if url.path == '/api/infrastructure': result=infrastructure_snapshot()
+                if url.path == '/api/runtime-v2':
+                    if url.query:raise ValueError('INVALID_QUERY')
+                    result=runtime_snapshot()
+                elif url.path == '/api/infrastructure': result=infrastructure_snapshot()
                 elif url.path == '/api/math/catalog': result=math_bridge.scientific_catalog()
                 elif url.path == '/api/math/health': result=math_bridge.check()
                 elif url.path == '/api/sources': result=all_sources(symbol,timeframe)

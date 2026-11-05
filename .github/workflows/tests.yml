@@ -1,7 +1,7 @@
 name: R4 exact offline session candidate
 on: [push, pull_request]
 concurrency:
-  group: terminan-${{ github.event.pull_request.head.sha || github.sha }}
+  group: terminan-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -10,14 +10,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
         python: ['3.11', '3.14']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 55
     defaults:
       run:
         working-directory: candidate
+    env:
+      PYTHONPATH: ${{ github.workspace }}/unified-source-guard
+      TERMINAN_TEST_UNIFIED_ROOT: ${{ github.workspace }}/unified-source-guard
     steps:
+      - name: Pinned shared source-verifier test fixture
+        uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/unified-system
+          ref: 697c0bf546274162942d6b6254168f4df9d0e72c
+          path: unified-source-guard
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           path: candidate
@@ -39,17 +49,21 @@ jobs:
         with:
           node-version: '24'
       - name: Exact run identity
+        env:
+          TERMINAN_REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force reports | Out-Null
           $sha = (git rev-parse HEAD).Trim()
           if ($sha -ne '${{ github.event.pull_request.head.sha || github.sha }}') { throw 'SHA mismatch' }
-          if ('${{ github.event_name }}' -eq 'pull_request' -and '${{ github.event.pull_request.base.sha }}' -ne 'c08de12dbee5bcb64efe91641438efcdf9e96796') { throw 'Unified runtime stack base drift' }
-          @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}'} | ConvertTo-Json | Set-Content reports/identity.json
+          $reviewJson = python scripts/ci_review_base.py
+          if ($LASTEXITCODE -ne 0) { throw 'Unified runtime stack base drift' }
+          $review = $reviewJson | ConvertFrom-Json
+          @{candidate_sha=$sha;run_id='${{ github.run_id }}';attempt='${{ github.run_attempt }}';os='${{ matrix.os }}';python='${{ matrix.python }}';review_base_policy=$review} | ConvertTo-Json -Depth 4 | Set-Content reports/identity.json
       - name: Python contracts (failure retained)
         shell: pwsh
         run: |
-          python -m unittest discover -s tests -v *> reports/python.txt
+          python scripts/ci_unittest.py *> reports/python.txt
           $result=$LASTEXITCODE
           Get-Content reports/python.txt
           exit $result

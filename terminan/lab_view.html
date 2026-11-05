@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Market / Paper Lab</title><style>body{background:#101722;color:#e4edf5;font:15px system-ui;margin:2rem}a{color:#8ccfff}h1{margin-bottom:.2rem}#state{font-weight:bold;color:#ffd47b}section{border:1px solid #354457;border-radius:8px;padding:1rem;margin:1rem 0;overflow:auto}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:.4rem;border-bottom:1px solid #26374a}p{max-width:90ch}</style><h1>Public Market / Paper Lab</h1><p>LAB_SIMULATION · Read only · REPORTED_UNATTESTED · Trading authorized: false</p><p>Reported public Bybit market observations and paper simulation. This view does not attest source authenticity, physical acceptance, or authorize execution. Existing terminal data remains synthetic.</p><a href="/">Terminal workspace</a><p id="state">UNAVAILABLE</p><p id="meta"></p><main id="content"></main><script>
+const state=document.getElementById('state'),content=document.getElementById('content'),meta=document.getElementById('meta');
+function section(title,rows,keys){const s=document.createElement('section'),h=document.createElement('h2');h.textContent=title;s.append(h);if(!rows.length){const p=document.createElement('p');p.textContent='No reported observations';s.append(p)}else{const table=document.createElement('table'),head=document.createElement('tr');for(const k of keys){const th=document.createElement('th');th.textContent=k;head.append(th)}table.append(head);for(const row of rows){const tr=document.createElement('tr');for(const k of keys){const td=document.createElement('td');td.textContent=row[k]===null?'—':String(row[k]);tr.append(td)}table.append(tr)}s.append(table)}content.append(s)}
+let inFlight=false,lastReport=null;
+function unavailable(){lastReport=null;state.textContent='UNAVAILABLE · LAB_VIEW_UNAVAILABLE';meta.textContent='';content.replaceChildren()}
+function checkFreshness(){if(!lastReport)return;const now=Date.now();if(lastReport.schema==='unified.lab.market-paper.v2'){if(now-lastReport.generated_at_ms>15000){state.textContent='STALE | STALE_SOURCE';for(const label of document.querySelectorAll('.v2-section-state'))if(label.dataset.reportedState!=='UNAVAILABLE')label.textContent='STALE'}return;}if(now-lastReport.generated_at_ms>15000||lastReport.quotes.some(q=>now-q.event_ts_ms>15000)){state.textContent='STALE · LAB_SNAPSHOT_STALE'}}
+function v2Text(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p)}
+function v2Table(parent,rows,keys){if(!rows.length)return;const table=document.createElement('table'),head=document.createElement('tr');for(const key of keys){const th=document.createElement('th');th.textContent=key;head.append(th)}table.append(head);for(const row of rows){const tr=document.createElement('tr');for(const key of keys){const td=document.createElement('td');const value=row[key];td.textContent=value===undefined?'UNKNOWN (not reported)':value===null?'null (reported)':typeof value==='object'?JSON.stringify(value):String(value);tr.append(td)}table.append(tr)}parent.append(table)}
+function v2Raw(parent,payload){const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Exact reported source envelope / receipt bindings';pre.textContent=JSON.stringify(payload,null,2);details.append(summary,pre);parent.append(details)}
+function renderV2(d){
+ content.replaceChildren();
+ for(const name of ['market','paper','fleet']){
+  const reported=d.sections[name],card=document.createElement('section'),heading=document.createElement('h2'),status=document.createElement('span');
+  card.id=name+'-v2';heading.textContent=({market:'Market observations',paper:'CLOSED RESEARCH paper results',fleet:'Reported fleet observations'})[name]+' | ';status.className='v2-section-state';status.dataset.reportedState=reported.state;status.textContent=d.section_states[name];heading.append(status);card.append(heading);content.append(card);
+  if(reported.state==='UNAVAILABLE'){v2Text(card,reported.error_code);continue}
+  if(reported.error_code)v2Text(card,reported.error_code);
+  const payload=reported.payload;
+  if(name==='market'){
+   v2Text(card,'Per-field freshness UNKNOWN | Source authenticity NOT_EVALUATED | No atomic multi-symbol snapshot. Event age is measured against the producer declared as_of_ms, not proof of current quote freshness.');
+   if(!payload.length)v2Text(card,'No reported market observations; source completeness NOT_EVALUATED.');
+   for(const packet of payload){v2Text(card,packet.request.symbol+' | '+packet.evidence_class+' | source completeness '+packet.source_completeness+' | row count '+packet.row_count);v2Table(card,packet.rows,['id','symbol','event_type','event_ts','ingest_ts','event_age_ms','observation_status','field_freshness','payload']);v2Raw(card,packet)}
+  }else if(name==='paper'){
+   v2Text(card,payload.source_authenticity+' | '+payload.receipt_provenance+' | '+payload.durability+' | '+payload.ledger_scope+' | live WAL supported: '+payload.live_wal_supported);
+   v2Text(card,'Missing account/open state: '+payload.missing_state.join(', ')+'. Closed research results are not actual exchange fills, live positions, balance or execution authority.');
+   v2Text(card,'Validated '+payload.validated_count+' | returned '+payload.returned_count+' | has_more '+payload.has_more+' | '+payload.selection_order.join(', '));
+   if(!payload.rows.length)v2Text(card,'No reported closed research results.');
+   v2Table(card,payload.rows.map(row=>({...row.result,admitted_ms:row.admitted_ms})),['trade_id','symbol','strategy','strategy_revision','evidence_class','side','status','entry_ts_ms','exit_ts_ms','entry_price','exit_price','qty','fees','funding','slippage','pnl','admitted_ms','grid_normal','paper_eligible','h_b','receipt_provenance']);v2Raw(card,payload);
+  }else{
+   v2Text(card,payload.mode+' | source provenance '+payload.source_provenance+' | physical '+payload.physical+' | production '+payload.production+' | Identity verified: false. A reported state is not an online or physical acceptance attestation.');
+   if(!payload.nodes.length)v2Text(card,'No reported nodes; unknown nodes are not synthesized.');
+   v2Table(card,payload.nodes.map(node=>({...node,heartbeat_display:node.last_heartbeat_ms===null?'UNKNOWN':node.last_heartbeat_ms>Date.now()?'FUTURE_DECLARED':Date.now()-node.last_heartbeat_ms>30000?'STALE':'RECENT_UNVERIFIED'})),['id','state','epoch','sequence','last_heartbeat_ms','heartbeat_display','zone','identity_verified','available_resources']);v2Raw(card,payload);
+  }
+ }
+}
+async function refresh(){
+ if(inFlight)return;
+ inFlight=true;const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),2000);
+ try{
+  const r=await fetch('/api/lab/overview',{cache:'no-store',signal:controller.signal});if(!r.ok)throw Error();const d=await r.json();
+  lastReport=d.state==='UNAVAILABLE'?null:d;
+  state.textContent=d.state+(d.error?' · '+d.error:'');if(d.schema==='unified.lab.market-paper.v2'){meta.textContent=d.generated_at_ms?'Declared snapshot time: '+new Date(d.generated_at_ms).toISOString()+' | release '+d.release_id+' | run '+d.run_id+' | sequence '+d.sequence+' | REPORTED_UNATTESTED':'';renderV2(d);checkFreshness();return;}meta.textContent=d.generated_at_ms?'Reported: '+new Date(d.generated_at_ms).toISOString()+' · release '+d.release_id+' · run '+d.run_id+' · sequence '+d.sequence:'';
+  content.replaceChildren();section('10 public market quotes',d.quotes,['symbol','last_price','bid','ask','event_ts_ms','source']);section('Paper simulation trades',d.trades,['trade_id','symbol','strategy','side','status','entry_price','exit_price','qty','fees','funding','slippage','pnl']);section('Strategies',d.strategies,['id','status','trades','error_code']);section('Six office nodes',d.nodes,['node_id','role','state','last_heartbeat_ms','error_code']);section('Reported errors',d.errors,['code','component','ts_ms']);checkFreshness();
+ }catch(e){unavailable()}finally{clearTimeout(deadline);inFlight=false}
+}
+refresh();setInterval(refresh,5000);setInterval(checkFreshness,500);
+</script></html>
