@@ -5,19 +5,40 @@ from .unified_server import UnifiedServer,UnifiedHandler
 from .saved_sources import SavedSources,demo_config
 from .r2_diagnostics import FATAL
 
-def provenance():
+def provenance(*,startup_admission=None,expected_commit=None):
     repo=Path(__file__).resolve().parents[1]
     def git(*args):return subprocess.check_output(['git','-C',str(repo),*args],text=True,stderr=subprocess.DEVNULL,timeout=5).strip()
-    return dict(candidate_sha=git('rev-parse','HEAD'),tree=git('rev-parse','HEAD^{tree}'),source_clean=not bool(git('status','--porcelain')))
+    if startup_admission is None:return dict(candidate_sha=git('rev-parse','HEAD'),tree=git('rev-parse','HEAD^{tree}'),source_clean=not bool(git('status','--porcelain')))
+    # A live in-process protected dispatcher supplies this object. Standalone
+    # CLI/environment metadata cannot opt into foreign-owner Git admission.
+    import re
+    admission=startup_admission
+    def scope():
+        if isinstance(admission,dict) or not all(callable(getattr(admission,name,None)) for name in ('require_current','source_scope','source_identity')):raise ValueError('SOURCE_UNAVAILABLE')
+        if admission.require_current() is not True or type(expected_commit) is not str or re.fullmatch('[a-f0-9]{40}',expected_commit) is None:raise ValueError('SOURCE_UNAVAILABLE')
+        scoped=admission.source_scope('terminan',repo,expected_commit)
+        if not isinstance(scoped,Path) or not scoped.is_absolute() or '*' in str(scoped) or scoped!=repo.resolve(strict=True):raise ValueError('SOURCE_UNAVAILABLE')
+        return scoped
+    admitted=scope();identity=admission.source_identity('terminan')
+    if type(identity) is not dict or identity.get('commit')!=expected_commit or type(identity.get('tree')) is not str or re.fullmatch('[a-f0-9]{40}',identity['tree']) is None:raise ValueError('SOURCE_UNAVAILABLE')
+    from integration.source_guard import SourceFence
+    class ProtectedFence(SourceFence):
+        def git(self,*args,**kwargs):
+            if scope()!=admitted:raise ValueError('SOURCE_UNAVAILABLE')
+            return super().git(*args,**kwargs)
+    fence=ProtectedFence(repo,expected_commit,isolated_cache=sys.pycache_prefix,git_executable=admission.git_executable,git_sha256=admission.git_sha256,owner_admitted_root=admitted)
+    snapshot=fence.check()
+    if snapshot['tree']!=identity['tree'] or fence.git('status','--porcelain').strip():raise ValueError('SOURCE_UNAVAILABLE')
+    return dict(candidate_sha=expected_commit,tree=snapshot['tree'],source_clean=True)
 
-def main():
+def main(argv=None,*,startup_admission=None):
     server=None;thread=None;code=50
     try:
         parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8765);parser.add_argument('--expected-sha');parser.add_argument('--cache-db')
         choice=parser.add_mutually_exclusive_group();choice.add_argument('--demo',action='store_true');choice.add_argument('--config')
-        args=parser.parse_args()
+        args=parser.parse_args(argv)
         if not 0<=args.port<=65535:raise ValueError()
-        source=provenance()
+        source=provenance() if startup_admission is None else provenance(startup_admission=startup_admission,expected_commit=args.expected_sha)
         if not source['source_clean'] or args.expected_sha and source['candidate_sha']!=args.expected_sha:raise ValueError()
         # Legacy env connectors must never silently opt this runtime into production.
         for key in ('TERMINAN_GRID_DSN','TERMINAN_STRATTESTER_DB','TERMINAN_RESULTS_DB'):os.environ.pop(key,None)

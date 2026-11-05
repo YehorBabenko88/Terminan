@@ -17,7 +17,17 @@ jobs:
     defaults:
       run:
         working-directory: candidate
+    env:
+      PYTHONPATH: ${{ github.workspace }}/unified-source-guard
+      TERMINAN_TEST_UNIFIED_ROOT: ${{ github.workspace }}/unified-source-guard
     steps:
+      - name: Pinned shared source-verifier test fixture
+        uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/unified-system
+          ref: 697c0bf546274162942d6b6254168f4df9d0e72c
+          path: unified-source-guard
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           path: candidate

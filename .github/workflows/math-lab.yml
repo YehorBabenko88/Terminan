@@ -13,10 +13,19 @@ jobs:
       run:
         working-directory: candidate
     env:
+      PYTHONPATH: ${{ github.workspace }}/unified-source-guard
+      TERMINAN_TEST_UNIFIED_ROOT: ${{ github.workspace }}/unified-source-guard
       MATH_REPO: ${{ github.workspace }}/math-engine
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       MATH_HEAD: 1f97e56701c0fce01dc8dd05952111fa8df3f2d1
     steps:
+      - name: Pinned shared source-verifier test fixture
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/unified-system
+          ref: 697c0bf546274162942d6b6254168f4df9d0e72c
+          path: unified-source-guard
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
