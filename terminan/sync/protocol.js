@@ -574,19 +574,20 @@
     tick() {
       if (this.stopped || !this.authenticated || this.needsSnapshot) return;
       const n = this.clock();
-      if (this.authority === "NO_QUORUM") {
-        this.status = "NO_QUORUM";
-        return;
-      }
       if (!this.connected && n.mono - this.lastContact >= 30000) {
         this.status = "OFFLINE";
         return;
       }
-      if (n.mono >= this.deadline || this.authority !== "QUORUM_CONFIRMED") {
+      if (n.mono >= this.deadline || this.authority === "UNKNOWN") {
         this.status = "STALE";
         return;
       }
-      this.status = this.connected ? "LIVE" : "RECONNECTING";
+      this.status =
+        this.authority === "NO_QUORUM"
+          ? "NO_QUORUM"
+          : this.connected
+            ? "LIVE"
+            : "RECONNECTING";
     }
     error(error) {
       const code = error && error.code;

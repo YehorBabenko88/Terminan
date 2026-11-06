@@ -9,7 +9,7 @@ Run contracts: `node --test tests/sync/test_contract.cjs tests/sync/test_client.
 
 ## Evidence
 
-41 deterministic Node tests pass locally on Windows, including 25 original scenario names and additional dataset/auth/race/queue regressions. All fixtures are synthetic transport inputs; assertions exercise the actual consumer. PC1->LS7 and backend continuation cases model independent clients only, not real relocation/durability or backend RBAC. Client command() always rejects; it cannot qualify a production authorization provider.
+42 deterministic Node tests pass locally on Windows, including 25 original scenario names and additional dataset/auth/race/queue regressions. All fixtures are synthetic transport inputs; assertions exercise the actual consumer. PC1->LS7 and backend continuation cases model independent clients only, not real relocation/durability or backend RBAC. Client command() always rejects; it cannot qualify a production authorization provider.
 
 Three schemas pass Draft202012 meta-schema validation, positive fixtures and empty/unknown-field rejection. Three Chromium tests pass, including keyboard navigation, no horizontal page overflow, four independent indicators and session redaction. Two screenshot baselines were generated, visually inspected and compared unchanged on a second run. This is narrow preliminary accessibility/visual evidence, not comprehensive WCAG or physical runtime acceptance.
 

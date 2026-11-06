@@ -276,3 +276,14 @@ test("snapshot resource bound applies to incremental growth", () => {
   assert.equal(s.status, "RESYNCING");
   assert.equal(s.resources.size, 1000);
 });
+
+test("expired NO_QUORUM observation becomes STALE", () => {
+  const { s, clock } = ready();
+  const x = F.snapshot();
+  x.authority_status.state = "NO_QUORUM";
+  s.install(x);
+  s.connection(true);
+  clock.advance(15001);
+  s.tick();
+  assert.equal(s.status, "STALE");
+});
