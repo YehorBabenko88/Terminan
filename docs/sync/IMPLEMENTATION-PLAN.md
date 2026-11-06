@@ -36,3 +36,5 @@ Review focus: stale async snapshot replacing new generation; malformed prototype
 Ruling: standalone static harness is additive and temporary until shared route ACK; it creates no competing backend. Synthetic fixtures live only under tests; actual UI starts empty UNAVAILABLE. Main original design baseline is historical only; this plan uses approved PR68.
 
 Execution ledger: independent worktree fallback after managed request stalled; all intended paths additive and approved. TDD RED recorded for 25 protocol cases, 8 lifecycle cases, dataset auth/quorum/snapshot race and buffer regressions. 42 final Node tests green, schema/3 UI checks green. Two reviewer P1 findings and snapshot rejection follow-up fixed. Global suite baseline remains source-environment blocked as documented in README.
+
+A8 follow-up: preserved original audit probe/results outside source tree; F09/F10 regressions RED->GREEN,45totalNode tests/0skip and4receipt guards. Exact-head checkout and source-bound CI artifacts implemented in owned workflow only.

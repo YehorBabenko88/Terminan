@@ -287,3 +287,16 @@ test("expired NO_QUORUM observation becomes STALE", () => {
   s.tick();
   assert.equal(s.status, "STALE");
 });
+
+test("dataset snapshot authority loss immediately downgrades control LIVE", () => {
+  for (const state of ["NO_QUORUM", "UNKNOWN"]) {
+    const { s } = ready();
+    s.install(F.controlWithDataset());
+    s.connection(true);
+    const ds = F.datasetSnapshot();
+    ds.authority_status.state = state;
+    s.install(ds);
+    assert.equal(s.status, state === "NO_QUORUM" ? "NO_QUORUM" : "STALE");
+    assert.equal(s.canMutate, false);
+  }
+});

@@ -101,12 +101,17 @@
           );
         }
         if (!this.active || epoch !== this.epoch) return;
-        this.closeStream = this.adapter.subscribe({
+        const close = this.adapter.subscribe({
           cursor: this.state.resumeCursor,
           signal,
           onEvent: (x) => this.enqueue(x, epoch),
           onError: (e) => this.handleError(e, epoch),
         });
+        if (!this.active || epoch !== this.epoch || signal.aborted) {
+          if (typeof close === "function") close();
+          return;
+        }
+        this.closeStream = close;
         this.state.connection(true);
         this.nextAttempt = now + 1000;
         for (const id of this.desiredDatasets)
@@ -277,7 +282,7 @@
         );
         if (!dataset) throw new Error();
         const position = this.state.datasets.get(dataset.stream_id);
-        task.close = this.adapter.subscribeDataset({
+        const close = this.adapter.subscribeDataset({
           datasetId,
           cursor: position.cursor,
           signal: task.controller.signal,
@@ -312,6 +317,16 @@
             this.notify();
           },
         });
+        if (
+          !this.active ||
+          epoch !== this.epoch ||
+          task.controller.signal.aborted ||
+          this.datasetTasks.get(datasetId) !== task
+        ) {
+          if (typeof close === "function") close();
+          return "RESYNC_REQUIRED";
+        }
+        task.close = close;
         this.notify();
         return "SUBSCRIBED";
       } catch (error) {

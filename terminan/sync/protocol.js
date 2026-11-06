@@ -373,6 +373,11 @@
             deadline: until,
             needsSnapshot: false,
           });
+          if (x.authority_status.state !== "QUORUM_CONFIRMED") {
+            this.authority = x.authority_status.state;
+            this.deadline = Math.min(this.deadline, until);
+            this.tick();
+          }
           return;
         }
         if (

@@ -239,3 +239,41 @@ test("buffer accepts more than half of its advertised byte capacity", async () =
   client.stop();
   await client.flush();
 });
+
+test("synchronous control subscribe failure cannot resurrect LIVE and closes its handle", async () => {
+  const a = transport();
+  let subscriptions = 0,
+    closed = 0;
+  a.subscribe = (o) => {
+    subscriptions++;
+    o.onError({ code: "UNAVAILABLE" });
+    return () => closed++;
+  };
+  const { client, clock } = setup(a);
+  await client.start();
+  assert.notEqual(client.state.status, "LIVE");
+  assert.equal(client.state.connected, false);
+  assert.equal(closed, 1);
+  clock.advance(1001);
+  await client.tick();
+  assert.equal(subscriptions, 2);
+  assert.equal(closed, 2);
+  client.stop();
+});
+test("synchronous dataset subscribe failure closes late handle and reports resync", async () => {
+  const a = transport();
+  let closed = 0;
+  a.getSnapshot = async () => F.controlWithDataset();
+  a.getDatasetSnapshot = async () => F.datasetSnapshot();
+  a.subscribeDataset = (o) => {
+    o.onError({ code: "UNAVAILABLE" });
+    return () => closed++;
+  };
+  const { client } = setup(a);
+  await client.start();
+  const result = await client.subscribeDataset("fixture-d");
+  assert.equal(result, "RESYNC_REQUIRED");
+  assert.equal(closed, 1);
+  assert.equal(client.datasetTasks.size, 0);
+  client.stop();
+});

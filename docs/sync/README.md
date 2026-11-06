@@ -9,7 +9,7 @@ Run contracts: `node --test tests/sync/test_contract.cjs tests/sync/test_client.
 
 ## Evidence
 
-42 deterministic Node tests pass locally on Windows, including 25 original scenario names and additional dataset/auth/race/queue regressions. All fixtures are synthetic transport inputs; assertions exercise the actual consumer. PC1->LS7 and backend continuation cases model independent clients only, not real relocation/durability or backend RBAC. Client command() always rejects; it cannot qualify a production authorization provider.
+45 deterministic Node tests pass locally on Windows, including 25 original scenario names and additional dataset/auth/race/queue regressions. All fixtures are synthetic transport inputs; assertions exercise the actual consumer. PC1->LS7 and backend continuation cases model independent clients only, not real relocation/durability or backend RBAC. Client command() always rejects; it cannot qualify a production authorization provider.
 
 Three schemas pass Draft202012 meta-schema validation, positive fixtures and empty/unknown-field rejection. Three Chromium tests pass, including keyboard navigation, no horizontal page overflow, four independent indicators and session redaction. Two screenshot baselines were generated, visually inspected and compared unchanged on a second run. This is narrow preliminary accessibility/visual evidence, not comprehensive WCAG or physical runtime acceptance.
 
@@ -39,3 +39,5 @@ P1: full source-enabled baseline, Windows CI, actual two-client/failover/relocat
 P2: integrate the additive page into existing unified navigation after shared-route review, performance/UX tuning.
 
 Windows local harness evidence is not Windows six-node acceptance. Physical fault injection, production deployment, merge, network changes and Tailscale removal are blocked. GO_NO_GO: NO-GO.
+
+A8 F09/F10 follow-up: source-bound audit identified dataset-snapshot authority downgrade and synchronous subscribe-error resurrection bugs at 166b85e. Three regressions now cover dataset snapshot NO_QUORUM/UNKNOWN plus synchronous control/dataset failures; total45 Node tests, zero skips. CI checks out explicit PR head SHA, rejects dirty/incorrect source, records normalized Git blob and raw worktree hashes, enforces exact45 pass/no skips, and uploads receipt/TAP. Four guard unit tests reject partial collection/skips/ambiguous summaries. CI remains unqualified until exact new head runs finish.

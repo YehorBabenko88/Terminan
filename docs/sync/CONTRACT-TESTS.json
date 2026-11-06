@@ -165,5 +165,5 @@
     }
   ],
   "test_command": "node --test tests/sync/test_contract.cjs tests/sync/test_client.cjs",
-  "total_node_tests": 42
+  "total_node_tests": 45
 }

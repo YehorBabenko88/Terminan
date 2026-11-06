@@ -16,13 +16,25 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: node --test tests/sync/test_contract.cjs tests/sync/test_client.cjs
+      - run: python -m unittest discover -s tests/sync -p test_ci_receipt.py -v
+      - run: python tests/sync/run_contracts.py
+        env:
+          SYNC_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-contract-receipt-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: test-results/sync-contracts
+          if-no-files-found: error
       - run: python -m pip install jsonschema==4.25.1
       - run: python tests/sync/validate_schema.py
   windows-ui:
@@ -30,6 +42,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -38,9 +53,17 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: npx --no-install playwright install chromium
-      - run: npx --no-install playwright test -c tests/sync/playwright.config.cjs
+      - run: python tests/sync/run_contracts.py
+        env:
+          SYNC_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: npx --no-install playwright test -c tests/sync/playwright.config.cjs --reporter=line,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/sync/browser-results.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: synthetic-windows-ui-evidence
-          path: test-results/sync
+          path: |
+            test-results/sync
+            test-results/sync-contracts
+          if-no-files-found: error
