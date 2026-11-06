@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Terminan · Cluster control</title>
+    <link rel="stylesheet" href="/sync/style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#panel">Skip to workspace</a>
+    <div class="shell">
+      <aside>
+        <div class="brand">
+          <span class="brand-mark">T</span>
+          <div>TERMINAN<small>Distributed control</small></div>
+        </div>
+        <nav aria-label="Control workspaces">
+          <div
+            id="tabs"
+            role="tablist"
+            aria-label="Workspaces"
+            aria-orientation="vertical"
+          ></div>
+        </nav>
+        <div class="sidebar-foot">
+          <span class="dot"></span> Backend independent<small
+            >Closing this window does not stop jobs.</small
+          >
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <div class="eyebrow">CLUSTER WORKSPACE</div>
+            <h1 id="page-title">Overview</h1>
+          </div>
+          <div class="identity">
+            Operator <strong>Not authenticated</strong>
+          </div>
+        </header>
+        <div class="notice">
+          <span class="notice-icon">!</span>
+          <div>
+            <strong id="qualification">CONTROL API INTEGRATION PENDING</strong>
+            <p>Real endpoints are unavailable. Commands remain disabled.</p>
+          </div>
+          <span class="pill">NO-GO</span>
+        </div>
+        <section class="connection" aria-label="Authority status">
+          <div>
+            <span class="eyebrow">CONNECTION</span>
+            <div id="connection-status" role="status" aria-live="polite">
+              UNAVAILABLE
+            </div>
+          </div>
+          <dl>
+            <div>
+              <dt>Generation</dt>
+              <dd id="generation">—</dd>
+            </div>
+            <div>
+              <dt>Revision</dt>
+              <dd id="revision">—</dd>
+            </div>
+            <div>
+              <dt>Last verified update</dt>
+              <dd id="observed">Never</dd>
+            </div>
+            <div>
+              <dt>Authority</dt>
+              <dd id="authority">UNKNOWN</dd>
+            </div>
+          </dl>
+        </section>
+        <section
+          id="panel"
+          role="tabpanel"
+          tabindex="0"
+          aria-labelledby="tab-overview"
+        >
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">INDEPENDENT EVIDENCE</span>
+              <h2>Integrity dimensions</h2>
+            </div>
+            <span class="muted">No combined health score</span>
+          </div>
+          <div id="dimensions" class="dimensions"></div>
+          <div class="section-head resources-head">
+            <div>
+              <span class="eyebrow">AUTHORITATIVE PROJECTION</span>
+              <h2 id="projection-title">Cluster resources</h2>
+            </div>
+            <button type="button" disabled aria-label="Submit command">
+              Submit command <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption>
+                Committed resources from the approved Control API
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Resource</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Revision</th>
+                  <th scope="col">Observation</th>
+                </tr>
+              </thead>
+              <tbody id="resource-rows">
+                <tr>
+                  <td colspan="4" class="empty">
+                    <div class="empty-symbol" aria-hidden="true">◇</div>
+                    <strong>Waiting for an authenticated source</strong>
+                    <p>No cluster state has been confirmed.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="footnote">
+            Integrity, completeness, redundancy and authority freshness are
+            evaluated separately. Uncommitted observations cannot establish
+            LIVE.
+          </p>
+        </section>
+        <footer>
+          <span>Sync contract v1.0 · Read-only consumer</span
+          ><span>Endpoint ACK pending · Windows acceptance NOT_RUN</span>
+        </footer>
+      </main>
+    </div>
+    <script src="/sync/protocol.js"></script>
+    <script src="/sync/client.js"></script>
+    <script src="/sync/view.js"></script>
+  </body>
+</html>

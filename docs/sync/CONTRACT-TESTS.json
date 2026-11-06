@@ -1,0 +1,169 @@
+{
+  "status": "MODEL_CONTRACT_PASS",
+  "qualification": "Deterministic fixtures exercise the consumer; no runtime, backend RBAC, HA, job durability, relocation or physical qualification",
+  "fixture": {
+    "cluster_id": "fixture-cluster",
+    "generations": [
+      "fixture-g1",
+      "fixture-g2"
+    ],
+    "clock_utc": "2026-11-06T12:00:00Z",
+    "seed": 6,
+    "network": "in-process mock only",
+    "credentials": "opaque test identities only"
+  },
+  "cases": [
+    {
+      "id": "snapshot_consistency",
+      "given_when": "mixed generation or resource metadata_revision > snapshot revision",
+      "expected": "reject entire snapshot; prior view STALE",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "missing_event",
+      "given_when": "accept sequence 10 then receive 12",
+      "expected": "do not apply 12; RESYNCING; snapshot/resume",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "duplicate_event",
+      "given_when": "deliver identical event twice",
+      "expected": "one state transition; cursor unchanged on replay",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "conflicting_duplicate",
+      "given_when": "same sequence/event_id with altered payload",
+      "expected": "reject; resnapshot",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "out_of_order",
+      "given_when": "receive 12 then delayed 11 after accepted 10",
+      "expected": "neither mutates old view before resnapshot",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "generation_change",
+      "given_when": "G1 view then G2 frame then late G1",
+      "expected": "invalidate all; discard late G1; install only coherent G2",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "expired_cursor",
+      "given_when": "mock retention excludes requested cursor",
+      "expected": "410 RESYNC_REQUIRED/CURSOR_EXPIRED; new snapshot",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "resync_required",
+      "given_when": "server closes stream with RESYNC_REQUIRED",
+      "expected": "pending frames cleared; resume from new barrier",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "stale_authority",
+      "given_when": "fake monotonic time crosses fresh_until",
+      "expected": "STALE and mutations disabled",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "unauthorized",
+      "given_when": "mock returns 403 FORBIDDEN",
+      "expected": "no retry or optimistic mutation; clear denied scope",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "expired_session",
+      "given_when": "401 SESSION_EXPIRED during stream",
+      "expected": "AUTH_REQUIRED; no subscription retry until new login",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "multiple_clients",
+      "given_when": "two clients at same snapshot receive same ordered changes",
+      "expected": "same generation/revision/state; independent cursors",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "leader_failover",
+      "given_when": "A fails; admitted B resumes same generation; response lost on submit",
+      "expected": "bounded reconnect; same command receipt; no replacement key",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "relocation_PC1_LS7",
+      "given_when": "close client PC1, fresh login LS7, fetch durable jobs",
+      "expected": "same job IDs/progress; no exported bearer; MOCK_ONLY",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "jobs_after_shutdown",
+      "given_when": "close all mock clients then advance independent mock backend",
+      "expected": "new client observes same progressing job; MOCK_ONLY",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "dataset_metadata",
+      "given_when": "dataset event depends on future metadata revision",
+      "expected": "bounded wait; apply only at exact barrier or resnapshot",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "buffer_overflow",
+      "given_when": "257 queued events or >1MiB",
+      "expected": "affected stream resync; no partial apply",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "clock_rollback",
+      "given_when": "wall clock moves backwards after snapshot",
+      "expected": "monotonic expiry still marks stale",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "scope_change",
+      "given_when": "grants change with saved cursor",
+      "expected": "server denies/requires resync; no private cached panel",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "no_quorum",
+      "given_when": "authenticated NO_QUORUM vs network timeout",
+      "expected": "only authenticated evidence labels NO_QUORUM",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "payload_limits",
+      "given_when": "oversize/deep/duplicate-key/nonfinite/unknown envelope",
+      "expected": "bounded rejection; no UI state mutation",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "four_dimensions",
+      "given_when": "good hash with missing coverage and one stale replica",
+      "expected": "separate statuses; no combined success",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "dataset_snapshot_anchor",
+      "given_when": "DATASET snapshot lacks dataset_revision or mismatches metadata barrier",
+      "expected": "reject atomically",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "authority_renewal",
+      "given_when": "heartbeat presents expired authority or NO_QUORUM",
+      "expected": "cannot extend LIVE; disable mutations",
+      "status": "MODEL_CONTRACT_PASS"
+    },
+    {
+      "id": "combined_change_limit",
+      "given_when": "100 upserts and 1 delete, or retention minimum_seconds=599",
+      "expected": "reject; 100 total and 600 seconds are boundary-valid",
+      "status": "MODEL_CONTRACT_PASS"
+    }
+  ],
+  "test_command": "node --test tests/sync/test_contract.cjs tests/sync/test_client.cjs",
+  "total_node_tests": 41
+}

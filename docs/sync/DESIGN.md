@@ -1,0 +1,83 @@
+# Terminan Sync Contract v1 — design for approval
+
+Status: DESIGN_APPROVED_IN_PRINCIPLE / INTEGRATION_PENDING / NO-GO.
+Date: 2026-11-06. This full document is pending approval. No endpoint or physical acceptance is implied.
+
+## Baseline and scope
+
+Inspected Terminan main HEAD fee79f4b15fc1f9efcff9ca12c403688b0026260, tree 61a00e0ba4bb197750024aa3777bad5c867f0be1. This is an audit baseline, not an approved implementation base. Existing stdlib Python HTTP server is loopback-only, read-only, with separate static pages and direct database adapters. Baseline unittest: 11 passed on Windows; no distributed acceptance follows. Unified main b9b03a1ce9f887dbe113fd22d0bda8932f46ef80 contains README only. Agent 2 exact Control API source/transport/auth pins and implementation base require Integration Owner agreement.
+
+Goal: independent UI clients consume the same authenticated authority state, survive reconnect, and never own backend job lifetime. Scope here is synchronization, API contracts, UI states and preliminary tests. Consensus, storage, scheduling and ingestion remain source-owned. Remote binding, production credentials, destructive effects and deployment are excluded from this design delivery.
+
+## Chosen approach and alternatives
+
+Approved direction: atomic metadata snapshot plus ordered global control events; separate dataset streams anchored to metadata revisions. A single stream carrying market data would permit high-frequency traffic to starve control updates. Poll-only synchronization would lose explicit continuity evidence and command progress ordering. Local browser state is a cache, never authority. This contract defines proposed logical API names; it does not assert Agent 2 implements them.
+
+## Snapshot and stream semantics
+
+See snapshot.schema.json and event-envelope.schema.json (JSON Schema draft 2020-12). schema_version 1.0 is exact; unsupported versions fail closed. Integers are JSON-safe nonnegative integers. IDs and evidence references are opaque bounded identifiers, never URLs, paths, credentials or bearer material. All timestamps use RFC3339 UTC with Z. Format validation must be enabled.
+
+The authority constructs snapshot resources, revision and control cursor at one read barrier in a single cluster generation. revision is the global control commit revision; every control event advances it by exactly one. Snapshot control_stream.event_sequence identifies the last included event; cursor resumes strictly after it. Global control sequence increments by one for every frame, including heartbeats. A heartbeat preserves revision and has empty changes. CONTROL_CHANGED.previous_revision equals the accepted revision and revision equals previous_revision + 1. Sequence order and revision order are separate counters. Snapshot resources have metadata_revision <= snapshot revision; each belongs to the snapshot generation. Resource IDs are globally unique within a generation across resource types. Deleted IDs are tombstoned and never reused within that generation; deletes name those exact IDs. Resource revisions cannot decrease. No partial snapshot is installable.
+
+control_stream has GLOBAL_CONTROL scope and null dataset_id. Each dataset descriptor has DATASET scope and a nonnull dataset_id. Stream IDs are unique within a generation. Descriptor generation equals snapshot generation. Dataset sequence is local to (cluster_id, generation, stream_id); DATASET_CHANGED carries metadata_revision naming the exact accepted global revision on which its interpretation depends, plus its own dataset previous_revision/revision. Global revision must equal metadata_revision before application: older dependency requires a new dataset snapshot; future dependency waits for control catch-up. The UI never advances global revision from dataset traffic. Dataset recovery uses a separate snapshot at the current metadata barrier, without rolling back control state. Dataset descriptors are optional subscriptions, not a promise to include market history in control snapshots.
+
+Schemas describe envelopes; domain payload.value remains source-owned and must pass the exact negotiated domain schema before use. Unknown envelope keys, duplicate JSON keys, invalid UTF-8, nonfinite numbers, excess depth and unsupported domain fields are rejected at parsing. Semantic invariants here need code checks beyond JSON Schema. Schema conformance does not establish authenticity, quorum or atomicity.
+
+## Proposed API and limits
+
+GET /control/v1/snapshot returns one complete control snapshot. GET /control/v1/events?cursor=... resumes an authenticated SSE stream; SSE id equals envelope cursor. GET /control/v1/datasets/{id}/snapshot?metadata_revision=... returns the same snapshot envelope restricted to that dataset and barrier. Dataset events use /control/v1/datasets/{id}/events?cursor=.... Native EventSource is usable only if Agent 2 approves a same-origin secure HttpOnly session cookie and CSRF/origin policy; otherwise use an authenticated streaming fetch with no tokens in URLs. Authentication is required for every request and stream revalidation; cursor grants no privileges. URLs containing cursors must be redacted from logs. These paths require Agent 2 ACK.
+
+Control snapshot decoded UTF-8 limit: 2 MiB; event limit: 64 KiB; depth 16; object members 64 within domain values. Max 1000 resources, 128 dataset descriptors, 64 evidence refs per object, 100 changes per event. Resource types require approved bounded schemas. No truncated success: exceed limits => UNAVAILABLE/SNAPSHOT_TOO_LARGE. Large resource sets need a separately versioned consistent paging design; until then admission blocks rather than silently omits data. Optional history/evidence queries use page size default 100/max 200 and opaque page tokens bound to generation, query and revision. They do not extend snapshot visibility.
+
+Per client: one global stream, at most four active dataset streams; buffered events max 256 AND 1 MiB; pending metadata wait at most 10 seconds. Overflow or wait expiry invalidates the affected stream and resnapshots. Server must enforce bounded queues and disconnect slow clients; no ingestion backpressure. Heartbeat every 5 seconds; freshness max 15 seconds. A snapshot fresh_until must be after generated_at and no more than 15 seconds later; authority freshness independently caps LIVE. Verified server time offset uncertainty above 2 seconds denies LIVE. Local monotonic deadline prevents wall-clock rollback extending freshness; restored browser cache always begins STALE.
+
+## Cursor, resume and resync
+
+Cursor is an opaque server-issued position bound to cluster, generation, stream and authorization/filter scope; it contains no credentials. Reauthorization is always independent. Minimum advertised retention is 600 seconds; descriptors expose actual earliest_available_sequence and minimum_seconds. Cursor validity ends at the earlier of retention exhaustion, generation change or scope change. No client clock infers cursor validity. Server validates and returns RESYNC_REQUIRED before delivering noncontiguous data. Cursor expiration never resets event_sequence within a generation.
+
+Client advances its acknowledged cursor only after validating and atomically applying a frame to its in-memory view. Persisted cache is disposable; crash before persistence causes safe duplicate replay. Resume uses the last applied cursor, never the last received cursor. Exact duplicates within the bounded 256-event identity/digest cache are ignored; same event_id or sequence with different bytes triggers resync. Older sequences outside that cache never mutate state and force resync because equality cannot be proven. A future sequence gap or out-of-order frame triggers resync immediately; do not reorder updates speculatively. Old-generation frames are discarded; a different new generation invalidates all subscriptions, quarantines old values as STALE and requires full snapshot replacement. Generations are opaque: no lexical comparison.
+
+RESYNC_REQUIRED discards pending frames for that stream and fetches a new authenticated snapshot, followed by resume after its cursor. Snapshot replacement and cursor install are atomic. Across refreshes and windows, never merge incompatible generations. A dataset resync cannot repair a global stream gap. Every window independently validates authority; BroadcastChannel may signal refresh/logout but never supplies trusted state or credentials. Operator relocation requires fresh authentication on the destination PC; no bearer export or session cloning. Backend jobs are referenced by durable IDs and refreshed from authority, never recreated on page load.
+
+Reconnect uses full jitter exponential delay with ceilings 1, 2, 4, 8, 16, 30 seconds; enforce at least 1 second between attempts, max 6 per minute and 3 concurrent candidate probes. Honor Retry-After up to 300 seconds. Only Integration Owner admitted endpoints with verified server identity are eligible. Redirects never forward credentials to unadmitted origins. Discovery identifies candidates; authority proves leadership/generation. Unknown command outcome is reconciled by receipt before retrying the same intent.
+
+## Security and error contract
+
+Agent 2 owns human identity binding, RBAC, expiry, revocation and step-up. No roles derived from opening UI, local admin status, request JSON or cursor. Every backend operation rechecks grants, resource scope, current session and expected revision. Streams terminate on expiry/revocation; a fresh snapshot is required after login or changed grants. Client removes privileged data from active display and clears subscription/cache on logout or authorization loss. No offline mutations or mutation queue.
+
+Proposed command envelope: schema_version, command_id, idempotency_key, cluster_id, cluster_generation, expected_revision, operation, target_id and bounded domain payload. Credentials/step-up proofs travel via the approved auth channel, not evidence. Server canonically binds actor + intent + idempotency key; mismatched intent => IDEMPOTENCY_CONFLICT. Uncertain submission retains the same command ID/key and resolves GET /control/v1/commands/{id}; stale expected revision never retries automatically with a new revision. Exact envelope canonicalization, lifetime, command receipt retention and auth transport require Agent 2 approval.
+
+See error.schema.json. HTTP mapping: INVALID_REQUEST 400; UNAUTHENTICATED/SESSION_EXPIRED 401; FORBIDDEN/REAUTH_REQUIRED/CONFIRMATION_REQUIRED 403; REVISION_CONFLICT/IDEMPOTENCY_CONFLICT/NOT_LEADER 409; RESYNC_REQUIRED 410; RATE_LIMITED 429; OUTCOME_UNKNOWN/NO_QUORUM/UNAVAILABLE 503. SSE can emit a named error event with this body then closes; errors do not advance cursor. Error messages expose allowlisted codes/reasons and opaque request IDs only. 401 prompts login without retry storm; 403 does not retry; 409 needs explicit reconciliation; 410 resnapshots; 429/503 obey backoff. Transport failure alone never means NO_QUORUM.
+
+Full uninstall remains disabled until backend verifies System Owner, fresh operation-bound reauthentication, dry-run plan hash/revision/expiry and separate single-use confirmation. Client confirmation cannot substitute for backend checks. Audit logs exclude cookies, tokens, step-up responses, raw request bodies and cursor query strings. Evidence IDs resolve only through authorized backend queries; they are not browser links to arbitrary URLs.
+
+## UI state machine
+
+AUTH_REQUIRED -> CONNECTING after authentication. CONNECTING -> LIVE only after a complete current authenticated snapshot plus contiguous stream establishment and fresh quorum evidence. A healthy authenticated NO_QUORUM observation enters NO_QUORUM and disables mutations. UNKNOWN authority never becomes LIVE. Transport loss enters RECONNECTING with last values visibly labelled and mutations disabled. Freshness expiry enters STALE even while reconnecting; show transport and freshness independently. After 30 seconds without any authenticated endpoint enter OFFLINE, retaining last observation time/revision only as stale data. Auth expiry from any state enters AUTH_REQUIRED immediately; forbidden scope removes its panel. A valid fresh resnapshot and established stream restore LIVE. Gap/generation change enter RESYNCING; no pending events may be presented as confirmed. No window close or lifecycle event sends backend stop/cancel.
+
+## Integrity dashboard specification
+
+Data Integrity tab: one row per exact instrument version/dataset, filterable and paginated with accessible headers and keyboard navigation. Four independent columns, never a combined green health badge:
+
+* Byte integrity: manifest root, hash algorithm, segments checked/total, corrupt/unreadable count, verified time and evidence IDs. Missing evidence => UNKNOWN.
+* Source completeness: expected [start,end) interval, measured covered intervals, explicit recoverable/unrecoverable gaps, source watermark and rule version. File existence and min/max times never mean COMPLETE.
+* Redundancy: verified/required replicas, admitted node/volume placement, verification age and restore readiness bound to exact backup root. A backup is not an online replica; readiness requires restore evidence.
+* Authority freshness: generation, global metadata revision, dataset revision, last verified update, fresh_until, quorum and committed/uncommitted provenance. Stale values cannot carry LIVE styling.
+
+Expand a row for authorized evidence details and gaps; uncommitted observations appear separately. Text and icons supplement color, status changes use a polite live region, focus survives updates and reduced motion is honored. Summary counts retain four separate denominators. Missing fields show UNKNOWN, never zero/success. Other required tabs consume source-owned projections; this design does not claim those features implemented.
+
+## Verification and acceptance
+
+See CONTRACT-TESTS.json for deterministic preliminary scenarios, all NOT_RUN. Future mock tests qualify consumer semantics only. Actual runtime acceptance requires Agent 2 authenticated endpoints, two independent Windows clients, physical leader failover, PC1 to LS7 relocation and durable backend job evidence across UI shutdown. Evidence records exact HEAD/tree, schema hashes, OS/runtime, test identities, pre/post revisions and timestamps without secrets. Existing 11 baseline tests are unrelated to new sync acceptance.
+
+## Dependencies and decision gates
+
+See DEPENDENCIES.md. No provider API or evidence semantics is accepted on behalf of another agent. Full design approval and agreed exact implementation base precede feature branch creation, code and Draft PR. Remaining decisions: auth provider/cookie/CSRF transport; admitted endpoint inventory and discovery; global ordering/read barrier implementation; retention capacity; domain schemas; exact Windows acceptance environment. These are integration gates, not defaults that silently grant authority.
+
+## Builder review resolutions
+
+Snapshot scope is explicit: CONTROL requires null dataset_id/dataset_revision; DATASET requires nonnull dataset_id/dataset_revision, exactly one matching dataset descriptor and only resources belonging to that dataset. Both retain global revision as the metadata barrier. DATASET snapshot initializes the dataset previous_revision from dataset_revision and its last sequence/cursor from the matching descriptor; it never installs control resources or a control cursor. The included control descriptor describes the barrier only. Dataset resource IDs and domain membership are validated by the approved domain schema.
+
+Every event, including heartbeat, carries authenticated authority_status. For LIVE, that observation must match the current cluster/generation and cover the accepted metadata revision under the authority's read guarantee; it may not be copied from a stale snapshot. Effective freshness is the earliest of snapshot/event state freshness, authority freshness, and the local 15-second monotonic cap. Contiguous heartbeats may extend state freshness only when the server certifies the current revision remains the authoritative head. NO_QUORUM or UNKNOWN immediately removes LIVE. Agent 2 must ACK these renewal guarantees; timestamps alone never renew authority.
+
+Retention minimum is uniformly 600 seconds in schema and prose. The 100-change limit is the combined length of upserts plus deletes and is a semantic check; the two array maxima are individual upper bounds only. A resource ID may occur at most once per event and cannot appear in both lists. State/cursor/resource changes are all-or-nothing after all validations.
