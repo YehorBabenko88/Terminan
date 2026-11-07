@@ -1,0 +1,72 @@
+name: Operations dashboard local read-only prototype
+on:
+  push:
+    branches: [feature/terminan-operations-dashboard-20261107]
+  pull_request:
+    paths: ['terminan/operations/dashboard.js', 'tests/operations/test_dashboard.cjs', 'docs/operations/operations-dashboard-contract.md', '.github/workflows/operations-dashboard.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-view:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      GIT_NO_REPLACE_OBJECTS: '1'
+      GIT_CONFIG_COUNT: '2'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      GIT_CONFIG_KEY_1: core.eol
+      GIT_CONFIG_VALUE_1: lf
+    steps:
+      - name: Refuse ambient Node configuration before interpreter startup
+        shell: pwsh
+        run: |
+          foreach ($taskKey in @('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE')) {
+            if ([Environment]::GetEnvironmentVariable($taskKey)) { throw 'AMBIENT_NODE_CONFIG' }
+          }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.14.0'
+      - name: Exact primary-Git source guard and mandatory 22 builtin-only scenarios
+        shell: pwsh
+        env:
+          OPERATIONS_EVIDENCE: ${{ runner.temp }}/operations-dashboard-evidence
+        run: |
+          foreach ($taskKey in @('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE')) {
+            if ([Environment]::GetEnvironmentVariable($taskKey)) { throw 'AMBIENT_NODE_CONFIG' }
+          }
+          $taskBootstrap = Join-Path $env:RUNNER_TEMP 'operations-dashboard-primary.cjs'
+          $taskCode = @'
+          const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),Module=require('node:module');
+          for(const k of ['NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE'])if(process.env[k])throw Error('AMBIENT_NODE_CONFIG');
+          const root=process.env.GITHUB_WORKSPACE,head=process.env.EXPECTED_HEAD;
+          if(!/^[0-9a-f]{40}$/.test(head))throw Error('EXPECTED_HEAD');
+          const git=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
+          const source=cp.execFileSync(git,['--no-replace-objects','--no-optional-locks','-c','core.fsmonitor=false','-C',root,'show',head+':tests/operations/test_dashboard.cjs'],{maxBuffer:1048576});
+          const filename=path.join(root,'tests/operations/test_dashboard.cjs');
+          if(fs.lstatSync(filename).isSymbolicLink()||!source.equals(fs.readFileSync(filename)))throw Error('PRIMARY_TEST_SOURCE_MISMATCH');
+          const mod=new Module(filename);mod.filename=filename;mod.paths=Module._nodeModulePaths(path.dirname(filename));
+          mod._compile(source.toString('utf8'),filename);
+          const receipt=mod.exports.runQualified(root,head,process.env.OPERATIONS_EVIDENCE,["missing_input_pure_unavailable_no_io","strict_version_and_unknown_fields_reject","duplicate_key_reject_before_projection","byte_depth_node_member_string_array_caps","source_pin_link_and_unique_row_ids","unsupported_installed_release_service_facts_reject","journal_completed_authorized_never_operational_grant","journal_integrity_pass_never_promotes_health_or_other_axes","development_physical_pass_remains_unverified_claim","dev_tasks_never_cast_to_node_operations","ci_runner_zero_unassigned_queued_not_running","ci_success_unverified_not_operational_or_hosted_acceptance","protected_consumed_ordinary_not_applicable_no_grant","ci_unknown_conflict_never_infra_from_age","test_only_banner_persistent_and_local_capture_banner_distinct","render_invalid_input_clears_previous_capture","text_content_only_no_html_or_secret_log_exposure","all_controls_disabled_no_effect_handlers_or_provider_calls","journal_current_task_identity_allows_multiple_tasks_per_capture","mission_task_tuple_identity_has_no_delimiter_collision","ci_pin_identity_ignores_object_key_order","presentation_details_collapsed_preserve_hashes_and_qualifiers"]);
+          process.stdout.write(JSON.stringify({head:receipt.expected_head,result:receipt.result,tests:receipt.counts.tests,qualification:receipt.qualification})+'\n');
+          '@
+          [IO.File]::WriteAllText($taskBootstrap, $taskCode, [Text.UTF8Encoding]::new($false))
+          node --no-addons $taskBootstrap
+          if ($LASTEXITCODE -ne 0) { throw 'OPERATIONS_SOURCE_QUALIFICATION_FAILED' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: operations-local-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/operations-dashboard-evidence
+          if-no-files-found: error
