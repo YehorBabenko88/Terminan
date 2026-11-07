@@ -15,7 +15,7 @@
       }
       for(const [token,v]of [['null',null],['true',true],['false',false]])if(raw.startsWith(token,i)){i+=token.length;return v;}
       // Numeric JSON is admitted only by the separately ACKed chart schemas.
-      if(chart){const match=/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(raw.slice(i));if(match){const token=match[0];if(token.length>64)fail();const number=Number(token);if(!Number.isFinite(number)||(Number.isInteger(number)&&!Number.isSafeInteger(number))||(number===0&&/[1-9]/.test(token.split(/[eE]/)[0])))fail();i+=token.length;return number;}}
+      if(chart){const match=/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(raw.slice(i));if(match){const token=match[0];if(token.length>64)fail();const number=Number(token);if(!Number.isFinite(number)||(Number.isInteger(number)&&!Number.isSafeInteger(number))||(number===0&&/[1-9]/.test(token.split(/[eE]/)[0])))fail();if(token.startsWith('-')||(number!==0&&decimalKey(token)!==decimalKey(String(number))))fail();i+=token.length;return number;}}
       fail();
     }
     const out=value(0);ws();if(i!==raw.length)fail();return out;

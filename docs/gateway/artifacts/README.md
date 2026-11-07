@@ -17,7 +17,8 @@ UMD global TerminanGatewayArtifacts / CommonJS exports:
   Symbol in a WeakMap is bounded UI bookkeeping, never authority/generation.
 
 Geometry is an approximation. Nonfinite, underflow, mismatched source prices and
-collapsed distinct prices refuse chart display. Exact decimal strings, including
+collapsed distinct prices refuse chart display. Numeric JSON lexemes whose decimal
+value changes on Number conversion also refuse before source-price comparison. Exact decimal strings, including
 uppercase E, remain in labels. Native keyboard-scroll regions retain chart/table
 readability on narrow screens. No imported markup, event handlers, URLs or IO.
 Byte hash agreement is not source authenticity/publication/financial precision.
