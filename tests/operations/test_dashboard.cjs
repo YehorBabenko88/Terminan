@@ -134,7 +134,7 @@ function runQualified(root,expectedHead,output,expectedIds=IDS){
     for(const key of ['NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE'])if(process.env[key])fail('AMBIENT_NODE_CONFIG');
     if(process.execArgv.length!==1||process.execArgv[0]!=='--no-addons')fail('NODE_FLAGS');
     if(!/^[0-9a-f]{40}$/.test(expectedHead))fail('EXPECTED_HEAD');
-    if(!Array.isArray(expectedIds)||JSON.stringify(expectedIds)!==JSON.stringify(IDS)||new Set(expectedIds).size!==21)fail('MANDATORY_INVENTORY');
+    if(!Array.isArray(expectedIds)||JSON.stringify(expectedIds)!==JSON.stringify(IDS)||new Set(expectedIds).size!==22)fail('MANDATORY_INVENTORY');
     const before=inventory();receipt.before=before;
     receipt.tests_started=true;
     const run=cp.spawnSync(process.execPath,['--no-addons','--test','--test-reporter=tap',path.join(root,'tests/operations/test_dashboard.cjs')],{cwd:root,encoding:'utf8',maxBuffer:1048576,env:process.env});
@@ -142,7 +142,7 @@ function runQualified(root,expectedHead,output,expectedIds=IDS){
     const tap=run.stdout||'',actual=[...tap.matchAll(/^# Subtest: (.+)$/gm)].map(x=>x[1]);
     if(run.status!==0||JSON.stringify(actual)!==JSON.stringify(expectedIds))fail('MANDATORY_TESTS');
     const counts={};for(const name of ['tests','pass','fail','cancelled','skipped','todo']){const matches=[...tap.matchAll(new RegExp('^# '+name+' (\\d+)\\s*$','gm'))];if(matches.length!==1)fail('TAP_COUNTS');counts[name]=Number(matches[0][1]);}
-    if(JSON.stringify(counts)!==JSON.stringify({tests:21,pass:21,fail:0,cancelled:0,skipped:0,todo:0}))fail('TAP_COUNTS');
+    if(JSON.stringify(counts)!==JSON.stringify({tests:22,pass:22,fail:0,cancelled:0,skipped:0,todo:0}))fail('TAP_COUNTS');
     receipt.counts=counts;receipt.executed_ids=actual;
     const after=inventory();receipt.after=after;if(JSON.stringify(before)!==JSON.stringify(after))fail('SOURCE_CHANGED_AFTER');
     receipt.result='PASS';return receipt;
