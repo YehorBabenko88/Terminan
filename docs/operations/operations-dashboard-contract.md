@@ -137,10 +137,10 @@ handlers or enabled control. Tabular data is bounded; no live simulation data.
 
 ROOT approved18 original Node scenario IDs. Independent review added3 identity
 regressions: latest task per node capture, delimiter-free mission/task tuple, and
-CI pin key-order independence. Actual mandatory inventory is21/zero skip.
+CI pin key-order independence. Actual mandatory inventory is22/zero skip.
 Tests cover the parser and a model DOM; actual isolated Chromium TEST_ONLY
 missing/fixture/hostile/mobile preview is separate evidence. Source-bound runner
-checks all tracked raw Git blobs before/after, exact21TAP IDs and counts, no
+checks all tracked raw Git blobs before/after, exact22TAP IDs and counts, no
 unexpected files or ambient Node options/path/cache/coverage, no addons. Workflow
 pins Node22.14.0 and immutable actions, Windows/Ubuntu, no npm/dependencies.
 No local preview or hosted component check qualifies native/Home/physical use.
@@ -158,7 +158,7 @@ ROOT approved the exact LOCAL DTO/API/extraction boundaries,18scenario IDs and t
 
 - [x] Original18 RED then PASS; independent3identity regressions RED18/3 then PASS21.
 - [x] Bounded decoded-key parser/schema/semantics, frozen model, inert textContent render.
-- [x] Verify21PASS/zero skip and separate isolated TEST_ONLY Chromium stand.
+- [x] Verify22PASS/zero skip and separate isolated TEST_ONLY Chromium stand.
 - [x] Add pinned-actions Node-only Windows/Ubuntu workflow with primary Git-blob source bootstrap, ambient Node/addon rejection and before/after complete raw inventory. No npm/dependencies.
 - [ ] Independent bounded source review, fix meaningful findings, source-bound receipt and Draft PR; no merge or operational admission.
 
