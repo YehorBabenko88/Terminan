@@ -58,3 +58,32 @@ stale/reset test without forging digest bytes. No backend, lease or signature mo
 Hosted CI, Windows runtime, authenticated retrieval, publication/registry and physical
 acceptance are independent. Local chart tests do not satisfy vertical runtime E2E.
 Production/real orders remain BLOCKED; overall NO-GO.
+
+## Explicit query-bound v2 consumer (separate local API)
+
+renderQueryComputedLevels(root, researchRequestRawText, descriptorRawText,
+artifactRawText, upstreamQueryRequestRawText, upstreamQueryResultRawText) is a new
+async closed entrypoint. V1 and v2 mutually reject incompatible descriptors; no
+relabel/field stripping or transport binding. All five bounded inputs preflight
+before hashes/decoding. Raw hashes and full request/result_metadata joins precede
+rendering; exact six-column integral conversion and Meta payload/content/request
+digest joins apply only to this approved ASCII integral subset, not a new C3 codec.
+All API resets share the same bounded per-root UI token. Unknown upstream states
+stay unverified local assertions; synthetic session classification authenticates
+neither a human nor native authority and grants no command rights.
+
+New fixtures query-v2-1610 are original committed1610 packet/schema bytes. Source
+execution remains5b4; later A7 source/full-suite evidence is a separate admission.
+Reference packet history is labelled reference only, never inferred for arbitrary
+local input. Meta content digest/unavailable dataset revision stays distinct from
+upstream UUID/revision/manifest/event and knowledge cut. Full raw dependencies are
+textContent in native collapsed details, never UI logs or fetched resources.
+
+41 mandatory scenarios = original27 IDs plus14 explicit v2 IDs. Prior27/browser
+results remain source8eef evidence. New source-bound runner requires ancestor/base
+8eef and only A/M changes within owned scopes; no deletions/other files allowed.
+Run node --test tests/gateway_artifacts/test_metadata.cjs
+ tests/gateway_artifacts/test_chart.cjs tests/gateway_artifacts/test_query_v2.cjs.
+Run browser_query_v2.cjs with the same three arguments as the prior browser stand;
+new outputs are stored separately. Local v2 display is not end-to-end job execution,
+publication, authenticated retrieval, native/physical or financial qualification.

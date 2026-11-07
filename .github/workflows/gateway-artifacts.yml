@@ -1,7 +1,7 @@
 name: Gateway artifact local metadata
 on:
   push:
-    branches: ['feature/terminan-gateway-artifacts-*']
+    branches: ['feature/terminan-gateway-artifacts-*', 'feature/gateway-query-v2-chart-*']
   pull_request:
     paths: ['terminan/gateway_artifacts.js', 'tests/gateway_artifacts/**', 'docs/gateway/artifacts/**', '.github/workflows/gateway-artifacts.yml']
 permissions:
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.14.0'
-      - name: Primary Git bootstrap and 27 mandatory metadata and computed-chart scenarios
+      - name: Primary Git bootstrap and 41 mandatory metadata, v1 and query-v2 scenarios
         shell: pwsh
         env:
           GATEWAY_EVIDENCE: ${{ runner.temp }}/gateway-artifact-evidence
