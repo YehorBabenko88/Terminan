@@ -19,6 +19,7 @@ const IDS=[
   'journal_current_task_identity_allows_multiple_tasks_per_capture',
   'mission_task_tuple_identity_has_no_delimiter_collision',
   'ci_pin_identity_ignores_object_key_order',
+  'presentation_details_collapsed_preserve_hashes_and_qualifiers',
 ];
 function api(){assert.ok(fs.existsSync(SOURCE),'MISSING_OPERATIONS_DASHBOARD');return require(SOURCE);}
 const sha='a'.repeat(64),head='b'.repeat(40),tree='c'.repeat(40);
@@ -77,6 +78,7 @@ test(IDS[18],()=>{const a=journal(),b={...journal(),task_id:'other-task',journal
 test(IDS[19],()=>{const a={...development(),mission_id:'a:b',task_id:'c'},b={...development(),mission_id:'a',task_id:'b:c'};valid(reported(fixture(),'development_tasks',[a,b]));});
 test(IDS[20],()=>{const a=ci(),b=ci();b.pin=Object.fromEntries(Object.entries(b.pin).reverse());invalid(reported(fixture(),'ci',[a,b]));});
 
+test(IDS[21],()=>{const v=reported(reported(fixture(),'development_tasks',[development()]),'ci',[ci()]);const root=dom();api().renderOperations(root,JSON.stringify(v));const nodes=all(root),details=nodes.filter(x=>x.tagName==='details');assert.ok(details.length>=3);assert.ok(details.every(x=>!('open' in x.attributes)&&x.open!==true));assert.ok(details.some(x=>x.textContent.includes(sha)));assert.match(root.textContent,/Reported source: PASS \(UNVERIFIED\)/);const headers=nodes.filter(x=>x.tagName==='th').map(x=>x.textContent);for(const h of ['Run','Attempt','Job','Source'])assert.ok(headers.includes(h));assert.ok(headers.every(x=>!x.includes('_')));assert.ok(nodes.filter(x=>x.tagName==='pre').every(x=>details.some(d=>all(d).includes(x))));});
 }
 
 /* Standalone source-bound qualification; only this test file and Node builtins.

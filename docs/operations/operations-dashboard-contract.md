@@ -181,3 +181,9 @@ Workflow first compiles primary test-runner bytes from that exact Git commit; a
 workspace shadow cannot bootstrap qualification. Child TAP must contain exactly
 the21 frozen IDs,21passes,0fail/cancel/skip/todo. Source receipts are LOCAL component
 engineering evidence, never provider/native or full release admission.
+
+## Read-only presentation refinement
+
+Tables use readable labels and separate CI run, attempt, job and source columns. Native details are collapsed initially and retain complete row data, source pins and evidence hashes. Development axes always say reported/unverified; they never qualify operational axes. No event handlers, links, new fields or schema changes are introduced.
+
+Current NodeSupervisor source: `840511a8567e8b016733d7dc2566d7890dff39b9`, tree `5529a7fe006f430ec11a72791ecca37bd2e94544`. Compared with historical b6f58f4: local receipt v2 requires immutable cluster_id/node_id/node_incarnation scope; receipt v1/unbound histories reject unchanged. Snapshot/get projections remain reference-only extraction candidates. UI must never construct controllers or journals or call reconciliation. This source comparison is not endpoint, installed-version, enrollment or runtime ACK.
