@@ -179,7 +179,7 @@ Source-bound mode requires a clean immutable commit with only the four approved
 additions, raw Git-equal checkout, --no-addons and external evidence directory.
 Workflow first compiles primary test-runner bytes from that exact Git commit; a
 workspace shadow cannot bootstrap qualification. Child TAP must contain exactly
-the21 frozen IDs,21passes,0fail/cancel/skip/todo. Source receipts are LOCAL component
+the22 frozen IDs,21passes,0fail/cancel/skip/todo. Source receipts are LOCAL component
 engineering evidence, never provider/native or full release admission.
 
 ## Read-only presentation refinement
