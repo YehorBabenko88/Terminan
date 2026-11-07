@@ -4,7 +4,7 @@
   const VERSION='terminan.gateway.artifact-metadata.v1';
   const fail=code=>{throw Error(code||'INVALID_METADATA');};
   function decode(raw){
-    if(typeof raw!=='string')fail();if(new TextEncoder().encode(raw).length>65536)fail('INPUT_LIMIT');
+    if(typeof raw!=='string')fail();if(raw.length>65536)fail('INPUT_LIMIT');if(new TextEncoder().encode(raw).length>65536)fail('INPUT_LIMIT');
     let i=0,nodes=0;const ws=()=>{while(/[\x20\x09\x0a\x0d]/.test(raw[i]||'!'))i++;};
     const count=()=>{if(++nodes>4096)fail('INPUT_LIMIT');};
     function str(){const start=i++;while(i<raw.length){const c=raw[i++];if(c==='"'){let s;try{s=JSON.parse(raw.slice(start,i));}catch{fail();}if(s.length>256)fail('INPUT_LIMIT');if(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(s))fail();return s;}if(c==='\\')i++;}fail();}
