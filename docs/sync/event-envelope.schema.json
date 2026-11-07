@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:terminan:sync:v1:event-envelope.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "cluster_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "cluster_generation": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "stream_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "sequence_scope": {
+      "enum": [
+        "GLOBAL_CONTROL",
+        "DATASET"
+      ]
+    },
+    "dataset_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "event_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "retention_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_seconds": {
+          "type": "integer",
+          "minimum": 600,
+          "maximum": 604800
+        },
+        "earliest_available_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "minimum_seconds",
+        "earliest_available_sequence"
+      ]
+    },
+    "payload_size_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65536
+    },
+    "metadata_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "previous_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "type": {
+      "enum": [
+        "CONTROL_CHANGED",
+        "DATASET_CHANGED",
+        "HEARTBEAT"
+      ]
+    },
+    "observed_at_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "fresh_until_utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+      },
+      "maxItems": 64
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "upserts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "resource_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "resource_type": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "resource_revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "metadata_revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "cluster_generation": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+                },
+                "maxItems": 64
+              },
+              "value": {
+                "type": "object",
+                "maxProperties": 64
+              }
+            },
+            "required": [
+              "resource_id",
+              "resource_type",
+              "resource_revision",
+              "metadata_revision",
+              "cluster_generation",
+              "evidence_refs",
+              "value"
+            ]
+          },
+          "maxItems": 100
+        },
+        "deletes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "upserts",
+        "deletes"
+      ]
+    },
+    "authority_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "QUORUM_CONFIRMED",
+            "NO_QUORUM",
+            "UNKNOWN"
+          ]
+        },
+        "observed_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "fresh_until_utc": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "state",
+        "observed_at_utc",
+        "fresh_until_utc",
+        "evidence_refs"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "cluster_id",
+    "cluster_generation",
+    "stream_id",
+    "sequence_scope",
+    "dataset_id",
+    "event_id",
+    "event_sequence",
+    "cursor",
+    "retention_window",
+    "payload_size_limit",
+    "metadata_revision",
+    "previous_revision",
+    "revision",
+    "type",
+    "observed_at_utc",
+    "fresh_until_utc",
+    "evidence_refs",
+    "payload",
+    "authority_status"
+  ]
+}

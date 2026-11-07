@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:terminan:sync:v1:error.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "code": {
+      "enum": [
+        "INVALID_REQUEST",
+        "UNAUTHENTICATED",
+        "SESSION_EXPIRED",
+        "FORBIDDEN",
+        "REAUTH_REQUIRED",
+        "CONFIRMATION_REQUIRED",
+        "REVISION_CONFLICT",
+        "IDEMPOTENCY_CONFLICT",
+        "OUTCOME_UNKNOWN",
+        "NOT_LEADER",
+        "NO_QUORUM",
+        "RESYNC_REQUIRED",
+        "RATE_LIMITED",
+        "UNAVAILABLE"
+      ]
+    },
+    "reason": {
+      "enum": [
+        "NONE",
+        "CURSOR_EXPIRED",
+        "SEQUENCE_GAP",
+        "GENERATION_CHANGED",
+        "CURSOR_INVALID",
+        "BUFFER_OVERFLOW",
+        "UNSUPPORTED_SCHEMA",
+        "SNAPSHOT_TOO_LARGE"
+      ]
+    },
+    "retry_after_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 300000
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+      },
+      "maxItems": 64
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "code",
+    "reason",
+    "retry_after_ms",
+    "evidence_refs"
+  ]
+}

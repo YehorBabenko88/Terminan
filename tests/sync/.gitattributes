@@ -1,0 +1,2 @@
+# Exact frozen artifact bytes are part of the Review4 dependency pin.
+c3-review4-vectors.json -text
