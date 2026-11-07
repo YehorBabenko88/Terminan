@@ -11,3 +11,14 @@ Spec: DESIGN-PROPOSAL-v1.md. Owner directionACK permits local implementation; sh
 5. Independent review; commit/push own branch/DraftPR, exact HEAD/tree and proposal hash. Request shared series schema/readcapability separately; chart only after exact ACK and owner-computed immutable bytes.
 
 Review focus: advertised digest never verified; development metadata never runtime authority; unknown fields cannot introduce series/URLs; invalid input clears previous model; bounded parsing precedes Number conversion/object materialization. No runtime/physical/real-order acceptance.
+
+## Chart execution addendum — ROOT full local design ACK
+
+Implement COMPUTED-LEVELS-DESIGN-v1.md in existing owned paths. First add actual
+A7 packet/schema bytes as immutable TEST_ONLY fixtures, preserving hashes and source
+cancellation caveat; no invented numeric values. Write RED chart contracts for hash,
+closed schema and semantic rejection, exact four markers/table/qualifiers, safe SVG,
+empty result, plotting precision/underflow, stale success/failure and metadata reset.
+Implement async renderComputedLevels plus per-root bounded UI token; metadata render
+also invalidates pending chart. No transport/provider/store/job changes. Extend CI
+mandatory inventory explicitly; fresh exact-source/browser receipts and review.
