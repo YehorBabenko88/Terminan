@@ -8,8 +8,8 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-EXPECTED_TESTS = 45
-SOURCES = ["terminan/sync/protocol.js", "terminan/sync/client.js", "tests/sync/fixtures.cjs", "tests/sync/test_contract.cjs", "tests/sync/test_client.cjs", "tests/sync/run_contracts.py", "tests/sync/test_ci_receipt.py", ".github/workflows/terminan-sync.yml"]
+EXPECTED_TESTS = 84
+SOURCES = ["terminan/sync/protocol.js", "terminan/sync/client.js", "terminan/sync/c3.js", "terminan/sync/mux-stream.js", "terminan/sync/serve.py", "tests/sync/fixtures.cjs", "tests/sync/test_contract.cjs", "tests/sync/test_client.cjs", "tests/sync/test_c3.cjs", "tests/sync/test_mux_stream.cjs", "tests/sync/c3-review4-vectors.json", "tests/sync/test_browser.spec.cjs", "tests/sync/run_contracts.py", "tests/sync/test_ci_receipt.py", ".github/workflows/terminan-sync.yml"]
 
 def counts_from_tap(text):
     counts = {}
@@ -42,7 +42,7 @@ def main():
         sources[name] = {"git_blob": blob_id, "blob_sha256": hashlib.sha256(blob).hexdigest(), "worktree_sha256": hashlib.sha256((ROOT / name).read_bytes()).hexdigest()}
     output = Path(os.environ.get("SYNC_EVIDENCE_DIR", str(ROOT / "test-results/sync-contracts")))
     output.mkdir(parents=True, exist_ok=True)
-    run = subprocess.run(["node", "--test", "--test-reporter=tap", "tests/sync/test_contract.cjs", "tests/sync/test_client.cjs"], cwd=ROOT, text=True, capture_output=True)
+    run = subprocess.run(["node", "--test", "--test-reporter=tap", "tests/sync/test_contract.cjs", "tests/sync/test_client.cjs", "tests/sync/test_c3.cjs", "tests/sync/test_mux_stream.cjs"], cwd=ROOT, text=True, capture_output=True)
     (output / "contracts.tap").write_text(run.stdout, encoding="utf-8")
     (output / "contracts.stderr.txt").write_text(run.stderr, encoding="utf-8")
     receipt = {"qualification": "MODEL_CONTRACT_ONLY_NOT_RUNTIME", "expected_head": expected, "head": head, "tree": git("rev-parse", "HEAD^{tree}").decode().strip(), "sources": sources, "node": subprocess.check_output(["node", "--version"], text=True).strip(), "python": platform.python_version(), "platform": platform.platform(), "run_id": os.environ.get("GITHUB_RUN_ID"), "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"), "job": os.environ.get("GITHUB_JOB"), "exit_code": run.returncode, "result": "FAIL"}

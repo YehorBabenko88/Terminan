@@ -1,5 +1,21 @@
 const { test, expect } = require("@playwright/test");
 const F = require("./fixtures.cjs");
+
+test('C3 and mux framing execute in Chromium without Node APIs', async ({page}) => {
+  await page.goto('/sync.html');
+  await page.addScriptTag({url:'/sync/c3.js'});
+  await page.addScriptTag({url:'/sync/mux-stream.js'});
+  const result=await page.evaluate(()=>{
+    const stream=new TerminanMuxStream.MuxRecords();
+    stream.feed('data: {"a":');
+    const token=stream.feed('"1.0"}\n\n')[0];
+    let rejected=false;
+    try{TerminanC3.parse('{"a":1.0}');}catch{rejected=true;}
+    return {raw:TerminanC3.text(token),rejected,frozen:Object.isFrozen(TerminanC3.value(token))};
+  });
+  expect(result).toEqual({raw:'{"a":"1.0"}',rejected:true,frozen:true});
+  await expect(page.getByRole('status')).toContainText('UNAVAILABLE');
+});
 test("unavailable endpoint never fabricates LIVE or sends commands", async ({
   page,
 }) => {

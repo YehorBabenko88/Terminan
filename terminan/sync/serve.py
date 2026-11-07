@@ -3,7 +3,7 @@ import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-ASSETS = {"/sync.html": (ROOT.parent / "sync.html", "text/html; charset=utf-8"), **{"/sync/" + name: (ROOT / name, mime) for name, mime in [("protocol.js", "text/javascript"), ("client.js", "text/javascript"), ("view.js", "text/javascript"), ("style.css", "text/css")]}}
+ASSETS = {"/sync.html": (ROOT.parent / "sync.html", "text/html; charset=utf-8"), **{"/sync/" + name: (ROOT / name, mime) for name, mime in [("protocol.js", "text/javascript"), ("client.js", "text/javascript"), ("c3.js", "text/javascript"), ("mux-stream.js", "text/javascript"), ("view.js", "text/javascript"), ("style.css", "text/css")]}}
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass  # Never log URLs/cursors, credentials or request bodies.
