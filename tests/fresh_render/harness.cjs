@@ -52,7 +52,7 @@ const disabledFeatures='--disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeU
 function launchOptions(tmp,executablePath){
  return {headless:true,chromiumSandbox:true,host:'127.0.0.1',port:0,timeout:15000,executablePath,downloadsPath:tmp,tracesDir:tmp,
   ignoreDefaultArgs:['--disable-client-side-phishing-detection','--disable-ipc-flooding-protection','--disable-popup-blocking','--unsafely-disable-devtools-self-xss-warnings',disabledFeatures],
-  args:['--disk-cache-dir='+path.join(tmp,'cache'),'--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost'],
+  args:['--disk-cache-dir='+path.join(tmp,'cache'),'--host-resolver-rules=MAP * ^NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'],
   env:{SystemRoot:process.env.SystemRoot||'C:\\Windows',WINDIR:process.env.WINDIR||'C:\\Windows',TEMP:tmp,TMP:tmp,TMPDIR:tmp,HOME:tmp,USERPROFILE:tmp,LOCALAPPDATA:tmp,APPDATA:tmp}};
 }
 function checkSpawn(args,tmp){
