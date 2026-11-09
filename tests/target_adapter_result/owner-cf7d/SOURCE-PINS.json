@@ -1,0 +1,15 @@
+{
+  "publication": "cf7dad91bf0d3a24073c91e0d3e326e6d9e7d2db",
+  "execution_source": "a84eabb533865f6a422a03bf096222ee51052e8f",
+  "execution_tree": "0b064c8291cb4030e0a4a97ca3296b69883576a6",
+  "prior_4e96_source8dc_payloads": "BYTE_IDENTICAL_ONLY_NOT_QUALIFICATION_TRANSFER",
+  "files_sha256": {
+    "CONTRACT.md": "1efd982c7c0bf5271fa108f33bbb497929014daded0a97973505cae36bd8c85b",
+    "request.schema.json": "2a7a9370eedc43b76b03fa13252e86606162ae8f494a362fd69d5b22a85858fe",
+    "success-result.schema.json": "68ef432b79bae3011970375747e5c0640483af4eb8eccbc195ba7456bf0d7917",
+    "refusal-result.schema.json": "ce8fee657340e4a65ce91769327b6718ba79c8aefb848f54ef6c12b4f2e1d49a",
+    "direct-result.json": "653ecbd6964c27352698378ceb13877095fd5509f1fab1f7023cbd88216c02a7",
+    "prepared-request.json": "4cf1df7beb92853123db57742ceb0bc788d2ad129288b8f1777de7f55a1bb232",
+    "actual-meta-result.json": "f4997d7d26211676cd8664e53d7999f8b71f203510f3b9a275b439c403e03940"
+  }
+}
