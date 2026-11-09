@@ -61,6 +61,11 @@ async function closeOwned(server){
  try{await limited(server.close(),LIMITS.close_ms);}catch{fallback=true;await limited(server.kill(),LIMITS.close_ms);}
  return {pid:child.pid,confirmed:child.exitCode!==null||child.signalCode!==null,fallback_sdk_kill:fallback};
 }
+function classifyCleanup(renderExitCode,cleanup,guard){
+ const root_job_teardown_required=cleanup?.confirmed!==true||guard?.installed!==true||guard?.denied_attempts!==0;
+ const exitCode=renderExitCode===0&&!root_job_teardown_required?0:1;
+ return Object.freeze({root_job_teardown_required,exitCode,result:exitCode===0?'LOCAL_RENDER_PASS_NOT_AUTH_OR_PHYSICAL_ACCEPTANCE':'FAIL_OR_UNCONFIRMED'});
+}
 function dependencyTree(base){
  const rows=[];let total=0;for(const pkg of ['@playwright/test','playwright','playwright-core']){function visit(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name),s=fs.lstatSync(p);need(!s.isSymbolicLink(),'DEPENDENCY_LINK');if(s.isDirectory())visit(p);else{need(s.isFile()&&s.nlink===1,'DEPENDENCY_FILE');total+=s.size;need(total<=268435456&&rows.length<2048,'DEPENDENCY_SIZE');rows.push([path.relative(base,p).split(path.sep).join('/'),sha(fs.readFileSync(p))]);}}}visit(path.join(base,pkg));}
  rows.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);need(rows.length===521&&sha(JSON.stringify(rows))===PINS.packages,'DEPENDENCY_TREE_DIGEST');return rows.length;
@@ -75,6 +80,7 @@ function verifyTooling(modulePath,executable){
  need(require(path.join(modulePath,'package.json')).version==='1.56.1','PLAYWRIGHT_VERSION');return modules;
 }
 async function run(spec,modulePath,executable){
+ const syncGuard=require('./sync_spawn_guard.cjs').install();
  const p=await prepare(spec);verifyTooling(modulePath,executable);
  const runRoot=fs.mkdtempSync(path.join(spec.testRoot,'fresh-render-'));checkPaths([runRoot]);const tmp=path.join(runRoot,'temp');fs.mkdirSync(tmp);const prior={};for(const k of ['TEMP','TMP','TMPDIR']){prior[k]=process.env[k];process.env[k]=tmp;}
  let httpServer,browserServer,browser,cleanup=null,exitCode=1;const receipt={schema:'terminan.disposable.fresh-file-render.v1',scope:p.scope,input_sha256:p.digests,renderer_sha256:PINS.renderer,node:process.version,playwright:'1.56.1',chromium_revision:'1194',authenticated_gateway:false,verified_market_data:false,production_admission:false,hard_resource_containment:'NOT_QUALIFIED',browser_run:'STARTED',render:'NOT_RUN',cleanup:'PENDING',page_requests:0,blocked_page_requests:0};
@@ -98,7 +104,8 @@ async function run(spec,modulePath,executable){
   // BrowserServer.close/kill are the only process-termination capabilities used.
   if(browserServer){try{cleanup=await closeOwned(browserServer);}catch{cleanup={confirmed:false};}}else cleanup={confirmed:false,reason:'NO_ISSUED_BROWSER_HANDLE'};
   if(httpServer){httpServer.closeAllConnections();await limited(new Promise(resolve=>httpServer.close(resolve)),5000).catch(()=>{exitCode=1;});}
-  receipt.cleanup=cleanup;receipt.browser_run='FINISHED';if(!cleanup.confirmed)exitCode=1;receipt.result=exitCode===0?'LOCAL_RENDER_PASS_NOT_AUTH_OR_PHYSICAL_ACCEPTANCE':'FAIL_OR_UNCONFIRMED';
+  receipt.cleanup=cleanup;receipt.browser_run='FINISHED';receipt.sync_spawn_guard=syncGuard.snapshot();const outcome=classifyCleanup(exitCode,cleanup,receipt.sync_spawn_guard);
+  exitCode=outcome.exitCode;receipt.root_job_teardown_required=outcome.root_job_teardown_required;receipt.result=outcome.result;
   for(const k of ['TEMP','TMP','TMPDIR']){if(prior[k]===undefined)delete process.env[k];else process.env[k]=prior[k];}
   writeBound(runRoot,'render-receipt.json',Buffer.from(JSON.stringify(receipt,null,2)+'\n'),LIMITS.json);
  }
@@ -112,5 +119,5 @@ async function cli(args){
  if(mode==='preflight'){need(extra.length===1&&extra[0]==='NO_BROWSER','USAGE');const p=await prepare(spec);console.log(JSON.stringify({scope:p.scope,input_sha256:p.digests,browser_run:'NOT_RUN'}));return;}
  need(extra.length===3&&extra[0]==='ROOT_SERIAL_LANE','USAGE');const result=await run(spec,extra[1],extra[2]);console.log(JSON.stringify({run_root:result.runRoot,result:result.receipt.result}));process.exitCode=result.exitCode;
 }
-module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling,run};
+module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling,run,classifyCleanup};
 if(require.main===module)cli(process.argv.slice(2)).catch(e=>{console.error('FRESH_RENDER_REFUSED:'+(/^[A-Z][A-Z0-9_]{0,95}$/.test(e.message)?e.message:'DETAILS_WITHHELD'));process.exitCode=1;});

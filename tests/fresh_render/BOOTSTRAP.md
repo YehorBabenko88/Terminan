@@ -1,8 +1,9 @@
 # Root-supervised direct Node gate
 
-Successor of immutable c44bc15/PR75. Only bootstrap, its unit tests/docs and the
-existing harness's `run` export are added. Renderer and all previous package
-logic remain unchanged. This is prepared source, NOT physical/runtime acceptance.
+Successor of immutable c44bc15/PR75. Adds bootstrap, its unit tests/docs, the same
+harness's `run` export and Root-requested fixed nonissuing spawnSync guard with
+fail-closed cleanup classification. Renderer/auth logic remains unchanged.
+This is prepared source, NOT physical/runtime acceptance.
 
 Root launches the NORMAL direct Node executable, without shell, flags beyond
 `--no-addons`, preloads or environment injection. Example argument vector (native
@@ -77,11 +78,34 @@ via spawnSync(shell:true), including close failure or kill fallback. The old
 README's no-taskkill wording describes A6 harness code, NOT all SDK internals.
 SDK Windows launch uses detached:false and requests no breakaway flag.
 
-Root must explicitly review this cleanup behavior against its retained-handle
-own-Job policy. If no PID-based teardown is allowed anywhere, this is an unresolved
-admission limitation; the source package does NOT assert HANDLE-only SDK cleanup.
-No SDK patch, alternative foreign-PID killer, Job manager or containment bypass
-is added here. Root's actual watchdog/retained own-Job behavior remains its scope.
+The new committed sync_spawn_guard.cjs is installed by run AFTER bootstrap GO and
+BEFORE preparing inputs or importing ANY SDK. It refuses already cached SDKs,
+replaces the builtin module's exported spawnSync with a nonissuing throw/counter,
+makes that property nonwritable/nonconfigurable and syncs builtin ESM exports.
+Original spawnSync is never called by this guard; taskkill/shell args are never
+executed or logged. A fixed one-time stderr notice reports a denial. No SDK files
+are edited and521-file dependency digest3a122fd6... remains unchanged. The pinned
+actual callsite processLauncher.js SHA256 is
+da9cb41cc1605fca1e26c6a6212f01ef0af0125a9e97eecb70671bb3a8f1fd07.
+
+Unit probes prove blocked taskkill/shell calls do not execute an original tripwire,
+CommonJS and ESM aliases see the denial, overwrites refuse, and the existing Node
+execFileSync's lexical internal spawnSync still permits a FIXED read-only
+PowerShell Get-Item check. The harness's static read-only PowerShell path checks
+are unchanged. This exception is deliberate: exported spawnSync interception is
+NOT generic subprocess prevention, a hostile-code boundary, kernel isolation or
+proof of handle ownership. Other builtin issuing APIs remain available to the
+trusted primary source; the restriction targets the exact pinned SDK callsite.
+
+Normal graceful protocol close may run. Any denied attempt, missing guard state
+or unconfirmed SDK exit forces FAIL_OR_UNCONFIRMED and
+root_job_teardown_required:true, even after render agreement. Root alone may then
+terminate its retained OWN Job and descendants; that teardown does NOT retroactively
+turn render/SDK cleanup failure into PASS. The harness performs no native Job
+termination, foreign PID reopen or SDK patch. Root/A8 must still review the exact
+source plus actual membership/no-breakaway/readback and watchdog evidence. Runtime
+behavior of graceful close, denied startup fallback and Job teardown remains
+NOT_RUN; the source package does not claim that the pilot is currently isolated.
 
 ## Preparation verification
 
