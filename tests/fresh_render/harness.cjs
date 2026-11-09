@@ -86,34 +86,36 @@ function verifyTooling(modulePath,executable){
  need(require(path.join(modulePath,'package.json')).version==='1.56.1','PLAYWRIGHT_VERSION');return modules;
 }
 async function run(spec,modulePath,executable){
+ const {createTelemetry,safeFailure,writeFinalReceipt}=require('./diagnostics.cjs'),{cleanupIssued}=require('./owned_lifecycle.cjs'),diagnostics=createTelemetry();
  const syncGuard=require('./sync_spawn_guard.cjs').install();
- const p=await prepare(spec);verifyTooling(modulePath,executable);
- const runRoot=fs.mkdtempSync(path.join(spec.testRoot,'fresh-render-'));checkPaths([runRoot]);const tmp=path.join(runRoot,'temp');fs.mkdirSync(tmp);const prior={};for(const k of ['TEMP','TMP','TMPDIR','LOCALAPPDATA','APPDATA','USERPROFILE']){prior[k]=process.env[k];process.env[k]=tmp;}
- let httpServer,browserServer,browser,cleanup=null,exitCode=1;const receipt={schema:'terminan.disposable.fresh-file-render.v1',scope:p.scope,input_sha256:p.digests,renderer_sha256:PINS.renderer,node:process.version,playwright:'1.56.1',chromium_revision:'1194',authenticated_gateway:false,verified_market_data:false,production_admission:false,hard_resource_containment:'NOT_QUALIFIED',browser_run:'STARTED',render:'NOT_RUN',cleanup:'PENDING',page_requests:0,blocked_page_requests:0};
+ const p=await diagnostics.step('PREPARE',()=>prepare(spec));await diagnostics.step('TOOLING_VALIDATE',()=>verifyTooling(modulePath,executable));
+ const {runRoot,tmp}=await diagnostics.step('RUN_DIRECTORY',()=>{const runRoot=fs.mkdtempSync(path.join(spec.testRoot,'fresh-render-'));checkPaths([runRoot]);const tmp=path.join(runRoot,'temp');fs.mkdirSync(tmp);return {runRoot,tmp};});const prior={};for(const k of ['TEMP','TMP','TMPDIR','LOCALAPPDATA','APPDATA','USERPROFILE']){prior[k]=process.env[k];process.env[k]=tmp;}
+ let httpServer,browserServer,browser,context,cleanup=null,exitCode=1;const receipt={schema:'terminan.disposable.fresh-file-render.v1',scope:p.scope,input_sha256:p.digests,renderer_sha256:PINS.renderer,node:process.version,playwright:'1.56.1',chromium_revision:'1194',authenticated_gateway:false,verified_market_data:false,production_admission:false,hard_resource_containment:'NOT_QUALIFIED',browser_run:'STARTED',render:'NOT_RUN',cleanup:'PENDING',page_requests:0,blocked_page_requests:0};
  const deadline=Date.now()+LIMITS.duration_ms;
  const remaining=(cap=10000)=>{const ms=deadline-Date.now();need(ms>0,'DEADLINE');return Math.min(cap,ms);};
  try{
    httpServer=http.createServer({maxHeaderSize:4096},(req,res)=>{const r=routeFor(p,req.method,req.url);res.writeHead(r.status,r.headers);res.end(r.body);});httpServer.maxConnections=4;httpServer.requestTimeout=5000;httpServer.headersTimeout=5000;
-   await new Promise((resolve,reject)=>{httpServer.once('error',reject);httpServer.listen(0,'127.0.0.1',resolve);});const base='http://127.0.0.1:'+httpServer.address().port;
-   const {chromium}=require(modulePath);browserServer=await chromium.launchServer({...launchOptions(tmp,executable),timeout:remaining(15000)});const child=browserServer.process();
-   writeBound(runRoot,'owned-browser.json',Buffer.from(JSON.stringify({schema:'terminan.owned-browser-process.v1',pid:child.pid,parent_pid:process.pid,ownership:'BrowserServer.process() issued by this launch only',run_root:runRoot})),LIMITS.json);checkSpawn(child.spawnargs,tmp);
-   remaining();browser=await chromium.connect(browserServer.wsEndpoint(),{timeout:remaining()});const context=await limited(browser.newContext({viewport:{width:1280,height:900},serviceWorkers:'block',acceptDownloads:false}),remaining());
-   await context.route('**/*',route=>{receipt.page_requests++;if(receipt.page_requests>32||!allowRequest(base,route.request().url(),route.request().method())){receipt.blocked_page_requests++;return route.abort('blockedbyclient');}return route.continue();});
-   const page=await limited(context.newPage(),remaining());page.setDefaultTimeout(remaining());await page.goto(base+'/',{waitUntil:'load',timeout:remaining()});await page.waitForFunction(()=>window.__freshDone!==null,null,{timeout:remaining()});
-   const observed=await limited(page.evaluate(()=>({status:window.__freshDone.status,model:window.__freshDone.model,banner:document.querySelector('[role="status"]')?.textContent,tables:[...document.querySelectorAll('table tbody')].map(x=>x.rows.length),cells:[...document.querySelectorAll('table tbody')].map(x=>[...x.rows].map(r=>[...r.cells].map(c=>c.textContent))),forbidden:document.querySelectorAll('a,img,iframe,button,input,svg,canvas').length})),remaining());
+   await diagnostics.step('HTTP_LISTEN',()=>new Promise((resolve,reject)=>{httpServer.once('error',reject);httpServer.listen(0,'127.0.0.1',resolve);}));const base='http://127.0.0.1:'+httpServer.address().port;
+   const {chromium}=require(modulePath);browserServer=await diagnostics.step('BROWSER_LAUNCH',()=>chromium.launchServer({...launchOptions(tmp,executable),timeout:remaining(15000)}));const child=browserServer.process();
+   await diagnostics.step('OWNED_PID_WRITE',()=>writeBound(runRoot,'owned-browser.json',Buffer.from(JSON.stringify({schema:'terminan.owned-browser-process.v1',pid:child.pid,parent_pid:process.pid,ownership:'BrowserServer.process() issued by this launch only',run_root:runRoot})),LIMITS.json));await diagnostics.step('SPAWN_VALIDATE',()=>checkSpawn(child.spawnargs,tmp));
+   remaining();browser=await diagnostics.step('CLIENT_CONNECT',()=>chromium.connect(browserServer.wsEndpoint(),{timeout:remaining()}));context=await diagnostics.step('CONTEXT_CREATE',()=>limited(browser.newContext({viewport:{width:1280,height:900},serviceWorkers:'block',acceptDownloads:false}),remaining()));
+   await diagnostics.step('ROUTE_INSTALL',()=>context.route('**/*',route=>{receipt.page_requests++;if(receipt.page_requests>32||!allowRequest(base,route.request().url(),route.request().method())){receipt.blocked_page_requests++;return route.abort('blockedbyclient');}return route.continue();}));
+   const page=await diagnostics.step('PAGE_CREATE',()=>limited(context.newPage(),remaining()));page.setDefaultTimeout(remaining());const response=await diagnostics.step('PAGE_NAVIGATE',()=>page.goto(base+'/',{waitUntil:'load',timeout:remaining()}));const status=response?.status();if(Number.isInteger(status)&&status>=100&&status<=599)receipt.http_status=status;await diagnostics.step('PAGE_WAIT',()=>page.waitForFunction(()=>window.__freshDone!==null,null,{timeout:remaining()}));
+   await diagnostics.step('MODEL_VALIDATE',async()=>{const observed=await limited(page.evaluate(()=>({status:window.__freshDone.status,model:window.__freshDone.model,banner:document.querySelector('[role="status"]')?.textContent,tables:[...document.querySelectorAll('table tbody')].map(x=>x.rows.length),cells:[...document.querySelectorAll('table tbody')].map(x=>[...x.rows].map(r=>[...r.cells].map(c=>c.textContent))),forbidden:document.querySelectorAll('a,img,iframe,button,input,svg,canvas').length})),remaining());
    need(observed.status==='LOCAL_UNATTESTED'&&canonical(observed.model)===canonical(p.model),'RENDER_MODEL_MISMATCH');need(observed.banner==='LOCAL_UNATTESTED · BYTE AGREEMENT ONLY'&&JSON.stringify(observed.tables)==='[4,3]'&&observed.forbidden===0,'RENDER_DOM_MISMATCH');need(receipt.blocked_page_requests===0,'UNEXPECTED_BROWSER_REQUEST');
    const r=p.model.envelope.result,expectedCells=[r.levels.map(x=>[x.kind,x.price,String(x.source_start_ms)]),r.rows.map(x=>[x.event_start_ms,x.open,x.high,x.low,x.close,x.volume].map(String))];need(JSON.stringify(observed.cells)===JSON.stringify(expectedCells),'RENDER_CELLS_MISMATCH');
-   const screenshot=await page.screenshot({type:'png',fullPage:false,timeout:remaining()});writeBound(runRoot,'fresh-render.png',screenshot,LIMITS.screenshot);
-   confirmInputs(spec,p);remaining();receipt.screenshot_sha256=sha(screenshot);receipt.rendered_model_sha256=sha(canonical(observed.model));receipt.render='LOCAL_UNATTESTED_MODEL_AND_DOM_AGREEMENT';receipt.levels=4;receipt.input_rows=3;await limited(context.close(),remaining());exitCode=0;
- }catch(e){receipt.failure_code=/^[A-Z][A-Z0-9_]{0,95}$/.test(e.message)?e.message:'HARNESS_FAILED_DETAILS_WITHHELD';}
+   receipt.rendered_model_sha256=sha(canonical(observed.model));});
+   const screenshot=await diagnostics.step('SCREENSHOT',()=>page.screenshot({type:'png',fullPage:false,timeout:remaining()}));await diagnostics.step('SCREENSHOT_WRITE',()=>writeBound(runRoot,'fresh-render.png',screenshot,LIMITS.screenshot));
+   await diagnostics.step('INPUT_CONFIRM',()=>confirmInputs(spec,p));remaining();receipt.screenshot_sha256=sha(screenshot);receipt.render='LOCAL_UNATTESTED_MODEL_AND_DOM_AGREEMENT';receipt.levels=4;receipt.input_rows=3;exitCode=0;
+ }catch(e){receipt.failure=safeFailure(e);receipt.failure_code=receipt.failure.code;receipt.failure_phase=diagnostics.snapshot().events.at(-1)?.phase||'PREPARE';}
  finally{
-  // BrowserServer.close/kill are the only process-termination capabilities used.
-  if(browserServer){try{cleanup=await closeOwned(browserServer);}catch{cleanup={confirmed:false};}}else cleanup={confirmed:false,reason:'NO_ISSUED_BROWSER_HANDLE'};
-  if(httpServer){httpServer.closeAllConnections();await limited(new Promise(resolve=>httpServer.close(resolve)),5000).catch(()=>{exitCode=1;});}
+  // Only actual returned handles enter this bounded teardown; no PID-based fallback.
+  cleanup=await cleanupIssued({context,browser,browserServer,httpServer},diagnostics);
   receipt.cleanup=cleanup;receipt.browser_run='FINISHED';receipt.sync_spawn_guard=syncGuard.snapshot();const outcome=classifyCleanup(exitCode,cleanup,receipt.sync_spawn_guard);
-  exitCode=outcome.exitCode;receipt.root_job_teardown_required=outcome.root_job_teardown_required;receipt.result=outcome.result;
+  if(diagnostics.snapshot().overflow||diagnostics.snapshot().io_failed)exitCode=1;
+  exitCode=exitCode===0?outcome.exitCode:1;receipt.root_job_teardown_required=outcome.root_job_teardown_required;receipt.result=exitCode===0?outcome.result:'FAIL_OR_UNCONFIRMED';
   for(const k of ['TEMP','TMP','TMPDIR','LOCALAPPDATA','APPDATA','USERPROFILE']){if(prior[k]===undefined)delete process.env[k];else process.env[k]=prior[k];}
-  writeBound(runRoot,'render-receipt.json',Buffer.from(JSON.stringify(receipt,null,2)+'\n'),LIMITS.json);
+  await writeFinalReceipt(receipt,diagnostics,bytes=>writeBound(runRoot,'render-receipt.json',bytes,LIMITS.json));
  }
  return {runRoot,exitCode,receipt};
 }
