@@ -18,7 +18,9 @@ authentication issuer, role, registry, permission callback or fake success respo
 
 A2 PR53 source31e0351b9f21ac53f3eb47a23bf45d06a58e1fe1 /
 tree787be69ece1b533dff284195bbedd34a0ae5196e: gateway_identity SHA84093865...
-only admits get_dataset_manifest/query_time_series with bound issuer/store/resource.
+only admits internal tool names unified.get_dataset_manifest and
+unified.query_market_data with bound issuer/store/resource (verified in module840).
+The owner message called the query operation query_time_series; no alias is assumed.
 It does NOT grant experiment/job/artifact download. Research broker1e9f4bb...
 READ_RESEARCH observations are not a scientific payload read grant. New typed
 job/result read API is currently NONE. Reuse of old caps is prohibited.
@@ -91,7 +93,7 @@ Per-root UI token + AbortController prevent an older response/hash completion fr
 restoring data after a newer load/denial/reset; token is UI bookkeeping only.
 The native UNKNOWN-history clarification remains correct but provides no read grant
 or actual payload to this distinct scientific view. No redirects to another origin,
-generic URLs, imported HTML/SVG, effect handlers or command dispatch.
+generic URLs, imported HTML/SVG or state-changing command handlers/dispatch.
 
 ## Evidence categories and pending decisions
 
