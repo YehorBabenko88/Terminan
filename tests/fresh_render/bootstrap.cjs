@@ -25,10 +25,15 @@ async function main(args){
  const config=parseArgs(args),gate=waitForGo(process.stdin,config.nonce);
  const ready=JSON.stringify({pid:process.pid,nonce:config.nonce})+'\n';need(Buffer.byteLength(ready)<=128,'BOOTSTRAP_READY_SIZE');process.stdout.write(ready);
  await gate;
+ process.exitCode=1;
+ const inputEvent=state=>process.stdout.write(JSON.stringify({phase:'GO_INPUT_CLOSE',state,elapsed_ms:Math.floor(process.uptime()*1000)})+'\n');inputEvent('BEGIN');
+ try{await closeGoInput(process.stdin);inputEvent('OK');}catch(e){inputEvent('FAIL');throw e;}
  // Single fixed lazy import; no filesystem, renderer or SDK work before this line.
  const {run}=require('./harness.cjs');
  const result=await run(config.spec,config.modulePath,config.executable);
  const receipt=JSON.stringify({run_root:result.runRoot,result:result.receipt.result})+'\n';need(Buffer.byteLength(receipt)<=4096,'BOOTSTRAP_RESULT_SIZE');process.stdout.write(receipt);process.exitCode=result.exitCode;
+ process.once('beforeExit',()=>process.stdout.write(JSON.stringify({phase:'NODE_NATURAL_IDLE',state:'OBSERVED',elapsed_ms:Math.floor(process.uptime()*1000)})+'\n'));
 }
-module.exports={WAIT_MS,MAX_STDIN,parseArgs,waitForGo};
+function closeGoInput(input){return new Promise((resolve,reject)=>{if(input.closed===true)return resolve();let done=false;const finish=ok=>{if(done)return;done=true;clearTimeout(timer);input.removeListener('close',closed);input.removeListener('error',failed);ok?resolve():reject(Error('GO_INPUT_CLOSE'));};const closed=()=>finish(true),failed=()=>finish(false),timer=setTimeout(failed,500);input.once('close',closed);input.once('error',failed);try{input.destroy();}catch{failed();}});}
+module.exports={WAIT_MS,MAX_STDIN,parseArgs,waitForGo,closeGoInput};
 if(require.main===module)main(process.argv.slice(2)).catch(()=>{process.stderr.write('BOOTSTRAP_REFUSED\n');process.exitCode=1;});
