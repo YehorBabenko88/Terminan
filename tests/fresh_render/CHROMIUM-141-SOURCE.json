@@ -1,0 +1,27 @@
+{
+  "schema": "terminan.chromium.resolver.source-binding.v1",
+  "scope": "PRIMARY_SOURCE_REVIEW_NOT_BROWSER_EXECUTION_OR_DNS_PROOF",
+  "tag": "141.0.7390.37",
+  "canonical_rule": "MAP * ^NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+  "sources": [
+    {
+      "path": "net/base/host_mapping_rules.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/141.0.7390.37/net/base/host_mapping_rules.cc",
+      "git_blob": "fec058db4f7c10062355f1f2f9ef5093eb0eeb54",
+      "sha256": "f3d7dacea880c41b7bd9f7136cee600a5ad54a0659be4f21136f039e8338e82d",
+      "bytes": 4745
+    },
+    {
+      "path": "net/dns/mapped_host_resolver.cc",
+      "url": "https://raw.githubusercontent.com/chromium/chromium/141.0.7390.37/net/dns/mapped_host_resolver.cc",
+      "git_blob": "588fac6bc4f797e2ddf5dcf9d1782b66093b19a8",
+      "sha256": "4046c3aba6efef8f66ac7bb2bfdb6fd47ed7382f241001ad7abaded84906e2d7",
+      "bytes": 4791
+    }
+  ],
+  "reviewed_paths": {
+    "HostMappingRules.RewriteHost": "host-string MAP then host-string exclusion, no numeric-IP bypass",
+    "MappedHostResolver.CreateRequest.SchemeHostPort": "RewriteUrl then kInvalidRewrite returns ERR_NAME_NOT_RESOLVED",
+    "MappedHostResolver.CreateRequest.HostPortPair": "RewriteHost then exact ^NOTFOUND returns ERR_NAME_NOT_RESOLVED before delegate"
+  }
+}
