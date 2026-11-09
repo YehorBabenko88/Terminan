@@ -12,7 +12,8 @@ Exports TerminanExperimentView / CommonJS:
 - buildExperimentViewRequest(id): exact 1..128 ASCII alnum-first [A-Za-z0-9._-]
   case preserved, no percent/slash/query/body/options/normalization; fixed relative
   same-origin GET, no-store/error-on-redirect/no-referrer, no credentials in JSON.
-- checkViewByteLimit(part, Uint8Array): observed actual bytes only, never JSON
+- checkViewByteLimit(part, Uint8Array): intrinsic typed-array byte length/buffer and indexed bytes only, never overridable
+  length/iterator or JSON
   byte_count claims; no payload integrity/authentication/semantic validation.
 - createExperimentViewController(root): begin(id), observe(ticket, Response),
   reset(), snapshot(). Private weak UI ticket record+AbortSignal, not a permission.

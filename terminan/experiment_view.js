@@ -3,6 +3,7 @@
   'use strict';
   const VIEW_LIMITS=Object.freeze({response:2097152,artifact:1048576,descriptor:65536,depth:12,reader_chunks:8192});
   const controllers=new WeakMap();
+  const typed=Object.getPrototypeOf(Uint8Array.prototype),byteLength=Object.getOwnPropertyDescriptor(typed,'byteLength').get,bufferOf=Object.getOwnPropertyDescriptor(typed,'buffer').get,arrayBufferLength=Object.getOwnPropertyDescriptor(ArrayBuffer.prototype,'byteLength').get,isView=ArrayBuffer.isView;
   const fail=code=>{throw Error(code);};
   function buildExperimentViewRequest(experimentId){
     if(arguments.length!==1)fail('VIEW_REQUEST_OPTIONS_NOT_ALLOWED');
@@ -11,8 +12,9 @@
   }
   function checkViewByteLimit(kind,value){
     if(!['response','artifact','descriptor'].includes(kind))fail('VIEW_UNKNOWN_BYTE_PART');
-    if(!(value instanceof Uint8Array)||(typeof SharedArrayBuffer!=='undefined'&&value.buffer instanceof SharedArrayBuffer))fail('VIEW_BYTES_REQUIRED');
-    if(value.byteLength>VIEW_LIMITS[kind])fail('VIEW_SIZE_LIMIT');return value.byteLength;
+    if(!isView(value)||!(value instanceof Uint8Array))fail('VIEW_BYTES_REQUIRED');
+    let size;try{arrayBufferLength.call(bufferOf.call(value));size=byteLength.call(value);}catch{fail('VIEW_BYTES_REQUIRED');}
+    if(size>VIEW_LIMITS[kind])fail('VIEW_SIZE_LIMIT');return size;
   }
   function cancelBody(response){try{if(typeof Response==='undefined'||!(response instanceof Response))return;if(response.body&&!response.body.locked)Promise.resolve(response.body.cancel()).catch(()=>{});}catch{}}
   function createExperimentViewController(root){
@@ -46,9 +48,9 @@
         let total=0,chunks=0,depth=0,quoted=false,escaped=false;
         while(true){
           const item=await reader.read();if(!owns(ticket))return stale();if(item.done)break;
-          if(++chunks>VIEW_LIMITS.reader_chunks)fail('VIEW_CHUNK_LIMIT');total+=checkViewByteLimit('response',item.value);if(total>VIEW_LIMITS.response)fail('VIEW_SIZE_LIMIT');
+          if(++chunks>VIEW_LIMITS.reader_chunks)fail('VIEW_CHUNK_LIMIT');const size=checkViewByteLimit('response',item.value);total+=size;if(total>VIEW_LIMITS.response)fail('VIEW_SIZE_LIMIT');
           // Structural guard only: no scientific decoding/schema acceptance.
-          for(const b of item.value){if(quoted){if(escaped)escaped=false;else if(b===92)escaped=true;else if(b===34)quoted=false;}
+          for(let index=0;index<size;index++){const b=item.value[index];if(quoted){if(escaped)escaped=false;else if(b===92)escaped=true;else if(b===34)quoted=false;}
             else if(b===34)quoted=true;else if(b===123||b===91){if(++depth>VIEW_LIMITS.depth)fail('VIEW_DEPTH_LIMIT');}else if(b===125||b===93){if(--depth<0)fail('VIEW_FRAMING_INVALID');}}
         }
         if(depth!==0||quoted||escaped)fail('VIEW_FRAMING_INVALID');
