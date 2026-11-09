@@ -8,13 +8,19 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function need(v,code){if(!v)throw Error(code);}
 function inside(root,p){const r=path.relative(root,p);return r!==''&&!r.startsWith('..'+path.sep)&&r!=='..'&&!path.isAbsolute(r);}
 function cleanAbsolute(p){need(typeof p==='string'&&path.isAbsolute(p)&&path.resolve(p)===p&&!p.includes('\0'),'PATH_ABSOLUTE_CANONICAL');if(process.platform==='win32')need(/^[A-Za-z]:\\/.test(p)&&!p.slice(2).includes(':'),'PATH_NO_UNC_OR_STREAM');return p;}
+function pathCheckEnv(source=process.env){
+ const env={};for(const k of ['SystemRoot','WINDIR','TEMP','TMP','LOCALAPPDATA','APPDATA','USERPROFILE']){need(typeof source[k]==='string'&&source[k].length>0&&source[k].length<=2048,'LOCATION_ENV_REQUIRED');env[k]=cleanAbsolute(source[k]);}
+ if(source.TMPDIR!==undefined){need(typeof source.TMPDIR==='string'&&source.TMPDIR.length>0&&source.TMPDIR.length<=2048,'LOCATION_ENV_REQUIRED');env.TMPDIR=cleanAbsolute(source.TMPDIR);}
+ // Documented process-only cache disable; no policy or persistent setting changes.
+ env.PSModuleAnalysisCachePath='NUL';return Object.freeze(env);
+}
 function ancestors(p){const out=[];for(let x=p;;x=path.dirname(x)){out.push(x);if(path.dirname(x)===x)return out;}}
 function checkPaths(paths){
  const all=[...new Set(paths.flatMap(p=>ancestors(cleanAbsolute(p))))];
  for(const p of all){const s=fs.lstatSync(p);need(!s.isSymbolicLink(),'LINK_PATH');need(fs.realpathSync.native(p).toLowerCase()===p.toLowerCase(),'PATH_REALPATH');}
  if(process.platform==='win32'){
   const script='$ErrorActionPreference="Stop"; $paths=ConvertFrom-Json ([Console]::In.ReadToEnd()); foreach($p in $paths){if((Get-Item -LiteralPath $p -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){exit 23}}';
-  try{execFileSync(path.join(process.env.SystemRoot||'C:\\Windows','System32/WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify(all),stdio:['pipe','pipe','pipe'],timeout:10000,maxBuffer:4096,env:{SystemRoot:process.env.SystemRoot||'C:\\Windows'}});}catch{throw Error('REPARSE_CHECK_FAILED');}
+  try{execFileSync(path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify(all),stdio:['pipe','pipe','pipe'],timeout:10000,maxBuffer:4096,env:pathCheckEnv()});}catch{throw Error('REPARSE_CHECK_FAILED');}
  }
  return all.map(p=>{const s=fs.lstatSync(p,{bigint:true});return [p,String(s.dev),String(s.ino)];});
 }
@@ -47,7 +53,7 @@ function launchOptions(tmp,executablePath){
  return {headless:true,chromiumSandbox:true,host:'127.0.0.1',port:0,timeout:15000,executablePath,downloadsPath:tmp,tracesDir:tmp,
   ignoreDefaultArgs:['--disable-client-side-phishing-detection','--disable-ipc-flooding-protection','--disable-popup-blocking','--unsafely-disable-devtools-self-xss-warnings',disabledFeatures],
   args:['--disk-cache-dir='+path.join(tmp,'cache'),'--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost'],
-  env:{SystemRoot:process.env.SystemRoot||'C:\\Windows',WINDIR:process.env.WINDIR||'C:\\Windows',TEMP:tmp,TMP:tmp,TMPDIR:tmp,HOME:tmp,USERPROFILE:tmp,LOCALAPPDATA:tmp}};
+  env:{SystemRoot:process.env.SystemRoot||'C:\\Windows',WINDIR:process.env.WINDIR||'C:\\Windows',TEMP:tmp,TMP:tmp,TMPDIR:tmp,HOME:tmp,USERPROFILE:tmp,LOCALAPPDATA:tmp,APPDATA:tmp}};
 }
 function checkSpawn(args,tmp){
  need(Array.isArray(args)&&!args.some(a=>/^--(?:no-sandbox|disable-setuid-sandbox|disable-web-security|ignore-certificate-errors|allow-running-insecure-content|unsafely-|disable-(?:features|client-side-phishing-detection|ipc-flooding-protection|popup-blocking))/.test(a)),'SECURITY_SWITCH');
@@ -82,7 +88,7 @@ function verifyTooling(modulePath,executable){
 async function run(spec,modulePath,executable){
  const syncGuard=require('./sync_spawn_guard.cjs').install();
  const p=await prepare(spec);verifyTooling(modulePath,executable);
- const runRoot=fs.mkdtempSync(path.join(spec.testRoot,'fresh-render-'));checkPaths([runRoot]);const tmp=path.join(runRoot,'temp');fs.mkdirSync(tmp);const prior={};for(const k of ['TEMP','TMP','TMPDIR']){prior[k]=process.env[k];process.env[k]=tmp;}
+ const runRoot=fs.mkdtempSync(path.join(spec.testRoot,'fresh-render-'));checkPaths([runRoot]);const tmp=path.join(runRoot,'temp');fs.mkdirSync(tmp);const prior={};for(const k of ['TEMP','TMP','TMPDIR','LOCALAPPDATA','APPDATA','USERPROFILE']){prior[k]=process.env[k];process.env[k]=tmp;}
  let httpServer,browserServer,browser,cleanup=null,exitCode=1;const receipt={schema:'terminan.disposable.fresh-file-render.v1',scope:p.scope,input_sha256:p.digests,renderer_sha256:PINS.renderer,node:process.version,playwright:'1.56.1',chromium_revision:'1194',authenticated_gateway:false,verified_market_data:false,production_admission:false,hard_resource_containment:'NOT_QUALIFIED',browser_run:'STARTED',render:'NOT_RUN',cleanup:'PENDING',page_requests:0,blocked_page_requests:0};
  const deadline=Date.now()+LIMITS.duration_ms;
  const remaining=(cap=10000)=>{const ms=deadline-Date.now();need(ms>0,'DEADLINE');return Math.min(cap,ms);};
@@ -106,7 +112,7 @@ async function run(spec,modulePath,executable){
   if(httpServer){httpServer.closeAllConnections();await limited(new Promise(resolve=>httpServer.close(resolve)),5000).catch(()=>{exitCode=1;});}
   receipt.cleanup=cleanup;receipt.browser_run='FINISHED';receipt.sync_spawn_guard=syncGuard.snapshot();const outcome=classifyCleanup(exitCode,cleanup,receipt.sync_spawn_guard);
   exitCode=outcome.exitCode;receipt.root_job_teardown_required=outcome.root_job_teardown_required;receipt.result=outcome.result;
-  for(const k of ['TEMP','TMP','TMPDIR']){if(prior[k]===undefined)delete process.env[k];else process.env[k]=prior[k];}
+  for(const k of ['TEMP','TMP','TMPDIR','LOCALAPPDATA','APPDATA','USERPROFILE']){if(prior[k]===undefined)delete process.env[k];else process.env[k]=prior[k];}
   writeBound(runRoot,'render-receipt.json',Buffer.from(JSON.stringify(receipt,null,2)+'\n'),LIMITS.json);
  }
  return {runRoot,exitCode,receipt};
@@ -119,5 +125,5 @@ async function cli(args){
  if(mode==='preflight'){need(extra.length===1&&extra[0]==='NO_BROWSER','USAGE');const p=await prepare(spec);console.log(JSON.stringify({scope:p.scope,input_sha256:p.digests,browser_run:'NOT_RUN'}));return;}
  need(extra.length===3&&extra[0]==='ROOT_SERIAL_LANE','USAGE');const result=await run(spec,extra[1],extra[2]);console.log(JSON.stringify({run_root:result.runRoot,result:result.receipt.result}));process.exitCode=result.exitCode;
 }
-module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling,run,classifyCleanup};
+module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling,run,classifyCleanup,pathCheckEnv};
 if(require.main===module)cli(process.argv.slice(2)).catch(e=>{console.error('FRESH_RENDER_REFUSED:'+(/^[A-Z][A-Z0-9_]{0,95}$/.test(e.message)?e.message:'DETAILS_WITHHELD'));process.exitCode=1;});
