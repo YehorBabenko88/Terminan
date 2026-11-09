@@ -112,5 +112,5 @@ async function cli(args){
  if(mode==='preflight'){need(extra.length===1&&extra[0]==='NO_BROWSER','USAGE');const p=await prepare(spec);console.log(JSON.stringify({scope:p.scope,input_sha256:p.digests,browser_run:'NOT_RUN'}));return;}
  need(extra.length===3&&extra[0]==='ROOT_SERIAL_LANE','USAGE');const result=await run(spec,extra[1],extra[2]);console.log(JSON.stringify({run_root:result.runRoot,result:result.receipt.result}));process.exitCode=result.exitCode;
 }
-module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling};
+module.exports={PINS,LIMITS,prepare,readBound,routeFor,allowRequest,launchOptions,checkSpawn,writeBound,closeOwned,moduleRoot,confirmInputs,verifyTooling,run};
 if(require.main===module)cli(process.argv.slice(2)).catch(e=>{console.error('FRESH_RENDER_REFUSED:'+(/^[A-Z][A-Z0-9_]{0,95}$/.test(e.message)?e.message:'DETAILS_WITHHELD'));process.exitCode=1;});
