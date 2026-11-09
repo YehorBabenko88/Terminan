@@ -1,0 +1,69 @@
+name: Target result local consumer
+on:
+  push:
+    branches: ['feature/target-adapter-result-*']
+  pull_request:
+    paths: ['terminan/target_adapter_result.js', 'tests/target_adapter_result/**', 'docs/gateway/target-adapter/**', '.github/workflows/target-adapter-result.yml']
+permissions:
+  contents: read
+jobs:
+  target:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      GIT_CONFIG_COUNT: '2'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      GIT_CONFIG_KEY_1: core.eol
+      GIT_CONFIG_VALUE_1: lf
+      GIT_NO_REPLACE_OBJECTS: '1'
+    steps:
+      - name: Refuse ambient Node configuration before interpreter
+        shell: pwsh
+        run: |
+          foreach ($taskKey in @('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE')) {
+            if ([Environment]::GetEnvironmentVariable($taskKey)) { throw 'AMBIENT_NODE_CONFIG' }
+          }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.14.0'
+      - name: Primary Git bootstrap and 16 target-only scenarios
+        shell: pwsh
+        env:
+          TARGET_UI_EVIDENCE: ${{ runner.temp }}/target-result-evidence
+        run: |
+          foreach ($taskKey in @('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE')) {
+            if ([Environment]::GetEnvironmentVariable($taskKey)) { throw 'AMBIENT_NODE_CONFIG' }
+          }
+          $taskBootstrap = Join-Path $env:RUNNER_TEMP 'target-result-primary.cjs'
+          $taskCode = @'
+          const fs=require('node:fs'),path=require('node:path'),cp=require('node:child_process'),Module=require('node:module');
+          for(const k of ['NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE'])if(process.env[k])throw Error('AMBIENT_NODE_CONFIG');
+          const root=process.env.GITHUB_WORKSPACE,head=process.env.EXPECTED_HEAD;
+          if(!/^[0-9a-f]{40}$/.test(head))throw Error('EXPECTED_HEAD');
+          const git=process.platform==='win32'?'C:/Program Files/Git/cmd/git.exe':'/usr/bin/git';
+          const raw=cp.execFileSync(git,['--no-replace-objects','--no-optional-locks','-c','core.fsmonitor=false','-C',root,'show',head+':tests/target_adapter_result/qualification.cjs']);
+          const file=path.join(root,'tests/target_adapter_result/qualification.cjs');
+          if(fs.lstatSync(file).isSymbolicLink()||!raw.equals(fs.readFileSync(file)))throw Error('PRIMARY_SOURCE_MISMATCH');
+          const mod=new Module(file);mod.filename=file;mod.paths=Module._nodeModulePaths(path.dirname(file));mod._compile(raw.toString('utf8'),file);
+          const r=mod.exports.run(root,head,process.env.TARGET_UI_EVIDENCE);process.stdout.write(JSON.stringify({head:r.head,result:r.result,tests:r.tests})+'\n');
+          '@
+          [IO.File]::WriteAllText($taskBootstrap,$taskCode,[Text.UTF8Encoding]::new($false))
+          node --no-addons $taskBootstrap
+          if ($LASTEXITCODE -ne 0) { throw 'TARGET_RESULT_QUALIFICATION_FAILED' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: target-ui-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/target-result-evidence
+          if-no-files-found: error

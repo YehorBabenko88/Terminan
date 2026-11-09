@@ -1,0 +1,264 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "request_id",
+    "request_sha256",
+    "target_capability",
+    "target_version",
+    "experiment_id",
+    "dataset",
+    "parameters_digest",
+    "execution_mode",
+    "resource_budget",
+    "result",
+    "research_descriptor",
+    "result_artifact_ref",
+    "publication_status",
+    "execution_authority",
+    "scheduler_admission",
+    "authenticated_gateway",
+    "physical_acceptance",
+    "error",
+    "provenance",
+    "limitations"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "unified.gateway.direct-target-result.v1"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "FAILED",
+        "CANCELLED",
+        "UNKNOWN"
+      ]
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$(?![\\s\\S])"
+    },
+    "request_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$(?![\\s\\S])"
+    },
+    "target_capability": {
+      "type": "string",
+      "const": "meta.ohlcv.untouched_levels.v1"
+    },
+    "target_version": {
+      "type": "string",
+      "const": "f3c01a23fa5baaeeeb28eb8e9397e72b5ef4d5a1"
+    },
+    "experiment_id": {
+      "type": "string",
+      "const": "fixture.gateway.btc.levels"
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest_id",
+        "revision",
+        "raw_sha256",
+        "kind"
+      ],
+      "properties": {
+        "manifest_id": {
+          "type": "string",
+          "const": "local-sha256:33d5bf0f918884c8908795b384e0964a48a1351c808800964b8cacf3f83e28b6"
+        },
+        "revision": {
+          "type": "string",
+          "const": "LOCAL_FIXTURE_1"
+        },
+        "raw_sha256": {
+          "type": "string",
+          "const": "33d5bf0f918884c8908795b384e0964a48a1351c808800964b8cacf3f83e28b6"
+        },
+        "kind": {
+          "type": "string",
+          "const": "FIXED_SYNTHETIC_LOCAL_NOT_A4_MANIFEST"
+        }
+      }
+    },
+    "parameters_digest": {
+      "type": "string",
+      "const": "c548e2ffcd542d5d741682303694b3c6d06507740f158a6e30089b2d5355f648"
+    },
+    "execution_mode": {
+      "type": "string",
+      "const": "DIRECT_DISPOSABLE_SYNTHETIC"
+    },
+    "resource_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_input_bytes",
+        "max_output_bytes",
+        "max_rows",
+        "max_executions"
+      ],
+      "properties": {
+        "max_input_bytes": {
+          "type": "integer",
+          "const": 16384
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "const": 16384
+        },
+        "max_rows": {
+          "type": "integer",
+          "const": 3
+        },
+        "max_executions": {
+          "type": "integer",
+          "const": 1
+        }
+      }
+    },
+    "result": {
+      "type": "null"
+    },
+    "research_descriptor": {
+      "type": "null"
+    },
+    "result_artifact_ref": {
+      "type": "null"
+    },
+    "publication_status": {
+      "type": "string",
+      "const": "LOCAL_UNATTESTED"
+    },
+    "execution_authority": {
+      "type": "boolean",
+      "const": false
+    },
+    "scheduler_admission": {
+      "type": "string",
+      "const": "BLOCKED"
+    },
+    "authenticated_gateway": {
+      "type": "boolean",
+      "const": false
+    },
+    "physical_acceptance": {
+      "type": "boolean",
+      "const": false
+    },
+    "error": {
+      "type": "string",
+      "enum": [
+        "TARGET_RESULT_UNAVAILABLE",
+        "LOCAL_CANCELLED",
+        "ORIGINAL_INTENT_OUTCOME_UNKNOWN_NO_REEXECUTION"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stratt_head",
+        "stratt_module_sha256",
+        "meta_head",
+        "research_input_sha256"
+      ],
+      "properties": {
+        "stratt_head": {
+          "type": "string",
+          "const": "aed8a7c8a952f96803c207d5e90b133969a47f04"
+        },
+        "stratt_module_sha256": {
+          "type": "string",
+          "const": "689bd82be39cdc15725fcefbe2cefc248c4feb51c27822f9813558f5587e81dd"
+        },
+        "meta_head": {
+          "type": "string",
+          "const": "f3c01a23fa5baaeeeb28eb8e9397e72b5ef4d5a1"
+        },
+        "research_input_sha256": {
+          "type": "string",
+          "const": "c548e2ffcd542d5d741682303694b3c6d06507740f158a6e30089b2d5355f648"
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        {
+          "type": "string",
+          "const": "LOCAL_TEST_SCOPE_NOT_AUTHENTICATED"
+        },
+        {
+          "type": "string",
+          "const": "NO_NATIVE_RESOURCE_CONTAINMENT"
+        },
+        {
+          "type": "string",
+          "const": "NO_REPLICA_OR_PUBLICATION_PROOF"
+        },
+        {
+          "type": "string",
+          "const": "NO_ORDERS_NO_LEDGER"
+        },
+        {
+          "type": "string",
+          "const": "WHOLE_WINDOW_NOT_HISTORICAL_SIGNAL"
+        }
+      ],
+      "items": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:unified:gateway:direct-target-refusal:v1",
+  "oneOf": [
+    {
+      "properties": {
+        "status": {
+          "const": "CANCELLED"
+        },
+        "error": {
+          "enum": [
+            "LOCAL_CANCELLED"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "FAILED"
+        },
+        "error": {
+          "enum": [
+            "TARGET_RESULT_UNAVAILABLE"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "UNKNOWN"
+        },
+        "error": {
+          "enum": [
+            "TARGET_RESULT_UNAVAILABLE",
+            "ORIGINAL_INTENT_OUTCOME_UNKNOWN_NO_REEXECUTION"
+          ]
+        }
+      }
+    }
+  ]
+}
