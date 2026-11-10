@@ -61,7 +61,13 @@
       finally{if(onAbort)ticket.signal.removeEventListener('abort',onAbort);if(reader){try{await reader.cancel();}catch{}try{reader.releaseLock();}catch{}}}
     }
     function reset(){stop();state=makeState('UNAVAILABLE','RESET');paint();return state;}
-    const api=Object.freeze({begin,observe,reset,snapshot:()=>state});controllers.set(root,api);paint();return api;
+    function invalidate(reason){
+      stop();state=makeState('UNAVAILABLE','INVALIDATION_REQUIRED');paint();
+      // Local denial-only UI signals; not backend enums, authorization or recovery.
+      if(arguments.length!==1||typeof reason!=='string'||!['READ_UNAVAILABLE','READ_DENIED','SESSION_EXPIRED','AUTHORITY_STALE','REVISION_STALE','GENERATION_CHANGED','OFFLINE','RECONNECTING'].includes(reason))fail('VIEW_INVALIDATION_REASON_REQUIRED');
+      state=makeState('UNAVAILABLE',reason);paint();return state;
+    }
+    const api=Object.freeze({begin,observe,reset,invalidate,snapshot:()=>state});controllers.set(root,api);paint();return api;
   }
   return Object.freeze({VIEW_LIMITS,buildExperimentViewRequest,checkViewByteLimit,createExperimentViewController});
 });

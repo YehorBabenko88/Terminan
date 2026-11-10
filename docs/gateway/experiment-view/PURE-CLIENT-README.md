@@ -61,3 +61,13 @@ scientific payload/chart cases in CURRENT-READ-NEGATIVE-TESTS.md remain NOT_RUN.
 No Root server composition/security changes. Public submit DENY. Actual positive
 endpoint/visualization remains blocked until exact A2/A4/A7/Root interfaces qualify.
 GO_NO_GO: NO-GO.
+
+## Local denial and recovery preparation
+
+`invalidate(reason)` clears the view and aborts its current UI read for local
+read-loss, stale authority/revision, generation-change and connection signals.
+Unknown signals clear first and throw. It does not interpret backend claims,
+fetch, retry or grant access; a new `begin()` remains manual and every bounded
+200 remains quarantined. See [READ-RECOVERY-PREP.md](READ-RECOVERY-PREP.md).
+The source qualifier now selects three explicit PURE files and exactly 30 IDs.
+These controls are not the 25 Sync Contract scenarios or runtime acceptance.
