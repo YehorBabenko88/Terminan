@@ -131,3 +131,42 @@ Next: Root reviews exact source/hash manifest and decides execution allocation.
 Only after actual old-source RED may Root allocate the two production JS edits;
 then a separately pinned GREEN is required. Full-stack policy and scientific
 READ work stay untouched. Overall NO-GO / runtime acceptance NOT_RUN.
+
+## Phase update: Root old-source RED and allocated production source fix
+
+Root executed the exact six cases ONCE at aa9b4e9328382c885ca3cf0cc9b66e6abf1ffe74
+from a fresh LF no-hardlink clone, with full raw source maps unchanged before/
+after. Fixed Node, --no-addons and --test-isolation=none; one Node process exited
+1 in reported 0.125s. All six failed at the intended assertions: two omitted RAF
+counts, two pending disposal results, two pending seek results. No bootstrap/
+fixture error, timeout or overflow reported. Root original TAP:
+C:/Users/LS-5/.codex/terminan-disposal-red-evidence-20261110/node-original.tap,
+SHA256 89138c2da7cbf6c39195b87e7b319c105f1f3c4510e52d36ae62c881904a98eb.
+A6 read that original TAP and matched its hash; this is Root execution evidence,
+ACTUAL_JS_FAKE_DOM_RAF_UNIT_RED, not A6 execution or browser/native/physical proof.
+Root's one-run allocation is consumed; no automatic rerun is authorized.
+
+Root then leased source edits ONLY to r2_preview.js, r4_preview.js and this
+document on the same branch. Both renderers now retain a private benchmark owner
+token and pending frame/rejection record. load/seek, disposal and R4 disconnected
+generation invalidation cancel the actual benchmark RAF and reject its awaited
+promise with the existing Benchmark cancelled error. Ownership is detached before
+settlement. Callback identity checks prevent obsolete callbacks from clearing a
+new wait; owner-conditional finally prevents an old benchmark from unlocking or
+cancelling its successor. An already delivered frame's continuation checks owner,
+generation, identity and disposal before touching the model.
+
+rafPending now counts normal-render plus benchmark RAF (integer zero to two),
+instead of omitting the benchmark. Existing public method names, SYNTHETIC scope,
+actual r4_protocol.js, request/session logic, 10k/100k accepted workloads, batch/
+seed limits, checksum/render algorithm and bounded sample retention stay intact.
+No additional transport, timer, source request, provider or authority is added.
+
+All six test bytes remain SHA256
+0ad02bc7f756300de21aac34036be27881cc23038a3f6e2500318ebace81d57a.
+A6 has NOT executed/imported/compiled the modified scripts or tests. The source
+fix is prepared for Root review and a separately allocated ONE post-fix six-case
+run after fresh raw-source qualification. No GREEN is claimed. Mandatory existing
+browser normal 10k/100k and cancellation cases remain later separate evidence;
+six inert unit cases cannot replace them. No push, hosted run, policy edit or
+scientific READ change is authorized by this source-fix phase.
