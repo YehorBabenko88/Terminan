@@ -1,7 +1,7 @@
 name: Experiment view PURE client controls
 on:
   push:
-    branches: ['feature/authenticated-experiment-view-*']
+    branches: ['feature/authenticated-experiment-view-*', 'feature/scientific-read-prep-*']
   pull_request:
     paths: ['terminan/experiment_view.js', 'tests/experiment_view/**', 'docs/gateway/experiment-view/**', '.github/workflows/experiment-view.yml']
 permissions:
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.14.0'
-      - name: Primary Git bootstrap and 14 PURE client scenarios
+      - name: Primary Git bootstrap and 24 PURE client preparation controls
         shell: pwsh
         env:
           PURE_VIEW_EVIDENCE: ${{ runner.temp }}/pure-view-evidence
