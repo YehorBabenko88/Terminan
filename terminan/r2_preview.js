@@ -106,6 +106,7 @@ function render(now){
 }
 async function load(step=Number($('seek').value)){
   if(s.disposed)return;
+  cancelBenchmark();
   if(s.timer){clearTimeout(s.timer);s.timer=0;}
   if(s.controller){if(s.active)s.aborted++;s.controller.abort();}
   const generation=++s.generation,controller=new AbortController();s.controller=controller;
@@ -174,27 +175,41 @@ function metrics(){
     p95RenderMs:sorted.length?sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))]:0,
     effectiveRenderFps:elapsed?(n-1)/elapsed:0,renderSamples:s.samples.length,retainedCandles:s.data?.candles.length||0,
     retainedEvents:s.data?.events.length||0,activeRequests:s.active,peakRequests:s.peak,aborted:s.aborted,
-    rafPending:Number(Boolean(s.raf)),timerPending:Number(Boolean(s.timer)),listeners:s.listeners.length,
+    rafPending:Number(Boolean(s.raf))+Number(Boolean(benchmarkWait?.raf)),timerPending:Number(Boolean(s.timer)),listeners:s.listeners.length,
     dpr:devicePixelRatio,spanMs:s.end-s.start,windowEnd:s.end,bookRows:$('book-body').children.length,fixtureCount:s.contracts?.sources.length||0};
 }
 function dispose(){
-  if(s.disposed)return;stop();s.disposed=true;++s.generation;s.controller?.abort();
+  if(s.disposed)return;cancelBenchmark();stop();s.disposed=true;++s.generation;s.controller?.abort();
   if(s.raf)cancelAnimationFrame(s.raf);s.raf=0;observer.disconnect();
   s.listeners.forEach(remove=>remove());s.listeners=[];clearPanels();s.samples=[];s.renderTimes=[];
 }
 // R3 bounded synthetic renderer workload. No source access; final state deterministic.
-let benchmarkRunning=false;
+let benchmarkRunning=null,benchmarkWait=null;
+function cancelBenchmark(){
+  const wait=benchmarkWait;benchmarkWait=null;benchmarkRunning=null;
+  if(wait){cancelAnimationFrame(wait.raf);wait.reject(Error('Benchmark cancelled'));}
+}
+function benchmarkFrame(owner){
+  return new Promise((resolve,reject)=>{
+    const wait={raf:0,reject};benchmarkWait=wait;
+    wait.raf=requestAnimationFrame(()=>{
+      // An obsolete callback cannot release a newer benchmark or its RAF.
+      if(benchmarkWait!==wait||benchmarkRunning!==owner)return;
+      benchmarkWait=null;resolve();
+    });
+  });
+}
 async function benchmark({updates=10000,batch=100,seed=17}={}){
   if(![10000,100000].includes(updates)||!Number.isInteger(batch)||batch<100||batch>500||!Number.isInteger(seed)||seed<0||seed>2147483647)throw Error('Invalid benchmark');
   if(s.disposed||!s.data||s.active)throw Error('Model unavailable');
   if(benchmarkRunning)throw Error('Benchmark already running');
-  benchmarkRunning=true;try {
+  const owner={};benchmarkRunning=owner;try {
   stop();const generation=s.generation,identity=s.identity,started=performance.now();
   let checksum=seed>>>0,processed=0,frames=0,previous=0;
   const latency=[],intervals=[],draw=[];
   while(processed<updates){
-    await new Promise(resolve=>requestAnimationFrame(resolve));
-    if(s.disposed||s.generation!==generation||s.identity!==identity)throw Error('Benchmark cancelled');
+    await benchmarkFrame(owner);
+    if(benchmarkRunning!==owner||s.disposed||s.generation!==generation||s.identity!==identity)throw Error('Benchmark cancelled');
     const begin=performance.now();
     for(let i=0;i<batch&&processed<updates;i++,processed++){
       checksum=(Math.imul(checksum,1664525)+1013904223)>>>0;
@@ -214,7 +229,7 @@ async function benchmark({updates=10000,batch=100,seed=17}={}){
     updatesPerSecond:processed*1000/elapsedMs,renderCadenceFps:(frames-1)*1000/intervals.reduce((a,b)=>a+b,0),
     latencyScope:'BATCH_INGRESS_TO_RENDER_COMPLETE_NOT_PRESENTATION',latencyMs:quantiles(latency),drawMs:quantiles(draw),
     frameIntervalMs:quantiles(intervals),samples:latency.length,sampleScope:'WHOLE_WORKLOAD_MAX_1000_FRAMES',metrics:metrics()};
-  }finally{benchmarkRunning=false;}
+  }finally{if(benchmarkRunning===owner)cancelBenchmark();}
 }
 window.r2={benchmark,seek:step=>{stop();return load(step);},metrics,dispose};load(0);
 })();
