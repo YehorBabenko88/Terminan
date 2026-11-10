@@ -79,13 +79,16 @@ class PreviewQualificationGuardTests(unittest.TestCase):
 
     def test_exact_six_tap_accepts_manifest_without_io(self):
         q = actual_helper()
-        with patch.object(Path, 'read_bytes', side_effect=AssertionError('BYTE_IO')), \
-                patch('subprocess.Popen', side_effect=AssertionError('PROCESS')):
-            parsed = q._parse_six_tap(valid_tap())
-        self.assertEqual(parsed['ids'], list(IDS))
-        self.assertEqual(parsed['counts'], dict(tests=6, **{'pass': 6}, fail=0,
-                                                cancelled=0, skipped=0, todo=0))
-        self.assertEqual(parsed['node_fact']['version'], 'v24.22.1')
+        # Data-only extension: original LF vector AND original raw CRLF bytes.
+        for raw in [valid_tap(), valid_tap().replace(b'\n', b'\r\n')]:
+            with self.subTest(line_endings='CRLF' if b'\r\n' in raw else 'LF'):
+                with patch.object(Path, 'read_bytes', side_effect=AssertionError('BYTE_IO')), \
+                        patch('subprocess.Popen', side_effect=AssertionError('PROCESS')):
+                    parsed = q._parse_six_tap(raw)
+                self.assertEqual(parsed['ids'], list(IDS))
+                self.assertEqual(parsed['counts'], dict(tests=6, **{'pass': 6}, fail=0,
+                                                        cancelled=0, skipped=0, todo=0))
+                self.assertEqual(parsed['node_fact']['version'], 'v24.22.1')
 
     def test_tap_rejects_missing_extra_duplicate_wrong_or_reordered_ids(self):
         q = actual_helper()

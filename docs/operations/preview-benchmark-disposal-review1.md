@@ -170,3 +170,83 @@ run after fresh raw-source qualification. No GREEN is claimed. Mandatory existin
 browser normal 10k/100k and cancellation cases remain later separate evidence;
 six inert unit cases cannot replace them. No push, hosted run, policy edit or
 scientific READ change is authorized by this source-fix phase.
+
+## Phase update: exact Root GREEN and additive CI source preparation
+
+Root ran the SAME six CJS bytes once at exact 77fe6dfd85171305930f308f307d1aa2718df2c0
+from a fresh LF clone: six PASS, zero skip/cancel/todo, original source maps equal
+before/after, one fixed Node process with --test-isolation=none. Original TAP
+SHA256 4905dc18ebafcd02d8c8d6b930616552314fa17cc2fac85a8f849ae04617e2d0,
+at C:/Users/LS-5/.codex/terminan-disposal-green-evidence-20261110/node-original.tap.
+A6 read/rehashed this Root original; no A6 replay. This is local actual-JS/inert
+DOM/RAF unit evidence only, not hosted CI or browser/full benchmark/session proof.
+
+The new top-level CJS is not part of Python discovery. Root allocated a separate
+additive workflow and qualifier, plus eight pure helper guard controls. An initial
+qualifier draft was already authored but unexecuted before the explicit guard-TDD
+clarification. Its exact SHA256
+23a1c79999bb7cedc630e70e1f4013d27090a1522db377570c60732043d0729a
+was preserved externally as UNEXECUTED/HELD, not represented as post-RED work.
+
+Test-only commit 6cbacd1838f112b1e7e8ad5829e10fab1350b8b9 has no qualifier module.
+Root allocated ONE A6 prerequisite attempt using a new LF/no-local/no-hardlinks
+clone, all 405 raw files equal before/after, exact fixed Python3.12.10 -I-S-B.
+Actual eight errors were all FileNotFoundError for that fresh absent helper;
+no helper/native/Node/browser execution occurred. This is NEW_FEATURE prerequisite
+RED, NOT negative behavior PASS or R40 regression proof. Original stderr SHA256
+a638ec5b59174b49e39964387a7c5e76f244684892f4393e427327a845e025e4.
+The external controller's initial parser missed CRLF and retained its original
+FAILED_OR_UNKNOWN receipt; separate read-only fd028ae8821cfd6caee1a0c6c5e77fcc34f44c33c3f87a6d7fc103986b4761d5
+post-parse correlation verifies all eight exact IDs/errors without a rerun.
+
+After Root accepted that boundary, implementation was allocated for:
+tests/preview_benchmark_qualification.py and
+.github/workflows/preview-benchmark-disposal.yml. The prior pure guard file's
+positive TAP case now exercises BOTH LF and CRLF DATA. All original assertions
+remain; the eight method IDs are unchanged. The original 2bb5 test bytes remain
+immutable at 6cb; the revised DATA extension receives its own new source pin.
+No pure test or helper execution has occurred at the new source.
+
+Frozen private helper APIs are ordinary(value,directory=False),
+_parse_six_tap(raw:bytes), and _require_node_success(outcome:dict). Pure controls
+exercise modeled unsafe-parent metadata before byte/process access, exact six
+IDs/result rows/counts/zero-skip/error/fact validation, and rejection of typed
+timeout/overflow/cleanup-uncertain evidence. These controls do not execute or prove
+actual kill/wait/pipe mechanics or global no-I/O behavior for future helper calls.
+
+The actual qualifier preflights ordinary root/parents/single-link files before
+source/tool bytes and Git; requires an exact descendant scope of eight allocated
+paths from dc810; verifies every tracked raw blob, no extras, no alternate source
+graph and complete pre/post equality. File count comes from the full actual map,
+never a hardcoded old 405. The six CJS/production/protocol pins stay fixed.
+
+Source tools: fixed Windows C:/Program Files/Git/bin/git.exe or Linux /usr/bin/git,
+no cmd hardlink fallback; setup-python3.12.10 -I-S-B, setup-node24.22.1 x64. Fixed
+actions are pinned to immutable revisions, with no pip/npm/browser downloads or
+fixture execution in this job. Setup actions run in GitHub's platform envelope;
+their runtime processes are not the qualifier's one target Node test process.
+Binary hashes/origins and runtime versions are recorded observations, not signed
+wheel/binary attestation or host-wide OS containment proof.
+
+The workflow's reviewed primary-source bootstrap checks ordinary metadata first,
+then verifies qualifier bytes against primary exact-HEAD Git BEFORE compiling/
+loading it. Early/final bootstrap facts and original stdout/stderr/source receipts
+are external runner.temp artifacts. The one target Node process uses
+--no-addons --test --test-isolation=none --test-concurrency=1 --test-reporter=tap,
+plus one fixed externally generated --require preload. That preload checks actual
+process.version v24.22.1/x64 and emits one runtime fact in the SAME process; no
+extra node --version launch. It is trusted qualifier code, not provider input.
+
+Node execution has a 15s deadline and a combined 256KiB output cap. Immediately
+after Popen returns, all thread creation/start/poll/drain work is inside the held
+handle's unconditional finally. Every exit attempts held kill as needed, bounded
+wait and reader retirement; any exception/timeout/overflow/kill/uncertainty denies
+PASS. Cleanup budgets are separate and not a strict real-time/family guarantee.
+No assert after Popen can bypass this finalizer. The overall job is ten minutes.
+
+Only this pull_request path cohort is declared; no workflow_dispatch or push
+trigger, no old workflow edits, no review-base gate relaxation. Existing mandatory
+browser 10k/100k/cancellation evidence remains separately required. Publication,
+pure controls and one exact actual helper qualification await Root/independent
+source/effect review and a new allocation. No new-head hosted/helper/pure PASS
+is transferred from the earlier Root six-case run. Overall runtime NO-GO.

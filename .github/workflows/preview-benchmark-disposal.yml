@@ -1,0 +1,167 @@
+name: Preview benchmark disposal exact six-case unit
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/preview-benchmark-disposal.yml'
+      - 'docs/operations/operations-dashboard-contract.md'
+      - 'docs/operations/preview-benchmark-disposal-review1.md'
+      - 'terminan/r2_preview.js'
+      - 'terminan/r4_preview.js'
+      - 'tests/preview_benchmark_qualification.py'
+      - 'tests/test_preview_benchmark_disposal.cjs'
+      - 'tests/test_preview_benchmark_qualification.py'
+permissions:
+  contents: read
+jobs:
+  six-unit:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    env:
+      GIT_CONFIG_COUNT: '2'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      GIT_CONFIG_KEY_1: core.eol
+      GIT_CONFIG_VALUE_1: lf
+      GIT_NO_REPLACE_OBJECTS: '1'
+    steps:
+      # Platform actions have their own runtimes. These checks precede checkout;
+      # the later qualifier separately checks its Git/Python/one-test-Node roles.
+      - name: Root-first ordinary workspace and ambient-config preflight
+        shell: pwsh
+        run: |
+          $taskRoot = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          $taskCursor = [IO.Path]::GetPathRoot($taskRoot)
+          $taskParts = @('') + @($taskRoot.Substring($taskCursor.Length).Split([char[]]'\/', [StringSplitOptions]::RemoveEmptyEntries))
+          foreach ($taskPart in $taskParts) {
+            if ($taskPart) { $taskCursor = Join-Path $taskCursor $taskPart }
+            $taskItem = Get-Item -LiteralPath $taskCursor -Force
+            if (!$taskItem.PSIsContainer -or ($taskItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $taskItem.LinkType) { throw 'ORDINARY_WORKSPACE_REQUIRED' }
+          }
+          foreach ($taskKey in @('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE','GIT_DIR','GIT_WORK_TREE','GIT_INDEX_FILE','GIT_OBJECT_DIRECTORY','GIT_ALTERNATE_OBJECT_DIRECTORIES','GIT_NAMESPACE','GIT_REPLACE_REF_BASE')) {
+            if ([Environment]::GetEnvironmentVariable($taskKey)) { throw 'AMBIENT_SOURCE_OR_NODE_CONFIG' }
+          }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          architecture: 'x64'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+          architecture: 'x64'
+      - name: Verified primary-source bootstrap and one exact six-case Node process
+        shell: pwsh
+        env:
+          PREVIEW_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PREVIEW_EVIDENCE: ${{ runner.temp }}/preview-benchmark-evidence
+        run: |
+          function Assert-Ordinary([string]$taskPath, [bool]$taskDirectory) {
+            $taskFull = [IO.Path]::GetFullPath($taskPath)
+            $taskCursor = [IO.Path]::GetPathRoot($taskFull)
+            $taskParts = @('') + @($taskFull.Substring($taskCursor.Length).Split([char[]]'\/', [StringSplitOptions]::RemoveEmptyEntries))
+            foreach ($taskPart in $taskParts) {
+              if ($taskPart) { $taskCursor = Join-Path $taskCursor $taskPart }
+              $taskItem = Get-Item -LiteralPath $taskCursor -Force
+              if (($taskItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $taskItem.LinkType) { throw 'ORDINARY_PATH_REQUIRED' }
+              if ($taskCursor -ne $taskFull -and !$taskItem.PSIsContainer) { throw 'ORDINARY_PARENT_REQUIRED' }
+            }
+            if ($taskItem.PSIsContainer -ne $taskDirectory) { throw 'ORDINARY_PATH_KIND_REQUIRED' }
+            return $taskFull
+          }
+          $taskRoot = Assert-Ordinary $env:GITHUB_WORKSPACE $true
+          $taskTemp = Assert-Ordinary $env:RUNNER_TEMP $true
+          if ($env:RUNNER_ARCH -ne 'X64') { throw 'FIXED_X64_REQUIRED' }
+          if ($IsWindows) {
+            $taskGit = Assert-Ordinary 'C:/Program Files/Git/bin/git.exe' $false
+            $taskPython = Assert-Ordinary (Join-Path $env:pythonLocation 'python.exe') $false
+            $taskNode = Assert-Ordinary (Join-Path $env:RUNNER_TOOL_CACHE 'node/24.22.1/x64/node.exe') $false
+          } else {
+            $taskGit = Assert-Ordinary '/usr/bin/git' $false
+            $taskPython = Assert-Ordinary (Join-Path $env:pythonLocation 'bin/python3.12') $false
+            $taskNode = Assert-Ordinary (Join-Path $env:RUNNER_TOOL_CACHE 'node/24.22.1/x64/bin/node') $false
+          }
+          $env:PREVIEW_FIXED_GIT = $taskGit
+          $env:PREVIEW_FIXED_NODE = $taskNode
+          if (Test-Path -LiteralPath $env:PREVIEW_EVIDENCE) { throw 'FRESH_EVIDENCE_REQUIRED' }
+          New-Item -ItemType Directory -Path $env:PREVIEW_EVIDENCE | Out-Null
+          $taskEvidence = Assert-Ordinary $env:PREVIEW_EVIDENCE $true
+          $taskEarly = @{scope='PLATFORM_PREFLIGHT_METADATA_ONLY'; root=$taskRoot; python=$taskPython; git=$taskGit; node=$taskNode; expected_head=$env:PREVIEW_EXPECTED_HEAD; target_test_started=$false; single_link_and_binary_hash='PENDING_PYTHON_BOOTSTRAP'} | ConvertTo-Json
+          [IO.File]::WriteAllText((Join-Path $taskEvidence 'preflight-facts.json'),$taskEarly,[Text.UTF8Encoding]::new($false))
+          $taskBootstrap = Join-Path $taskEvidence 'primary-bootstrap.py'
+          $taskCode = @'
+          import hashlib, json, os, pathlib, re, stat, subprocess, sys
+          root = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+          out = pathlib.Path(os.environ['PREVIEW_EVIDENCE'])
+          facts = {'scope':'REVIEWED_WORKFLOW_BOOTSTRAP_NOT_TARGET_CODE_OR_OS_ATTESTATION','qualifier_load_attempted':False,'result':'FAIL'}
+          def ordinary(p, directory=False):
+              p = pathlib.Path(p)
+              if not p.is_absolute() or '..' in p.parts: raise RuntimeError('ABSOLUTE_PATH_REQUIRED')
+              for item in [*reversed(p.parents), p]:
+                  s = item.lstat()
+                  if stat.S_ISLNK(s.st_mode) or getattr(s,'st_file_attributes',0)&0x400: raise RuntimeError('LINK_REPARSE_DENIED')
+                  if item!=p or directory:
+                      if not stat.S_ISDIR(s.st_mode): raise RuntimeError('DIRECTORY_REQUIRED')
+                  elif not stat.S_ISREG(s.st_mode) or s.st_nlink!=1: raise RuntimeError('SINGLE_LINK_FILE_REQUIRED')
+              return p
+          def tree(p):
+              ordinary(p,True)
+              for directory, dirs, files in os.walk(p,followlinks=False):
+                  for name in dirs: ordinary(pathlib.Path(directory)/name,True)
+                  for name in files: ordinary(pathlib.Path(directory)/name)
+          ordinary(root,True)
+          ordinary(out,True)
+          try:
+              # Root-first ALL path metadata, before primary Git/source/tool bytes.
+              tree(root)
+              python=ordinary(sys.executable)
+              git=ordinary(os.environ['PREVIEW_FIXED_GIT'])
+              node=ordinary(os.environ['PREVIEW_FIXED_NODE'])
+              if sys.version_info[:3]!=(3,12,10) or not(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode): raise RuntimeError('PYTHON_VERSION_FLAGS')
+              for k in ('NODE_OPTIONS','NODE_PATH','NODE_COMPILE_CACHE','NODE_V8_COVERAGE','GIT_DIR','GIT_WORK_TREE','GIT_INDEX_FILE','GIT_OBJECT_DIRECTORY','GIT_ALTERNATE_OBJECT_DIRECTORIES','GIT_NAMESPACE','GIT_REPLACE_REF_BASE'):
+                  if os.environ.get(k): raise RuntimeError('AMBIENT_SOURCE_CONFIG')
+              if os.environ.get('GITHUB_HEAD_REF')!='feature/preview-benchmark-disposal-20261110' or os.environ.get('GITHUB_BASE_REF')!='feature/scientific-read-recovery-20261110' or os.environ.get('PREVIEW_REVIEW_BASE_SHA')!='dc810b03c3accf0e6f28fca1d5068f4171bb909d': raise RuntimeError('EXACT_OWN_STACK_REQUIRED')
+              head=os.environ['PREVIEW_EXPECTED_HEAD']
+              if not re.fullmatch('[a-f0-9]{40}',head): raise RuntimeError('EXPECTED_HEAD')
+              facts['tools']={name:{'path':str(p),'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'role':role} for name,p,role in [('python',python,'ISOLATED_BOOTSTRAP_QUALIFIER'),('git',git,'FIXED_PRIMARY_GIT_NO_CMD_FALLBACK'),('node',node,'SETUP_NODE_TEST_BINARY_OBSERVED_NOT_SIGNED_PROVENANCE')]}
+              def g(*args):
+                  ordinary(root,True);ordinary(git)
+                  p=subprocess.run([str(git),'--no-replace-objects','--no-optional-locks','-c','core.fsmonitor=false',*args],cwd=root,capture_output=True,timeout=10)
+                  if p.returncode or len(p.stdout)>1048576: raise RuntimeError('PRIMARY_GIT_DENIED')
+                  return p.stdout
+              if g('rev-parse','HEAD').decode().strip()!=head: raise RuntimeError('HEAD_MISMATCH')
+              filename='tests/preview_benchmark_qualification.py'
+              source=ordinary(root/filename)
+              raw=g('show',head+':'+filename)
+              if raw!=source.read_bytes(): raise RuntimeError('QUALIFIER_PRIMARY_BYTES_MISMATCH')
+              pin=hashlib.sha256(raw).hexdigest()
+              facts.update(head=head,qualifier_sha256=pin,result='PRIMARY_QUALIFIER_VERIFIED')
+              with (out/'bootstrap-facts.json').open('x') as f: json.dump(facts,f,indent=2)
+              sys.argv=[str(source),str(root),head,str(out/'unit'),str(node),str(git),pin]
+              facts['qualifier_load_attempted']=True
+              exec(compile(raw,str(source),'exec'),{'__name__':'__main__','__file__':str(source)})
+          except BaseException as error:
+              facts['result']='BOOTSTRAP_OR_QUALIFIER_DENIED'
+              facts['error_type']=type(error).__name__
+              if isinstance(error,SystemExit) and error.code==0:
+                  facts['result']='QUALIFIER_RETURNED_SUCCESS'
+              with (out/'bootstrap-final.json').open('x') as f: json.dump(facts,f,indent=2)
+              raise
+          '@
+          [IO.File]::WriteAllText($taskBootstrap,$taskCode,[Text.UTF8Encoding]::new($false))
+          & $taskPython -I -S -B $taskBootstrap
+          if ($LASTEXITCODE -ne 0) { throw 'PREVIEW_BENCHMARK_QUALIFICATION_FAILED' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: preview-six-${{ matrix.os }}-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/preview-benchmark-evidence
+          if-no-files-found: error
