@@ -2,8 +2,13 @@
   "schema": "terminan.scientific-read.preparation-dependencies.v1",
   "date": "2026-11-10",
   "scope": "SOURCE_PREPARATION_NOT_API_OR_RUNTIME_ACCEPTANCE",
-  "client_base": "47396a2f870681a10fad576e2a2492a515cb70db",
-  "ownership": ["terminan/experiment_view.js", "tests/experiment_view/**", "docs/gateway/experiment-view/**", ".github/workflows/experiment-view.yml"],
+  "client_base": "8599630158bc889379d9b5088c11a0457dd6672c",
+  "ownership": [
+    "terminan/experiment_view.js",
+    "tests/experiment_view/**",
+    "docs/gateway/experiment-view/**",
+    ".github/workflows/experiment-view.yml"
+  ],
   "Root": {
     "owns": "actual server route, authentication composition and disclosure boundary",
     "positive_endpoint_ACK": "PENDING_NOT_GRANTED_BY_THIS_CLIENT_PREPARATION",
@@ -20,7 +25,7 @@
   "A4": {
     "last_explicit_actual_API_ACK": "NONE_AT_743BFC7",
     "last_owner_head": "743bfc7590a3d05eff3c42dc6dd4dc0be51e2ea6",
-    "fresh_reconfirmation": "REQUESTED_PENDING_NO_POSITIVE_API_ASSUMED",
+    "fresh_reconfirmation": "2026-11-10_EXPLICIT_NONE_SAME_HEAD_NO_SOURCE_ADOPTION",
     "pure_codec_preparation": "NOT_READ_PERMISSION_COMMITTED_RECEIPT_OR_SOURCE_ADOPTION",
     "required": "fixed owner-authorized artifact reader/mode, exact source/receipt/custody/revision/error/limit joins"
   },
@@ -34,7 +39,7 @@
     "scientific_READ_RBAC_or_commitment_grant": false,
     "repeated_by_A6": false
   },
-  "source_preparation": "24_PURE_CONTROLS_NOT_ENDPOINT_RBAC_REVISION_OR_BROWSER_ACCEPTANCE",
+  "source_preparation": "30_PURE_CONTROLS_NOT_ENDPOINT_RBAC_REVISION_OR_BROWSER_ACCEPTANCE",
   "strict_Option1_logical_mutations": "DISABLED_POLICY2_NOT_APPROVED",
   "actual_API_or_schema_activation": false,
   "SDK_browser_native_office_fixtures": "NOT_RUN_REQUIRE_ROOT_SERIAL_GATES",
