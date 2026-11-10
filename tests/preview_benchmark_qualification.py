@@ -1,11 +1,14 @@
 """Reviewed-source six-case unit qualification, not browser/native admission.
 
-Invoked ONLY by the primary-Git-verified workflow bootstrap. No project imports.
+Invoked ONLY by the primary-Git-verified workflow bootstrap. The explicit eight
+qualified pure guard controls load the actual helper; no broad project discovery.
 One Node test process; checkout/setup actions and read-only Git processes are
 separate platform/tool roles. Version/hash records are observations, not signed
 binary provenance or protection against a malicious runner/kernel.
 """
+import contextlib
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -16,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+import unittest
 
 BASE = 'dc810b03c3accf0e6f28fca1d5068f4171bb909d'
 IDS = [
@@ -26,6 +30,18 @@ IDS = [
     'r4_dispose_settles_held_benchmark_without_frame',
     'r4_seek_settles_superseded_benchmark_without_frame',
 ]
+PURE_MODULE = 'preview_qualification_guard_lane'
+PURE_METHODS = [
+    'test_exact_six_tap_accepts_manifest_without_io',
+    'test_nonzero_timeout_overflow_kill_and_cleanup_uncertainty_deny',
+    'test_process_evidence_must_be_complete_finite_and_strictly_typed',
+    'test_root_first_unsafe_parent_stops_before_child_metadata_bytes_or_process',
+    'test_tap_rejects_failed_rows_invalid_utf8_and_overlimit_despite_success_summary',
+    'test_tap_rejects_missing_duplicate_counts_skip_cancel_todo_fail_or_wrong_total',
+    'test_tap_rejects_missing_extra_duplicate_wrong_or_reordered_ids',
+    'test_tap_requires_single_valid_node_version_fact',
+]
+
 DELTA = {
     '.github/workflows/preview-benchmark-disposal.yml': 'A',
     'docs/operations/operations-dashboard-contract.md': 'M',
@@ -252,6 +268,99 @@ def held_node(argv, root):
     return stdout, stderr, outcome
 
 
+def _run_pure_guards(root, out, before):
+    """Separate eight-control lane in this isolated Python process, never Node.
+
+    Only trusted exact qualified test source is loaded. An observed 15s bound is
+    fail-closed AFTER completion, not hard same-process test preemption. The job
+    is the external cap. DATA outcome validation is not actual kill/wait proof.
+    """
+    start = time.monotonic()
+    evidence = dict(scope='EIGHT_PURE_GUARD_CONTROLS_NOT_PROCESS_MECHANICS',
+                    result='FAIL', tests_started=False, test_subprocess_count=0,
+                    actual_started_ids=[], actual_succeeded_ids=[])
+    expected = [PURE_MODULE + '.PreviewQualificationGuardTests.' + name for name in PURE_METHODS]
+    saved_objects = (Path.lstat, Path.read_bytes, subprocess.Popen)
+    budget = {'bytes': 0, 'overflow': False}
+
+    class Sink:
+        def __init__(self):
+            self.raw = bytearray()
+
+        def write(self, text):
+            raw = text.encode('utf-8', errors='strict')
+            room = max(0, 262144 - budget['bytes'])
+            self.raw.extend(raw[:room])
+            budget['bytes'] += len(raw)
+            if budget['bytes'] > 262144:
+                budget['overflow'] = True
+                deny('PURE_OUTPUT_CAP')
+            return len(text)
+
+        def flush(self):
+            pass
+
+    transcript, stdout, stderr = Sink(), Sink(), Sink()
+    try:
+        for name in ('tests/test_preview_benchmark_qualification.py', 'tests/preview_benchmark_qualification.py'):
+            raw = ordinary(root / name).read_bytes()
+            if digest(raw) != before['files'][name]['sha256']:
+                deny('PURE_IMPORT_SOURCE_CHANGED')
+        evidence['source_pins'] = {name: before['files'][name] for name in
+                                  ('tests/test_preview_benchmark_qualification.py', 'tests/preview_benchmark_qualification.py')}
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            spec = importlib.util.spec_from_file_location(PURE_MODULE, root / 'tests/test_preview_benchmark_qualification.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # __main__ false; no unittest.main or helper main.
+            suite = unittest.TestLoader().loadTestsFromTestCase(module.PreviewQualificationGuardTests)
+            collected = [case.id() for case in suite]
+            if collected != expected:
+                deny('PURE_EXACT_EIGHT_COLLECTION_REQUIRED')
+            evidence['collected_ids'] = collected
+
+            class RecordedResult(unittest.TextTestResult):
+                def startTest(self, case):
+                    evidence['actual_started_ids'].append(case.id())
+                    super().startTest(case)
+
+                def addSuccess(self, case):
+                    evidence['actual_succeeded_ids'].append(case.id())
+                    super().addSuccess(case)
+
+            evidence['tests_started'] = True
+            result = unittest.TextTestRunner(stream=transcript, verbosity=2, resultclass=RecordedResult).run(suite)
+            counts = dict(tests=result.testsRun, passed=len(evidence['actual_succeeded_ids']),
+                          failures=len(result.failures), errors=len(result.errors), skipped=len(result.skipped),
+                          expected_failures=len(result.expectedFailures), unexpected_successes=len(result.unexpectedSuccesses))
+            evidence['counts'] = counts
+            if (not result.wasSuccessful() or evidence['actual_started_ids'] != expected
+                    or evidence['actual_succeeded_ids'] != expected
+                    or counts != dict(tests=8, passed=8, failures=0, errors=0, skipped=0,
+                                      expected_failures=0, unexpected_successes=0)):
+                deny('PURE_EIGHT_RESULT_DENIED')
+        if budget['overflow'] or time.monotonic() - start > 15:
+            deny('PURE_OUTPUT_OR_OBSERVED_TIME_BOUND')
+        evidence['result'] = 'PASS'
+    except BaseException as error:
+        evidence['error_type'] = type(error).__name__
+    finally:
+        evidence['patches_restored'] = saved_objects == (Path.lstat, Path.read_bytes, subprocess.Popen)
+        evidence['output_overflow'] = budget['overflow']
+        evidence['elapsed_seconds'] = time.monotonic() - start
+        if not evidence['patches_restored']:
+            evidence['result'] = 'FAIL'
+        # Existing context-managed tests restore patches; residue is DENY. Never
+        # proceed to Git/Node through a mock or silently repair it into success.
+        if not evidence['patches_restored']:
+            deny('PURE_SHARED_PATCH_RESIDUE')
+        evidence['transcript_sha256'] = save(out, 'pure-eight-original.txt', bytes(transcript.raw))
+        evidence['stdout_sha256'] = save(out, 'pure-eight-stdout.txt', bytes(stdout.raw))
+        evidence['stderr_sha256'] = save(out, 'pure-eight-stderr.txt', bytes(stderr.raw))
+        raw = (json.dumps(evidence, indent=2) + '\n').encode()
+        receipt_hash = save(out, 'pure-eight-receipt.json', raw)
+    return evidence, receipt_hash
+
+
 def run(root, head, out, node, git, bootstrap_sha):
     receipt = dict(scope='ACTUAL_JS_FAKE_DOM_RAF_UNIT_ONLY_NOT_BROWSER_NATIVE_PHYSICAL',
                    result='FAIL', expected_head=head, implementation_base=BASE,
@@ -363,6 +472,16 @@ def run(root, head, out, node, git, bootstrap_sha):
         receipt['source_file_count'] = len(before['files'])  # Full actual map; no stale hardcoded count.
         if before['files']['tests/preview_benchmark_qualification.py']['sha256'] != bootstrap_sha:
             deny('BOOTSTRAP_QUALIFIER_PIN_MISMATCH')
+        pure, pure_hash = _run_pure_guards(root, out, before)
+        receipt['pure_guard_receipt_sha256'] = pure_hash
+        receipt['pure_guard_counts'] = pure.get('counts')
+        receipt['pure_guard_result'] = pure['result']
+        after_pure = inventory()
+        receipt['after_pure_guards'] = after_pure
+        if before != after_pure:
+            deny('SOURCE_CHANGED_AFTER_PURE_GUARDS')
+        if pure['result'] != 'PASS':
+            deny('PURE_GUARDS_FAILED_NODE_NOT_STARTED')
         # Constant owned preload, external to source; checks runtime version in
         # the SAME test Node process. No additional node --version process.
         prelude = ("'use strict';if(process.version!=='v24.22.1'||process.arch!=='x64')throw Error('NODE_RUNTIME_VERSION');"

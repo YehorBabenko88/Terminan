@@ -250,3 +250,56 @@ browser 10k/100k/cancellation evidence remains separately required. Publication,
 pure controls and one exact actual helper qualification await Root/independent
 source/effect review and a new allocation. No new-head hosted/helper/pure PASS
 is transferred from the earlier Root six-case run. Overall runtime NO-GO.
+
+## Phase update: scoped pure-eight result and mandatory separate CI lane
+
+Frozen64f2a21dfd449e2591f13ff09977d131f23a22f0 received ONE actual eight-control
+qualification, exact helper24c1526/puretesta7b21f4, fixed Python3.12.10 -I-S-B.
+All407 primary raw files matched before/after with no extras. All eight exact
+methods passed, no failures/errors/skips; held test process exit0, readers retired,
+no timeout/overflow/kill/cleanup uncertainty. Original receipt SHA256
+27734ed8021a82da85f43ec78bcd33106e36931bcc6a4450a88ee2714923e938;
+original stderr SHA256 28c644091c42b3a39ebd9a5b3f080fe6ed4a8269122e8231286e149112a1490f.
+This is actual helper DATA-control evidence only, not real held_node failure-path
+mechanics or six-case hosted JS acceptance. Allocation retired; no rerun here.
+
+Root accepted that result and allocated source-only integration. The qualifier
+now explicitly loads the one fixed eight-test module with a non-main name AFTER
+complete source/tool/bootstrap qualification and BEFORE creating preload/Node.
+The same isolated Python process runs the exact suite; no test child, broad
+discovery, new sys.path entry or mirrored helper is added. Its actual_helper uses
+the exact sibling qualifier with its __main__ guard false. Existing eight method
+bodies and all CJS/production pins are unchanged from frozen64f.
+
+The loader first requires exactly the eight collected IDs, then records actual
+started and succeeded IDs plus tests/fail/error/skip/expected-failure/unexpected-
+success counts. All eight must succeed with all other counts zero. Separate
+bounded transcript/stdout/stderr and pure-eight-receipt.json carry source pins
+and result; the main receipt references its hash. The Node receipt still counts
+SIX, never a combined fourteen. A complete after_pure_guards map must equal the
+pre-map before Node; the existing after-Node map remains a second checkpoint.
+Shared Path.lstat/read_bytes and subprocess.Popen identities must be restored;
+residue fails closed without invoking Git/Node through a mock. Such an exceptional
+residue path may lack the ordinary artifact/post-map proof and cannot qualify.
+
+Pure output is combined-cap256KiB. Its elapsed15s check is observational AFTER
+same-process completion, not hard test preemption; the ten-minute job is the
+external limit. No timeout thread or process was silently added. The controls
+still prove only bounded metadata/TAP/process-evidence DATA validation; the real
+six-case held-process lane has its own separate receipt and scope.
+
+The workflow also now requires exact event/head/base repository names equal
+YehorBabenko88/Terminan and all three repository IDs equal the Root-confirmed
+1413341784. The FIRST own step checks structured environment fields before
+checkout/setup; the reviewed bootstrap repeats the comparison before qualification
+tools/target effects and records it in early/final facts. Existing exact branch/
+base SHA gates remain. A matching branch name in a fork is insufficient. This
+guard is only this workflow's own cohort condition; it does not enforce other
+repository jobs or contain hostile workflow source. Existing mandatory workflows
+remain untouched and must be included in Root's later publication-cohort decision.
+
+This integration/hardening successor is not executed, imported or compiled by A6;
+no Node/helper run, tests, push or dispatch has occurred at the new source. Exact
+diff/source/effect review and a new allocation remain before execution. Prior64f
+pure-eight, original6cb prerequisite and Rootaa9/77 six-case evidence stay separate.
+No native/browser/runtime/scientific READ admission; overall NO-GO.
