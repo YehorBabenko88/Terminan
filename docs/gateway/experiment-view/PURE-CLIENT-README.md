@@ -41,9 +41,15 @@ RED claim); separate stale shape-only response regression was13PASS1FAIL then14P
 Local Response/stream fixtures are explicitly untrusted timing/byte controls, not
 mock authenticated successes. No model-generated scientific result is displayed.
 Run node --test tests/experiment_view/test_pure_client.cjs.
+The 2026-11-10 scientific READ preparation adds10 untrusted artifact/revision/role/
+units/simulation denial controls. These initially pass the existing quarantine;
+no new production behavior or fake RED is claimed. Both explicit PURE files are
+selected by the updated qualifier/workflow (24 unique controls). No browser file
+is selected, and no owner API is fabricated. See SCIENTIFIC-READ-PREP-20261110.md
+and SCIENTIFIC-READ-DEPENDENCIES.json for current owner boundaries.
 
 Own raw-source qualifier requires exactHEAD/base22e, only NEW four allocated paths,
-all primary Git bytes before/after, no links/extras/Node injection, exact14 IDs and
+all primary Git bytes before/after, no links/extras/Node injection, exact24 IDs and
 zero skips. New workflow pins Node22.14.0 Windows/Ubuntu/actions without dependencies;
 runner.temp only in step env/artifact input. Local Node24 tests do not qualify22.
 Optional browser_pure.cjs uses an about:blank CSP connect-src none page and actual

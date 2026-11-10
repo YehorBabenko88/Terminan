@@ -1,0 +1,42 @@
+{
+  "schema": "terminan.scientific-read.preparation-dependencies.v1",
+  "date": "2026-11-10",
+  "scope": "SOURCE_PREPARATION_NOT_API_OR_RUNTIME_ACCEPTANCE",
+  "client_base": "47396a2f870681a10fad576e2a2492a515cb70db",
+  "ownership": ["terminan/experiment_view.js", "tests/experiment_view/**", "docs/gateway/experiment-view/**", ".github/workflows/experiment-view.yml"],
+  "Root": {
+    "owns": "actual server route, authentication composition and disclosure boundary",
+    "positive_endpoint_ACK": "PENDING_NOT_GRANTED_BY_THIS_CLIENT_PREPARATION",
+    "response_error_revision_codec": "NOT_FROZEN",
+    "shared_installer": "ROOT_OWNED_NOT_EDITED"
+  },
+  "A2": {
+    "latest_explicit_owner_response": "CURRENT_ACTUAL_SCIENTIFIC_READ_AND_FINAL_VISIBILITY_API_NONE",
+    "reported_broker_head": "327a3e2ca6106d2d39eb8f0da3802560e63b09e6",
+    "reported_module_sha256": "481724cd2efca312773fa4152d1c223b46ced6529d96b2d74f452cdf57932d7f",
+    "existing_capture": "IDENTITY_ONLY_NOT_SCIENTIFIC_PAYLOAD_PERMISSION",
+    "proposed_logical_READ": "NOT_SCIENTIFIC_PAYLOAD_SCOPE"
+  },
+  "A4": {
+    "last_explicit_actual_API_ACK": "NONE_AT_743BFC7",
+    "last_owner_head": "743bfc7590a3d05eff3c42dc6dd4dc0be51e2ea6",
+    "fresh_reconfirmation": "REQUESTED_PENDING_NO_POSITIVE_API_ASSUMED",
+    "pure_codec_preparation": "NOT_READ_PERMISSION_COMMITTED_RECEIPT_OR_SOURCE_ADOPTION",
+    "required": "fixed owner-authorized artifact reader/mode, exact source/receipt/custody/revision/error/limit joins"
+  },
+  "g": {
+    "executed_Root": "1d923f6a33e1f0f16cd476f1b4e5e65ee03a8a6c",
+    "executed_Terminan": "2ab52f86aca6a38bd63c1fea71e12a80a2c2ddd9",
+    "artifact_sha256": "f4997d7d26211676cd8664e53d7999f8b71f203510f3b9a275b439c403e03940",
+    "artifact_bytes": 2070,
+    "source_status": "LOCAL_UNATTESTED_SYNTHETIC_ENGINEERING",
+    "positive_scope": "ROOT_ACTUAL_WINDOWS_FRESH_RENDER_ONLY",
+    "scientific_READ_RBAC_or_commitment_grant": false,
+    "repeated_by_A6": false
+  },
+  "source_preparation": "24_PURE_CONTROLS_NOT_ENDPOINT_RBAC_REVISION_OR_BROWSER_ACCEPTANCE",
+  "strict_Option1_logical_mutations": "DISABLED_POLICY2_NOT_APPROVED",
+  "actual_API_or_schema_activation": false,
+  "SDK_browser_native_office_fixtures": "NOT_RUN_REQUIRE_ROOT_SERIAL_GATES",
+  "overall": "INTEGRATION_PENDING_NO_GO"
+}
