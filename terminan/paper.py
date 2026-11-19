@@ -267,6 +267,8 @@ def replay_paper(request, *, compute=None):
     Set TERMINAN_PAPER_LEDGER to a dedicated local SQLite file to retain
     completed receipts. Without it, replay stays stateless. A configured
     ledger must successfully record the receipt before replay returns it.
+    An exact retry reads the committed receipt even if the strategy is now
+    disabled. The registry still controls admission of all new runs.
     """
     expected = {"schema", "run_id", "source", "parameters", "events"}
     if (type(request) is not dict or
@@ -275,20 +277,6 @@ def replay_paper(request, *, compute=None):
             type(request["run_id"]) is not str or
             not _RUN_ID.fullmatch(request["run_id"])):
         raise ValueError("invalid paper replay contract")
-    # Binding to the same real registry used by Terminan, not a second
-    # replay-only strategy map. The optional strategy descriptor is backward
-    # compatible with v1 offline request fixtures.
-    definition = STRATEGIES.discover()[0]
-    choice = request.get("strategy", {
-        "id": definition.id, "version": definition.version,
-    })
-    if (type(choice) is not dict or set(choice) != {"id", "version"}
-            or type(choice["id"]) is not str
-            or type(choice["version"]) is not str
-            or choice["id"] != definition.id
-            or choice["version"] != definition.version
-            or not definition.enabled):
-        raise ValueError("strategy not registered or disabled")
     request_bytes = canonical_json(request)
     if len(request_bytes) > 262144:
         raise ValueError("paper replay body limit")
@@ -318,6 +306,19 @@ def replay_paper(request, *, compute=None):
         existing = ledger.read(request["run_id"], request_sha256)
         if existing is not None:
             return existing
+    # New replays use the same registry. V1 requests can omit the descriptor
+    # for backwards compatibility with the original offline replay request.
+    definition = STRATEGIES.discover()[0]
+    choice = request.get("strategy", {
+        "id": definition.id, "version": definition.version,
+    })
+    if (type(choice) is not dict or set(choice) != {"id", "version"}
+            or type(choice["id"]) is not str
+            or type(choice["version"]) is not str
+            or choice["id"] != definition.id
+            or choice["version"] != definition.version
+            or not definition.enabled):
+        raise ValueError("strategy not registered or disabled")
     engine = PaperEngine(**params)
     engine.enabled = True  # Only offline simulated fills; no live order route.
     previous_ms = -1

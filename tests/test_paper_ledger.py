@@ -3,6 +3,7 @@ import http.client
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import types
@@ -14,7 +15,8 @@ from pathlib import Path
 from threading import Barrier, Thread
 from unittest.mock import patch
 
-from terminan.paper import replay_paper
+from terminan.contracts import StrategyRegistry
+from terminan.paper import STRATEGIES, replay_paper
 from terminan.paper_ledger import PaperReplayLedger, ReplayConflict
 from terminan.server import Handler
 from test_paper import mock_math, offline_request
@@ -48,6 +50,59 @@ class PaperReplayLedgerTests(unittest.TestCase):
         with self.assertRaises(ReplayConflict):
             replay_paper(different, compute=mock_math)
         self.assertEqual(original, replay_paper(self.request, compute=mock_math))
+
+    def test_committed_receipt_survives_disabled_strategy(self):
+        definition, = STRATEGIES.discover()
+        self.request["strategy"] = {"id": definition.id, "version": definition.version}
+        original = replay_paper(self.request, compute=mock_math)
+        registry = StrategyRegistry()
+        registry.register(definition)
+        registry.set_enabled(definition.id, definition.version, False)
+
+        def unavailable(_):
+            self.fail("receipt readback should not invoke Math")
+
+        with patch("terminan.paper.STRATEGIES", registry):
+            self.assertEqual(original, replay_paper(self.request, compute=unavailable))
+            with self.assertRaisesRegex(ValueError, "strategy not registered or disabled"):
+                replay_paper(dict(self.request, run_id="new-run"), compute=unavailable)
+
+    def test_restore_backup_preserves_committed_receipt_and_conflict(self):
+        original = replay_paper(self.request, compute=mock_math)
+        backup_path = self.path.with_name("restored.sqlite3")
+        with closing(sqlite3.connect(self.path)) as source, \
+                closing(sqlite3.connect(backup_path)) as backup:
+            source.backup(backup)
+            self.assertEqual(backup.execute("PRAGMA integrity_check").fetchone(), ("ok",))
+
+        def unavailable(_):
+            self.fail("restored receipt should not invoke Math")
+
+        with patch.dict(os.environ, {"TERMINAN_PAPER_LEDGER": str(backup_path)}):
+            self.assertEqual(original, replay_paper(self.request, compute=unavailable))
+            different = dict(self.request, parameters={"notional": "200"})
+            with self.assertRaises(ReplayConflict):
+                replay_paper(different, compute=unavailable)
+
+    def test_abrupt_writer_exit_rolls_back_partial_publication(self):
+        original = replay_paper(self.request, compute=mock_math)
+        crash = """
+import os
+import sqlite3
+import sys
+
+database = sqlite3.connect(sys.argv[1])
+database.execute("BEGIN IMMEDIATE")
+database.execute("INSERT INTO paper_replay_receipts VALUES (?, ?, ?)",
+                 ("interrupted", "partial", "{}"))
+os._exit(42)
+"""
+        child = subprocess.run([sys.executable, "-c", crash, str(self.path)],
+                               timeout=10, check=False)
+        self.assertEqual(child.returncode, 42)
+        self.assertEqual(original, replay_paper(self.request, compute=mock_math))
+        result = replay_paper(dict(self.request, run_id="interrupted"), compute=mock_math)
+        self.assertEqual(result["run_id"], "interrupted")
 
     def test_failed_replay_leaves_run_id_available(self):
         with self.assertRaises(ValueError):
