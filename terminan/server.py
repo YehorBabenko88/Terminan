@@ -36,7 +36,8 @@ class Handler(BaseHTTPRequestHandler):
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
                 elif url.path == "/api/grid/candles": result = data.grid_candles(symbol)
                 elif url.path == "/api/grid/footprint": result = data.footprint(symbol)
-                elif url.path == "/api/status": result = {"mode":"READ_ONLY","strattester":bool(os.environ.get("TERMINAN_STRATTESTER_DB")),"grid":bool(os.environ.get("TERMINAN_GRID_DSN")),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
+                elif url.path == "/api/grid/source": result = data.grid_source_status()
+                elif url.path == "/api/status": result = {"mode":"READ_ONLY","strattester":bool(os.environ.get("TERMINAN_STRATTESTER_DB")),"grid":bool(os.environ.get("TERMINAN_GRID_DSN") or os.environ.get("TERMINAN_GRID_API_PORT")),"grid_source":data.grid_source_status(),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
                 else: return self.send_error(404)
                 body = json.dumps(result,allow_nan=False,default=str).encode()
                 self.send_response(200); self.send_header("Content-Type","application/json; charset=utf-8")
