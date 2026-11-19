@@ -82,3 +82,26 @@ second POC algorithm. This is offline development functionality, **not
 release acceptance**. Qualified Grid history/live ingestion, durable fenced
 results, physical Windows/browser checks and Math-owned P&L domain API are
 still required. No live trading route exists.
+
+## Independent package (Stage 9 candidate)
+
+Terminan is packaged as `unified-terminan==0.1.0` and remains a separate
+module, with no required exchange client, database installer or Math runtime:
+
+```sh
+python -m pip wheel --no-deps -w dist .
+python -m pip install --no-deps dist/unified_terminan-0.1.0-py3-none-any.whl
+terminan
+```
+
+The console command binds only to loopback by default. The installed wheel
+includes the existing HTML terminal and monitor resources. History and status
+UI can run without Math; the offline paper replay returns
+`MATH_SDK_UNAVAILABLE` until a separately version-pinned
+`unified-math-kernels==0.1.0` is installed by the authorized deployment
+process. Do not resolve an unreviewed Math wheel or grant raw database writes.
+
+CI includes independent wheel build + installed-origin import checks on
+Windows and Ubuntu. This proves only package integrity/available resources;
+actual installer, authenticated cross-host Grid and Unified integration,
+source-origin acceptance and physical Windows E2E require further gates.
