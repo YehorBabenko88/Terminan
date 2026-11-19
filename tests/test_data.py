@@ -5,6 +5,9 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from contextlib import closing
+from http.server import ThreadingHTTPServer
+from pathlib import Path
 from unittest import mock
 from terminan import data
 
@@ -25,9 +28,37 @@ class AdapterTests(unittest.TestCase):
             try:
                 self.assertEqual(data.instruments(),['BTCUSDT'])
                 self.assertEqual(data.candles('BTCUSDT')[0]['c'],2)
+                self.check_legacy_http_marker(Path(p))
             finally:
                 if old is None:os.environ.pop('TERMINAN_STRATTESTER_DB',None)
                 else:os.environ['TERMINAN_STRATTESTER_DB']=old
+
+    def check_legacy_http_marker(self, path):
+        from terminan.server import Handler
+
+        original = path.read_bytes()
+        with (
+            mock.patch.object(Handler, "log_message"),
+            ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server,
+        ):
+            worker = threading.Thread(target=server.serve_forever)
+            worker.start()
+            try:
+                for route in ("/api/instruments", "/api/candles?symbol=BTCUSDT"):
+                    with closing(http.client.HTTPConnection(
+                        "127.0.0.1", server.server_port, timeout=5
+                    )) as client:
+                        client.request("GET", route)
+                        with client.getresponse() as response:
+                            self.assertEqual(response.status, 200)
+                            self.assertEqual(response.getheader("X-Terminan-Data-Status"),
+                                             "OFFLINE_LEGACY_UNVERIFIED")
+                            self.assertTrue(json.load(response))
+            finally:
+                server.shutdown()
+                worker.join()
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(list(path.parent.glob("market.db*")), [path])
 if __name__=='__main__':unittest.main()
 
 

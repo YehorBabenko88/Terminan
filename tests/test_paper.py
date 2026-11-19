@@ -391,6 +391,33 @@ class TradingSizingOwnershipTests(unittest.TestCase):
         self.assertTrue(callable(paper.ruin_stats))
         self.assertTrue(callable(paper.trade_net_pnl))
 
+    def test_trade_accounting_refuses_nonfinite_inputs_and_overflow(self):
+        from terminan.paper import apply_sizing, ruin_stats, trade_net_pnl
+
+        for field in ("pnl", "fees", "slippage"):
+            for invalid in ("NaN", "Infinity", float("-inf")):
+                row = dict(pnl=4.0, fees=0.2, slippage=0.1)
+                row[field] = invalid
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaises(ValueError):
+                        trade_net_pnl(row)
+        with self.assertRaises(ValueError):
+            trade_net_pnl({"pnl": 1e308, "fees": -1e308})
+        for trades, params in (([{"pnl": 1}], {"base_size": float("nan")}),
+                               ([{"pnl": 1}], {"base_size": float("inf")}),
+                               ([{"pnl": -1}], {"mode": "MARTINGALE", "max_steps": float("inf")}),
+                               ([{"pnl": 1, "mae": 1e308}], {"base_size": 2}),
+                               ([{"pnl": 1e308}], {"base_size": 2})):
+            with self.subTest(trades=trades, params=params), self.assertRaises(ValueError):
+                apply_sizing(trades, **params)
+        for trades, params in (([], {"starting_equity": float("inf")}),
+                               ([], {"starting_equity": 1e308, "ruin_fraction": 2}),
+                               ([{"pnl": 1e308}], {"starting_equity": 1e308}),
+                               ([{"pnl": -1e308}, {"pnl": -1e308}],
+                                {"starting_equity": 1e308})):
+            with self.subTest(trades=trades, params=params), self.assertRaises(ValueError):
+                ruin_stats(trades, **params)
+
 
 if __name__ == "__main__":
     unittest.main()

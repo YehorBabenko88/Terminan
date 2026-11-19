@@ -16,8 +16,10 @@ from .contracts import (DataRequirement, StrategyDefinition,
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
-import json
+from math import isfinite
+import os
 import re
+from .paper_ledger import PaperReplayLedger, canonical_json
 
 D = Decimal
 
@@ -246,14 +248,6 @@ def _timestamp(value):
     return _EPOCH + timedelta(milliseconds=value)
 
 
-def _canonical_json(value):
-    try:
-        return json.dumps(value, sort_keys=True, separators=(",", ":"),
-                          ensure_ascii=True, allow_nan=False).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise ValueError("invalid JSON replay request") from exc
-
-
 def _serialize(value):
     if isinstance(value, Decimal):
         return str(value)
@@ -271,30 +265,23 @@ def replay_paper(request, *, compute=None):
 
     Every closed minute obtains POC from the installed canonical Math SDK.
     The request's source SHA is caller-supplied, NOT authenticated Grid data.
-    This API cannot advertise live/history qualification or persist results.
+    Set TERMINAN_PAPER_LEDGER to a dedicated local SQLite file to retain
+    completed receipts. Without it, replay stays stateless. A configured
+    ledger must successfully record the receipt before replay returns it.
+    An exact retry reads the committed receipt even if the strategy is now
+    disabled. The registry still controls admission of all new runs.
     """
     expected = {"schema", "run_id", "source", "parameters", "events"}
     if (type(request) is not dict or
-            set(request) not in (expected, expected | {"strategy"}) or
+            set(request) not in (expected, expected | {"strategy"},
+                                 expected | {"comparison"},
+                                 expected | {"strategy", "comparison"}) or
             request["schema"] != REPLAY_SCHEMA or
             type(request["run_id"]) is not str or
             not _RUN_ID.fullmatch(request["run_id"])):
         raise ValueError("invalid paper replay contract")
-    # Binding to the same real registry used by Terminan, not a second
-    # replay-only strategy map. The optional strategy descriptor is backward
-    # compatible with v1 offline request fixtures.
-    definition = STRATEGIES.discover()[0]
-    choice = request.get("strategy", {
-        "id": definition.id, "version": definition.version,
-    })
-    if (type(choice) is not dict or set(choice) != {"id", "version"}
-            or type(choice["id"]) is not str
-            or type(choice["version"]) is not str
-            or choice["id"] != definition.id
-            or choice["version"] != definition.version
-            or not definition.enabled):
-        raise ValueError("strategy not registered or disabled")
-    if len(_canonical_json(request)) > 262144:
+    request_bytes = canonical_json(request)
+    if len(request_bytes) > 262144:
         raise ValueError("paper replay body limit")
     events = request["events"]
     params = request["parameters"]
@@ -315,6 +302,55 @@ def replay_paper(request, *, compute=None):
             or not 0 <= source["as_of_ms"] <= 2**63 - 1
             or source["units"] != {"price": "quote/base", "volume": "base"}):
         raise ValueError("invalid source identity or units")
+
+    # Grid historical variant/fold metadata is a *caller assertion*, not a
+    # qualified Grid dataset or proof that a non-POC strategy was executed.
+    # Only the actual registered POC BASE algorithm is currently supported.
+    comparison = request.get("comparison")
+    if "comparison" in request and comparison is None:
+        raise ValueError("missing Grid comparison context")
+    if comparison is not None:
+        if (type(comparison) is not dict or set(comparison) != {
+                "schema", "dataset_id", "dataset_hash", "strategy_name",
+                "setup", "variant", "fold", "comparison_group", "symbol"
+        } or comparison["schema"] != "terminan.grid.comparison.v1"
+                or type(comparison["dataset_id"]) is not str
+                or not _RUN_ID.fullmatch(comparison["dataset_id"])
+                or type(comparison["dataset_hash"]) is not str
+                or not re.fullmatch("[0-9a-f]{64}", comparison["dataset_hash"])
+                or comparison["strategy_name"] != "meta.poc.next_minute"
+                or comparison["setup"] != "POC"
+                or comparison["variant"] != "BASE"
+                or type(comparison["fold"]) is not int
+                or not 0 <= comparison["fold"] <= 1000
+                or type(comparison["symbol"]) is not str
+                or not _SYMBOL.fullmatch(comparison["symbol"])
+                or comparison["comparison_group"] != (
+                    request["run_id"] + ":" + comparison["symbol"] + ":POC")
+                or any(type(item) is not dict or
+                       item.get("symbol") != comparison["symbol"]
+                       for item in events)):
+            raise ValueError("unqualified Grid comparison context")
+    request_sha256 = sha256(request_bytes).hexdigest()
+    ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
+    ledger = PaperReplayLedger(ledger_path) if ledger_path else None
+    if ledger is not None:
+        existing = ledger.read(request["run_id"], request_sha256)
+        if existing is not None:
+            return existing
+    # New replays use the same registry. V1 requests can omit the descriptor
+    # for backwards compatibility with the original offline replay request.
+    definition = STRATEGIES.discover()[0]
+    choice = request.get("strategy", {
+        "id": definition.id, "version": definition.version,
+    })
+    if (type(choice) is not dict or set(choice) != {"id", "version"}
+            or type(choice["id"]) is not str
+            or type(choice["version"]) is not str
+            or choice["id"] != definition.id
+            or choice["version"] != definition.version
+            or not definition.enabled):
+        raise ValueError("strategy not registered or disabled")
     engine = PaperEngine(**params)
     engine.enabled = True  # Only offline simulated fills; no live order route.
     previous_ms = -1
@@ -373,7 +409,7 @@ def replay_paper(request, *, compute=None):
         "execution_authority": False,
         "trading_authorized": False,
         "source": request["source"],
-        "request_sha256": sha256(_canonical_json(request)).hexdigest(),
+        "request_sha256": request_sha256,
         "events_processed": len(events),
         "fills": [_serialize(asdict(fill)) for fill in engine.fills],
         "open_positions": {
@@ -381,7 +417,29 @@ def replay_paper(request, *, compute=None):
             for symbol, position in sorted(engine.positions.items())
         },
     }
-    result["result_sha256"] = sha256(_canonical_json(result)).hexdigest()
+    if comparison is not None:
+        result["comparison"] = {
+            **comparison,
+            "status": "CALLER_SUPPLIED_UNATTESTED",
+            "dataset_qualified": False,
+            "strategy_executed": "meta.poc.next_minute",
+            "history_requirements": [
+                {"dataset": requirement.dataset,
+                 "timeframes": list(requirement.timeframes),
+                 "required": requirement.required,
+                 "coverage_verified": False}
+                for requirement in definition.requirements
+            ],
+        }
+        result["receipt_checkpoint"] = {
+            "state": "COMPLETE_RESULT_ONLY",
+            "resumable": False,
+            "events_processed": len(events),
+            "request_sha256": request_sha256,
+        }
+    result["result_sha256"] = sha256(canonical_json(result)).hexdigest()
+    if ledger is not None:
+        return ledger.record(result)
     return result
 
 
@@ -392,6 +450,16 @@ def replay_paper(request, *, compute=None):
 # they are NOT mathematical statistics or live order quantities.
 
 
+def _finite_accounting_value(value, field):
+    try:
+        numeric = float(value)
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise ValueError(f"invalid paper accounting field: {field}") from exc
+    if not isfinite(numeric):
+        raise ValueError(f"nonfinite paper accounting field: {field}")
+    return numeric
+
+
 def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
                  max_steps=3, max_size=4.0):
     """Apply legacy FIXED/MARTINGALE/ANTI_MARTINGALE paper sizing policy."""
@@ -400,37 +468,49 @@ def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
     for row in trades:
         x = dict(row)
         if mode == "FIXED":
-            size = float(base_size)
+            size = _finite_accounting_value(base_size, "base size")
         elif mode in ("MARTINGALE", "ANTI_MARTINGALE"):
-            size = min(float(max_size), float(base_size) * (float(multiplier) ** step))
+            cap = _finite_accounting_value(max_size, "max size")
+            base = _finite_accounting_value(base_size, "base size")
+            factor = _finite_accounting_value(multiplier, "multiplier")
+            try:
+                step_limit = int(max_steps)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError("invalid paper sizing step limit") from exc
+            try:
+                size = _finite_accounting_value(min(cap, base * factor ** step), "size multiplier")
+            except OverflowError as exc:
+                raise ValueError("paper sizing exponent overflow") from exc
         else:
             raise ValueError("unknown sizing mode")
         x["sizing_mode"] = mode
         x["size_multiplier"] = size
         for k in ("pnl", "fees", "slippage", "mfe", "mae"):
             if k in x and x[k] is not None:
-                x[k] = float(x[k]) * size
+                x[k] = _finite_accounting_value(_finite_accounting_value(x[k], k) * size, k)
         net = trade_net_pnl(x)
         out.append(x)
         if mode == "MARTINGALE":
-            step = min(int(max_steps), step + 1) if net < 0 else 0
+            step = min(step_limit, step + 1) if net < 0 else 0
         elif mode == "ANTI_MARTINGALE":
-            step = min(int(max_steps), step + 1) if net > 0 else 0
+            step = min(step_limit, step + 1) if net > 0 else 0
     return out
 
 
 def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
     """Legacy simulated trading account equity/ruin ledger, NOT Math research."""
-    equity = peak = float(starting_equity)
+    equity = peak = _finite_accounting_value(starting_equity, "starting equity")
     min_eq = equity
     max_dd = 0.0
     ruined = False
-    threshold = starting_equity * float(ruin_fraction)
+    threshold = _finite_accounting_value(
+        equity * _finite_accounting_value(ruin_fraction, "ruin fraction"), "ruin threshold",
+    )
     for x in trades:
-        equity += trade_net_pnl(x)
+        equity = _finite_accounting_value(equity + trade_net_pnl(x), "account equity")
         peak = max(peak, equity)
         min_eq = min(min_eq, equity)
-        max_dd = max(max_dd, peak - equity)
+        max_dd = max(max_dd, _finite_accounting_value(peak - equity, "drawdown"))
         if equity <= threshold:
             ruined = True
     return {
@@ -444,4 +524,7 @@ def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
 
 def trade_net_pnl(row):
     """Old Math history_statistics._net: virtual execution PnL accounting only."""
-    return float(row.get("pnl", 0)) - float(row.get("fees", 0)) - float(row.get("slippage", 0))
+    pnl = _finite_accounting_value(row.get("pnl", 0), "pnl")
+    fees = _finite_accounting_value(row.get("fees", 0), "fees")
+    slippage = _finite_accounting_value(row.get("slippage", 0), "slippage")
+    return _finite_accounting_value(pnl - fees - slippage, "net pnl")

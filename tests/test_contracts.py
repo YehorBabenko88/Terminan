@@ -3,9 +3,12 @@
 Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
 """
 import ast
+from dataclasses import asdict
+from decimal import localcontext
 import hashlib
 import inspect
 import json
+from math import copysign
 from pathlib import Path
 import unittest
 from enum import Enum
@@ -23,6 +26,37 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(align_trades([t],150,160),[t])
         with self.assertRaises(ValueError):TradeEvent.parse({**base,'exit_ms':99})
         with self.assertRaises(ValueError):TradeEvent.parse({**base,'side':'other'})
+
+    def test_trade_admission_rejects_nonfinite_and_wrong_types(self):
+        row = dict(run_id='r', strategy_id='s', symbol='BTCUSDT', trade_id='t',
+                   entry_ms=100, exit_ms=200, entry_price=10, exit_price=12,
+                   side='long', quantity=2, pnl=-4)
+        self.assertEqual(json.loads(json.dumps(asdict(TradeEvent.parse(row)),
+                                               allow_nan=False)), row)
+        for field in ('entry_price', 'exit_price', 'quantity', 'pnl'):
+            for invalid in (float('nan'), float('inf'), float('-inf'), True, '12', 10**1000):
+                with self.subTest(field=field, invalid=type(invalid)):
+                    with self.assertRaises(ValueError):
+                        TradeEvent.parse(dict(row, **{field: invalid}))
+        for field, invalid in (('entry_ms', True), ('entry_ms', -1), ('exit_ms', 200.0),
+                               ('exit_price', 0), ('symbol', 'BTC / USDT'),
+                               ('exit_price', None)):
+            with self.subTest(field=field, invalid=invalid):
+                with self.assertRaises(ValueError):
+                    TradeEvent(**dict(row, **{field: invalid}))
+        self.assertIsNone(TradeEvent.parse(dict(row, exit_ms=None, exit_price=None)).exit_ms)
+
+    def test_legacy_poc_admission_rejects_nonfinite_observations(self):
+        for invalid in (float('nan'), float('inf'), float('-inf'), 'NaN', 'Infinity'):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    aggregate_footprint([dict(t=1, price=invalid, volume=1)])
+                with self.assertRaises(ValueError):
+                    aggregate_footprint([dict(t=1, price=1, volume=invalid)])
+                with self.assertRaises(ValueError):
+                    poc_close_events([dict(t=1, poc=1)], [dict(t=1, c=invalid)])
+                with self.assertRaises(ValueError):
+                    poc_close_events([dict(t=1, poc=invalid)], [dict(t=1, c=1)])
     def test_poc_tie_and_close(self):
         rows=[dict(t=100,price=11,volume=5),dict(t=100,price=10,volume=5),dict(t=200,price=9,volume=8)]
         buckets=aggregate_footprint(rows)
@@ -31,6 +65,22 @@ class ContractTests(unittest.TestCase):
         self.assertEqual([e['relation'] for e in events],['above','at'])
     def test_no_negative_volume(self):
         with self.assertRaises(ValueError):aggregate_footprint([dict(t=1,price=2,volume=-1)])
+
+    def test_poc_math_sdk_preserves_duplicate_price_policy(self):
+        rows = [dict(t=100, price=10, volume=4), dict(t=100, price=10, volume=4),
+                dict(t=100, price=11, volume=6)]
+        self.assertEqual(aggregate_footprint(rows),
+                         [dict(t=100, levels=rows, poc=11.0, poc_volume=6.0)])
+
+    def test_poc_ranking_does_not_round_with_callers_decimal_context(self):
+        rows = [dict(t=100, price=10, volume=1001), dict(t=100, price=20, volume=1002)]
+        with localcontext() as context:
+            context.prec = 2
+            self.assertEqual(aggregate_footprint(rows)[0]['poc'], 20.0)
+
+    def test_poc_retains_first_volume_encoding_on_equal_rows(self):
+        rows = [dict(t=100, price=10, volume=-0.0), dict(t=100, price=10, volume=0)]
+        self.assertEqual(copysign(1, aggregate_footprint(rows)[0]['poc_volume']), -1.0)
 
 class StrategyMigrationTests(unittest.TestCase):
     """Preserve Strattester registry/spec behavior without starting a worker."""

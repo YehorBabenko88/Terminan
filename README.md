@@ -51,9 +51,12 @@ paper-replay panel. Its POST route is part of the existing loopback server:
 - Accepted event types: `closed_minute` (published at the next minute
   boundary, with Math profile/close), `trade` (paper prices only),
   and `gap` (invalidate entry reference). JSON Decimal prices are strings.
-- `run_id` is a caller's offline identifier, not yet a durable result record.
-  There is no database persistence, process supervisor, real data admission
-  or live exchange subscription on this route.
+- By default the replay is stateless. If `TERMINAN_PAPER_LEDGER` points
+  to a dedicated local SQLite file, `run_id` is bound to an immutable receipt.
+  An identical request returns that receipt after restart (without rerunning
+  Math); a changed request with the same `run_id` is rejected. Dedicated
+  storage is not a Grid market database, distributed checkpoint, or a
+  production PostgreSQL results schema. No real exchange subscription exists.
 
 Minimal *synthetic offline* example for pasting into Terminan (not Bybit data):
 
@@ -80,8 +83,10 @@ The Math package must be installed by the eventual Unified installer; if
 missing, Terminan returns `MATH_SDK_UNAVAILABLE` rather than substituting a
 second POC algorithm. This is offline development functionality, **not
 release acceptance**. Qualified Grid history/live ingestion, durable fenced
-results, physical Windows/browser checks and Math-owned P&L domain API are
-still required. No live trading route exists.
+results migration to the final Unified-managed installation, physical
+Windows/browser tests, and Terminan-owned trading PnL remain release gates.
+Math owns POC/research only; it does NOT implement execution, fees, simulated
+orders, equity, or strategy promotion. No live trading route exists.
 
 ## Independent package (Stage 9 candidate)
 
@@ -101,7 +106,36 @@ UI can run without Math; the offline paper replay returns
 `unified-math-kernels==0.1.0` is installed by the authorized deployment
 process. Do not resolve an unreviewed Math wheel or grant raw database writes.
 
-CI includes independent wheel build + installed-origin import checks on
-Windows and Ubuntu. This proves only package integrity/available resources;
+CI now tests Terminan under Python 3.11 and 3.12 on Windows and Ubuntu,
+including independent wheel build + installed-origin import checks. The
+separately pinned Math SDK parity job remains Python 3.12 until the Math
+distributor qualifies Python 3.11. This proves only package import/resources;
 actual installer, authenticated cross-host Grid and Unified integration,
 source-origin acceptance and physical Windows E2E require further gates.
+
+## Optional historical comparison metadata (Stage 12, unqualified)
+
+`terminan.paper.replay.v1` may include a `comparison` object with
+`schema: "terminan.grid.comparison.v1"`, `dataset_id`, `dataset_hash`
+(64 lowercase hex), `strategy_name: "meta.poc.next_minute"`,
+`setup: "POC"`, `variant: "BASE"`, a nonnegative integer `fold`,
+`symbol`, and `comparison_group: "<run_id>:<symbol>:POC"`.
+
+This context **does not** download or attest a Grid dataset. It is a
+caller-supplied historical grouping label for the *only strategy actually
+implemented* by Terminan's current offline PaperEngine. REGIME, MARKOV, ML
+and other Grid variants fail closed; the API does not claim to run them.
+The result explicitly records `dataset_qualified=false` and marks every
+required dataset's coverage `false`. Do not use it for source-qualified
+performance claims or live strategy execution.
+
+When `comparison` is provided, the result also includes
+`receipt_checkpoint.state=COMPLETE_RESULT_ONLY` with
+`resumable=false` and the committed request digest. It documents a
+finished, recoverable receipt, **not** an in-progress event cursor or a
+distributed resume/checkpoint protocol. Supplying an unknown checkpoint
+field on replay is rejected, rather than replaying a partial state.
+
+The existing Grid-only v1 instrument/history API and Unified Gateway still
+require authenticated, version-pinned real-source acceptance before paper
+history/live consumers are enabled. No real orders are supported.
