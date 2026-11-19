@@ -1,4 +1,5 @@
 """Read-only adapters; never mutate source databases."""
+import http.client
 import json
 import os
 import re
@@ -69,3 +70,94 @@ def footprint(symbol, limit=500):
     validate(symbol)
     rows = grid_query("SELECT extract(epoch from ts)*1000,price,buy_volume,sell_volume,delta,volume FROM footprint_1m WHERE symbol=%s ORDER BY ts DESC,price DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
     return [dict(zip(("t","price","buy","sell","delta","volume"),map(float,r))) for r in rows]
+
+
+# Grid owns all exchange connectivity. This bounded probe consumes ONLY the
+# existing Grid public-data capability API on the same host; it never retrieves
+# exchange data, DB credentials, or grants strategy execution authority.
+_GRID_CAPS_PATH = "/internal/v1/capabilities"
+_GRID_HEALTH_PATH = "/internal/v1/health"
+_GRID_MAX_JSON = 16384
+
+
+def _grid_internal_get(port, path):
+    """One direct loopback GET; no DNS, redirects, proxy, credentials or writes."""
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    try:
+        conn.request("GET", path, headers={"Accept": "application/json",
+                                           "Connection": "close"})
+        response = conn.getresponse()
+        if response.status != 200:
+            raise ValueError("grid gateway unavailable")
+        if response.getheader("Content-Encoding"):
+            raise ValueError("grid compressed response unsupported")
+        media_type = (response.getheader("Content-Type") or "").split(";", 1)[0]
+        if media_type.strip().lower() != "application/json":
+            raise ValueError("grid content type mismatch")
+        raw = response.read(_GRID_MAX_JSON + 1)
+        if len(raw) > _GRID_MAX_JSON:
+            raise ValueError("grid response size exceeded")
+        return json.loads(raw.decode("utf-8"),
+                          parse_constant=lambda _value: (_ for _ in ()).throw(
+                              ValueError("nonfinite grid response")))
+    finally:
+        conn.close()
+
+
+def grid_source_status():
+    """Conservative status for the existing Grid v1 internal read API.
+
+    Database reachability is not market provenance. Never promote legacy
+    unqualified candles/footprints to LIVE or strategy-ready market data.
+    The single source authority is Grid; remote/LAN access must be mediated
+    later by an authenticated Unified Gateway.
+    """
+    unavailable = {
+        "api_version": {"major": 1, "minor": 0},
+        "producer": "bybit-cluster-grid",
+        "connection": "UNAVAILABLE",
+        "market_data": "UNAVAILABLE",
+        "database": "UNAVAILABLE",
+        "candles": "UNAVAILABLE",
+        "footprint": "UNAVAILABLE",
+        "live_l2": False,
+        "execution_authority": False,
+    }
+    raw_port = os.environ.get("TERMINAN_GRID_API_PORT")
+    if raw_port is None:
+        return unavailable
+    # Strict literal port. No URLs or addresses from environment, so SSRF,
+    # proxy inheritance and DNS rebinding cannot redirect the request.
+    if not re.fullmatch(r"[1-9][0-9]{0,4}", raw_port):
+        return unavailable
+    port = int(raw_port)
+    if port > 65535:
+        return unavailable
+    try:
+        caps = _grid_internal_get(port, _GRID_CAPS_PATH)
+        health = _grid_internal_get(port, _GRID_HEALTH_PATH)
+        for envelope in (caps, health):
+            if (type(envelope) is not dict or
+                envelope.get("api_version") != {"major": 1, "minor": 0} or
+                envelope.get("producer") != "bybit-cluster-grid" or
+                envelope.get("read_only") is not True or
+                envelope.get("status") != "UNAVAILABLE"):
+                raise ValueError("unqualified grid gateway contract")
+        capabilities = caps.get("capabilities")
+        if (type(capabilities) is not dict or
+            capabilities.get("candles") != "UNAVAILABLE" or
+            capabilities.get("footprint") != "UNAVAILABLE" or
+            capabilities.get("live_l2") is not False):
+            raise ValueError("unexpected grid capabilities")
+        db = health.get("database")
+        if db not in ("READ_ONLY", "UNAVAILABLE"):
+            raise ValueError("invalid grid database status")
+        return {
+            **unavailable,
+            "connection": "CONNECTED_UNQUALIFIED",
+            "database": db,
+        }
+    except Exception:
+        # This UI is read-only: do not leak exception text, configured ports,
+        # credentials or internal source paths in an API response.
+        return unavailable
