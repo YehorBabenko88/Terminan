@@ -272,7 +272,9 @@ def replay_paper(request, *, compute=None):
     """
     expected = {"schema", "run_id", "source", "parameters", "events"}
     if (type(request) is not dict or
-            set(request) not in (expected, expected | {"strategy"}) or
+            set(request) not in (expected, expected | {"strategy"},
+                                 expected | {"comparison"},
+                                 expected | {"strategy", "comparison"}) or
             request["schema"] != REPLAY_SCHEMA or
             type(request["run_id"]) is not str or
             not _RUN_ID.fullmatch(request["run_id"])):
@@ -299,6 +301,33 @@ def replay_paper(request, *, compute=None):
             or not 0 <= source["as_of_ms"] <= 2**63 - 1
             or source["units"] != {"price": "quote/base", "volume": "base"}):
         raise ValueError("invalid source identity or units")
+
+    # Grid historical variant/fold metadata is a *caller assertion*, not a
+    # qualified Grid dataset or proof that a non-POC strategy was executed.
+    # Only the actual registered POC BASE algorithm is currently supported.
+    comparison = request.get("comparison")
+    if comparison is not None:
+        if (type(comparison) is not dict or set(comparison) != {
+                "schema", "dataset_id", "dataset_hash", "strategy_name",
+                "setup", "variant", "fold", "comparison_group", "symbol"
+        } or comparison["schema"] != "terminan.grid.comparison.v1"
+                or type(comparison["dataset_id"]) is not str
+                or not _RUN_ID.fullmatch(comparison["dataset_id"])
+                or type(comparison["dataset_hash"]) is not str
+                or not re.fullmatch("[0-9a-f]{64}", comparison["dataset_hash"])
+                or comparison["strategy_name"] != "meta.poc.next_minute"
+                or comparison["setup"] != "POC"
+                or comparison["variant"] != "BASE"
+                or type(comparison["fold"]) is not int
+                or not 0 <= comparison["fold"] <= 1000
+                or type(comparison["symbol"]) is not str
+                or not _SYMBOL.fullmatch(comparison["symbol"])
+                or comparison["comparison_group"] != (
+                    request["run_id"] + ":" + comparison["symbol"] + ":POC")
+                or any(type(item) is not dict or
+                       item.get("symbol") != comparison["symbol"]
+                       for item in events)):
+            raise ValueError("unqualified Grid comparison context")
     request_sha256 = sha256(request_bytes).hexdigest()
     ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
     ledger = PaperReplayLedger(ledger_path) if ledger_path else None
@@ -385,6 +414,26 @@ def replay_paper(request, *, compute=None):
             for symbol, position in sorted(engine.positions.items())
         },
     }
+    if comparison is not None:
+        result["comparison"] = {
+            **comparison,
+            "status": "CALLER_SUPPLIED_UNATTESTED",
+            "dataset_qualified": False,
+            "strategy_executed": "meta.poc.next_minute",
+            "history_requirements": [
+                {"dataset": requirement.dataset,
+                 "timeframes": list(requirement.timeframes),
+                 "required": requirement.required,
+                 "coverage_verified": False}
+                for requirement in definition.requirements
+            ],
+        }
+        result["receipt_checkpoint"] = {
+            "state": "COMPLETE_RESULT_ONLY",
+            "resumable": False,
+            "events_processed": len(events),
+            "request_sha256": request_sha256,
+        }
     result["result_sha256"] = sha256(canonical_json(result)).hexdigest()
     if ledger is not None:
         return ledger.record(result)
