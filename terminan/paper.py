@@ -410,7 +410,7 @@ def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
         for k in ("pnl", "fees", "slippage", "mfe", "mae"):
             if k in x and x[k] is not None:
                 x[k] = float(x[k]) * size
-        net = float(x.get("pnl", 0)) - float(x.get("fees", 0)) - float(x.get("slippage", 0))
+        net = trade_net_pnl(x)
         out.append(x)
         if mode == "MARTINGALE":
             step = min(int(max_steps), step + 1) if net < 0 else 0
@@ -427,7 +427,7 @@ def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
     ruined = False
     threshold = starting_equity * float(ruin_fraction)
     for x in trades:
-        equity += float(x.get("pnl", 0)) - float(x.get("fees", 0)) - float(x.get("slippage", 0))
+        equity += trade_net_pnl(x)
         peak = max(peak, equity)
         min_eq = min(min_eq, equity)
         max_dd = max(max_dd, peak - equity)
