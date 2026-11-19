@@ -10,9 +10,12 @@ arithmetic is execution-fill accounting, not a statistical/math kernel.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from hashlib import sha256
+import json
+import re
 
 D = Decimal
 
@@ -129,6 +132,7 @@ class PaperEngine:
                 or result.get("source") != request.get("source")
                 or not isinstance(result.get("results"), list)
                 or len(result["results"]) != 1
+                or not isinstance(result["results"][0], dict)
                 or result["results"][0].get("operation") != "volume_profile_poc"
                 or result["results"][0].get("value") is None):
             raise ValueError("Math POC result not admitted")
@@ -210,3 +214,128 @@ class PaperEngine:
         )
         self.reference.pop(symbol, None)
         return None
+
+
+REPLAY_SCHEMA = "terminan.paper.replay.v1"
+REPLAY_RESULT = "terminan.paper.result.v1"
+_MAX_EVENTS = 1024
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_SYMBOL = re.compile(r"[A-Z0-9]{2,30}\\Z")
+_RUN_ID = re.compile(r"[A-Za-z0-9_.:-]{1,64}\\Z")
+
+
+def _timestamp(value):
+    if type(value) is not int or not 0 <= value <= 4102444800000:
+        raise ValueError("invalid UTC millisecond timestamp")
+    return _EPOCH + timedelta(milliseconds=value)
+
+
+def _canonical_json(value):
+    try:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=True, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid JSON replay request") from exc
+
+
+def _serialize(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _serialize(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_serialize(item) for item in value]
+    return value
+
+
+def replay_paper(request, *, compute=None):
+    """Run bounded deterministic *offline* paper replay, never market orders.
+
+    Every closed minute obtains POC from the installed canonical Math SDK.
+    The request's source SHA is caller-supplied, NOT authenticated Grid data.
+    This API cannot advertise live/history qualification or persist results.
+    """
+    if (type(request) is not dict or
+            set(request) != {"schema", "run_id", "source", "parameters", "events"} or
+            request["schema"] != REPLAY_SCHEMA or
+            type(request["run_id"]) is not str or
+            not _RUN_ID.fullmatch(request["run_id"])):
+        raise ValueError("invalid paper replay contract")
+    if len(_canonical_json(request)) > 262144:
+        raise ValueError("paper replay body limit")
+    events = request["events"]
+    params = request["parameters"]
+    if (type(events) is not list or not 1 <= len(events) <= _MAX_EVENTS or
+            type(params) is not dict or
+            not set(params).issubset({
+                "notional", "threshold", "stop_pct", "fee_rate", "slippage_bps"
+            }) or any(type(value) is not str for value in params.values())):
+        raise ValueError("paper replay policy or event limit")
+    if (type(request["source"]) is not dict or
+            set(request["source"]) != {"snapshot_sha256", "as_of_ms", "units"}):
+        raise ValueError("invalid Math source envelope")
+    engine = PaperEngine(**params)
+    engine.enabled = True  # Only offline simulated fills; no live order route.
+    previous_ms = -1
+    for event in events:
+        if type(event) is not dict or "kind" not in event:
+            raise ValueError("invalid paper replay event")
+        kind = event["kind"]
+        stamp = event.get("event_ms")
+        timestamp = _timestamp(stamp)
+        if stamp < previous_ms:
+            raise ValueError("out-of-order replay events")
+        previous_ms = stamp
+        symbol = event.get("symbol")
+        if type(symbol) is not str or not _SYMBOL.fullmatch(symbol):
+            raise ValueError("invalid paper replay symbol")
+        if kind == "closed_minute":
+            if set(event) != {"kind", "event_ms", "symbol", "profile", "close"}:
+                raise ValueError("invalid closed-minute event")
+            if stamp % 60000:
+                raise ValueError("closed minute must be published at minute boundary")
+            math_request = {
+                "schema": "math.market.compute.v1",
+                "execution_authority": False,
+                "source": request["source"],
+                "operations": [{
+                    "operation": "volume_profile_poc",
+                    "input": {"profile": event["profile"], "close": event["close"]},
+                }],
+            }
+            engine.on_math_closed_minute(
+                symbol, timestamp - timedelta(minutes=1),
+                math_request, compute=compute,
+            )
+        elif kind == "trade":
+            if set(event) != {"kind", "event_ms", "symbol", "price"}:
+                raise ValueError("invalid trade event")
+            if type(event["price"]) is not str:
+                raise ValueError("invalid execution price encoding")
+            engine.on_trade(ExecutionTrade(symbol, timestamp, D(event["price"])))
+        elif kind == "gap":
+            if set(event) != {"kind", "event_ms", "symbol"}:
+                raise ValueError("invalid source gap event")
+            engine.on_gap(symbol)
+        else:
+            raise ValueError("unknown replay event kind")
+    result = {
+        "schema": REPLAY_RESULT,
+        "run_id": request["run_id"],
+        "status": "OFFLINE_UNATTESTED",
+        "provenance": "CALLER_SUPPLIED_UNATTESTED",
+        "execution_authority": False,
+        "trading_authorized": False,
+        "source": request["source"],
+        "request_sha256": sha256(_canonical_json(request)).hexdigest(),
+        "events_processed": len(events),
+        "fills": [_serialize(asdict(fill)) for fill in engine.fills],
+        "open_positions": {
+            symbol: _serialize(asdict(position))
+            for symbol, position in sorted(engine.positions.items())
+        },
+    }
+    result["result_sha256"] = sha256(_canonical_json(result)).hexdigest()
+    return result
