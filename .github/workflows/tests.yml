@@ -36,3 +36,25 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --no-deps ./upstream/math
       - run: python tests/check_paper_source_parity.py
+
+  wheel-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build independent Terminan wheel
+        shell: bash
+        run: python -m pip wheel --no-deps --wheel-dir dist .
+      - name: Install wheel outside source checkout
+        shell: bash
+        run: |
+          python -m pip install --no-deps --target "$RUNNER_TEMP/terminan-check" dist/*.whl
+          python -c "import os,subprocess,sys,tempfile; env=os.environ.copy(); env['PYTHONPATH']=os.path.join(os.environ['RUNNER_TEMP'],'terminan-check'); code='from importlib.resources import files; import terminan; from terminan.paper import PaperEngine; from terminan.server import Handler; assert terminan.__version__==\"0.1.0\"; assert files(\"terminan\").joinpath(\"index.html\").is_file(); assert files(\"terminan\").joinpath(\"monitor.html\").is_file(); assert PaperEngine().enabled is False; print(\"INSTALLED_TERMINAN=PASS\")'; subprocess.run([sys.executable,'-c',code],env=env,cwd=tempfile.mkdtemp(),check=True)"
