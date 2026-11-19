@@ -9,7 +9,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal as D
 from unittest import mock
 
-from terminan.paper import ClosedMinute, ExecutionTrade, PaperEngine, replay_paper
+from terminan.paper import (ClosedMinute, ExecutionTrade, PaperEngine,
+                            STRATEGIES, replay_paper)
 
 T = datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)
 
@@ -202,12 +203,31 @@ def mock_math(request):
 
 
 class OfflinePaperApiTests(unittest.TestCase):
+    def test_single_registry_object_used_for_offline_executor(self):
+        from terminan.contracts import StrategyRegistry
+        self.assertIsInstance(STRATEGIES, StrategyRegistry)
+        registered = STRATEGIES.discover()
+        self.assertEqual(len(registered), 1)
+        self.assertIs(registered[0].implementation, PaperEngine)
+        self.assertEqual(registered[0].id, "meta.poc.next_minute")
+        explicit = offline_request()
+        explicit["strategy"] = {
+            "id": registered[0].id, "version": registered[0].version
+        }
+        result = replay_paper(explicit, compute=mock_math)
+        self.assertEqual(result["strategy"]["version"], "1")
+        self.assertEqual(len(result["fills"]), 1)
+
     def test_replay_has_stable_digest_and_no_order_authority(self):
         request = offline_request()
         first = replay_paper(request, compute=mock_math)
         second = replay_paper(request, compute=mock_math)
         self.assertEqual(first, second)
         self.assertEqual(first["schema"], "terminan.paper.result.v1")
+        self.assertEqual(first["strategy"]["id"], "meta.poc.next_minute")
+        self.assertEqual(first["strategy"]["version"], "1")
+        self.assertEqual(len(first["strategy"]["fingerprint"]), 64)
+
         self.assertEqual(first["status"], "OFFLINE_UNATTESTED")
         self.assertFalse(first["trading_authorized"])
         self.assertFalse(first["execution_authority"])
@@ -228,6 +248,12 @@ class OfflinePaperApiTests(unittest.TestCase):
                                 base["events"][0]["event_ms"] + 1}]},
             {**base, "events": [base["events"][0]] * 1025},
             {**base, "parameters": {"live_orders": "true"}},
+            {**base, "strategy": {"id": "unapproved", "version": "1"}},
+            {**base, "strategy": {"id": "meta.poc.next_minute",
+                                  "version": "unreviewed"}},
+            {**base, "strategy": {"id": "meta.poc.next_minute",
+                                  "version": "1", "orders": True}},
+
         ]
         for request in invalid:
             with self.subTest(case=str(request)[:90]):
