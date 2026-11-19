@@ -2,6 +2,8 @@ name: tests
 on: [push, pull_request]
 permissions:
   contents: read
+env:
+  TERMINAN_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 jobs:
   python:
     strategy:
@@ -12,6 +14,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TERMINAN_TEST_SHA }}
+          persist-credentials: false
+      - name: Verify Terminan source SHA
+        shell: bash
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "Terminan source: $actual"
+          test "$actual" = "$TERMINAN_TEST_SHA"
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/math
@@ -30,7 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
+      - name: Verify Terminan source SHA
+        shell: bash
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "Terminan source: $actual"
+          test "$actual" = "$TERMINAN_TEST_SHA"
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/meta_analyse
@@ -59,7 +77,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
+      - name: Verify Terminan source SHA
+        shell: bash
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "Terminan source: $actual"
+          test "$actual" = "$TERMINAN_TEST_SHA"
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/bybit-cluster-grid
@@ -96,7 +121,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
+      - name: Verify Terminan source SHA
+        shell: bash
+        run: |
+          actual=$(git rev-parse HEAD)
+          echo "Terminan source: $actual"
+          test "$actual" = "$TERMINAN_TEST_SHA"
       - name: Install exact Playwright test package (no browser download)
         run: npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
       - name: Test source-quality UI in a real browser
