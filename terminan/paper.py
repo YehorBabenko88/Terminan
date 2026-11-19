@@ -220,8 +220,8 @@ REPLAY_SCHEMA = "terminan.paper.replay.v1"
 REPLAY_RESULT = "terminan.paper.result.v1"
 _MAX_EVENTS = 1024
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
-_SYMBOL = re.compile(r"[A-Z0-9]{2,30}\\Z")
-_RUN_ID = re.compile(r"[A-Za-z0-9_.:-]{1,64}\\Z")
+_SYMBOL = re.compile(r"[A-Z0-9]{2,30}")
+_RUN_ID = re.compile(r"[A-Za-z0-9_.:-]{1,64}")
 
 
 def _timestamp(value):
@@ -276,6 +276,14 @@ def replay_paper(request, *, compute=None):
     if (type(request["source"]) is not dict or
             set(request["source"]) != {"snapshot_sha256", "as_of_ms", "units"}):
         raise ValueError("invalid Math source envelope")
+    source = request["source"]
+    digest = source["snapshot_sha256"]
+    if (type(digest) is not str or len(digest) != 64
+            or any(char not in "0123456789abcdef" for char in digest)
+            or type(source["as_of_ms"]) is not int
+            or not 0 <= source["as_of_ms"] <= 2**63 - 1
+            or source["units"] != {"price": "quote/base", "volume": "base"}):
+        raise ValueError("invalid source identity or units")
     engine = PaperEngine(**params)
     engine.enabled = True  # Only offline simulated fills; no live order route.
     previous_ms = -1
