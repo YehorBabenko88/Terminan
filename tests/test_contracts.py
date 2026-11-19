@@ -2,9 +2,11 @@
 
 Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
 """
+import ast
 import hashlib
 import inspect
 import json
+from pathlib import Path
 import unittest
 from enum import Enum
 
@@ -151,3 +153,59 @@ class StrategyLegacyParityTests(unittest.TestCase):
         reg.register(StrategyDefinition("inert", "1", (), Dangerous))
         self.assertEqual(len(reg.discover()), 1)
 
+
+
+class SingleRegistryImportContractTests(unittest.TestCase):
+    """Prevent future PR #87/#88 conflicts without adding another registry."""
+
+    @staticmethod
+    def _sources():
+        root = Path(__file__).resolve().parents[1] / "terminan"
+        return {
+            path: ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for path in root.rglob("*.py")
+        }
+
+    def test_one_canonical_registry_definition(self):
+        sources = self._sources()
+        definitions = [
+            (path.name, node.name)
+            for path, tree in sources.items()
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+            and node.name in ("StrategyRegistry", "StrategyDefinition",
+                              "DataRequirement", "strategy_fingerprint")
+        ]
+        for name in ("StrategyRegistry", "StrategyDefinition",
+                     "DataRequirement", "strategy_fingerprint"):
+            self.assertEqual(
+                [filename for filename, found in definitions if found == name],
+                ["contracts.py"],
+                f"duplicate or missing canonical strategy symbol {name}",
+            )
+        self.assertNotIn("strategies.py", [path.name for path in sources])
+
+    def test_no_old_strategy_module_imports(self):
+        for path, tree in self._sources().items():
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        self.assertNotEqual(alias.name, "terminan.strategies",
+                                            str(path))
+                if isinstance(node, ast.ImportFrom):
+                    self.assertNotEqual(node.module, "terminan.strategies",
+                                        str(path))
+                    if node.level and node.module == "strategies":
+                        self.fail(f"obsolete relative strategies import: {path}")
+                if isinstance(node, ast.ImportFrom) and node.module == "terminan":
+                    self.assertNotIn(
+                        "strategies", [alias.name for alias in node.names],
+                        str(path),
+                    )
+
+    def test_public_registry_identity_same_contract_module(self):
+        import terminan.contracts as api
+        self.assertIs(StrategyRegistry, api.StrategyRegistry)
+        self.assertIs(StrategyDefinition, api.StrategyDefinition)
+        self.assertIs(DataRequirement, api.DataRequirement)
+        self.assertIs(strategy_fingerprint, api.strategy_fingerprint)
