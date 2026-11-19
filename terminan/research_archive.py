@@ -10,14 +10,16 @@ from .paper_ledger import ReplayConflict, canonical_json
 
 _SCHEMA = "terminan.strattester.result_archive.v1"
 _TABLES = {"research_results": 4, "staged_research_results": 1}
+_LEGACY_TABLE = "research_results"
 _MAX_ROWS = 1_000_000
 _MAX_ROW_BYTES = 262_144
 _MAX_TABLE_BYTES = 2**30
 
 
 def _check_tables(tables):
-    if type(tables) is not dict or tables.keys() != _TABLES.keys():
-        raise ValueError("both Strattester result tables are required")
+    if type(tables) is not dict or tables.keys() not in ({_LEGACY_TABLE}, _TABLES.keys()):
+        raise ValueError("invalid Strattester result table set")
+    return tuple(table for table in _TABLES if table in tables)
 
 
 def _snapshot_digest(value):
@@ -31,13 +33,15 @@ def _source_id(value):
         raise ValueError("invalid archive source identity")
 
 
-def _pack(table, row):
+def _pack(table, row, *, legacy=False):
     # Preserve the original SQLite REAL and metrics TEXT. Old metrics can
     # contain non-standard JSON; this archive never interprets them.
     start = int(table == "staged_research_results")
-    if type(row) not in (list, tuple) or len(row) != start + 9:
+    width = 6 if legacy else start + 9
+    if type(row) not in (list, tuple) or len(row) != width:
         raise ValueError("invalid Strattester result width")
-    created_at, metrics, job, lease, generation = row[start + 4:]
+    created_at, metrics = row[start + 4:start + 6]
+    job, lease, generation = (None, 0, 0) if legacy else row[start + 6:]
     if (any(type(value) is not str for value in row[:start + 4])
             or type(created_at) is not float or isnan(created_at)
             or type(metrics) is not str
@@ -56,12 +60,12 @@ def _pack(table, row):
     return tuple(row[:_TABLES[table]]), raw
 
 
-def _scan(table, rows, record=None):
+def _scan(table, rows, record=None, *, legacy=False):
     digest = sha256(_SCHEMA.encode("ascii") + b"\0" + table.encode("ascii") + b"\0")
     previous = None
     size = count = 0
     for row in rows:
-        key, raw = _pack(table, row)
+        key, raw = _pack(table, row, legacy=legacy)
         count += 1
         size += len(raw)
         if count > _MAX_ROWS or size > _MAX_TABLE_BYTES:
@@ -88,9 +92,15 @@ def _receipt(snapshot_sha256, tables):
 
 
 def research_result_receipt(snapshot_sha256, tables):
-    """Hash both ordered result tables from a single frozen SQLite backup."""
-    _check_tables(tables)
-    return _receipt(snapshot_sha256, {table: _scan(table, tables[table]) for table in _TABLES})
+    """Hash original ordered rows from a frozen SQLite backup.
+
+    A six-column export supplies only research_results. The upgraded schema
+    supplies both tables, including an empty staged table when present.
+    """
+    names = _check_tables(tables)
+    return _receipt(snapshot_sha256, {
+        table: _scan(table, tables[table], legacy=len(names) == 1) for table in names
+    })
 
 
 class ResearchArchive:
@@ -100,9 +110,9 @@ class ResearchArchive:
         self._ledger = ledger
 
     def import_snapshot(self, source_id, tables, receipt):
-        """Import both original tables atomically, checking the source receipt."""
+        """Import all supplied original tables atomically, checking the receipt."""
         _source_id(source_id)
-        _check_tables(tables)
+        names = _check_tables(tables)
         if type(receipt) is not dict:
             raise ValueError("invalid Strattester archive receipt")
         expected_raw = canonical_json(receipt)
@@ -125,12 +135,13 @@ class ResearchArchive:
             if archived is not None and archived != expected_raw:
                 raise ReplayConflict("source ID already bound to another research snapshot")
             received = {}
-            for table in _TABLES:
+            for table in names:
                 def insert(ordinal, raw):
                     database.execute("INSERT INTO archived_research_rows_v1 VALUES (?, ?, ?, ?)",
                                      (source_id, table, ordinal, raw))
 
-                received[table] = _scan(table, tables[table], insert if archived is None else None)
+                received[table] = _scan(table, tables[table], insert if archived is None else None,
+                                        legacy=len(names) == 1)
             result = _receipt(source_sha, received)
             if canonical_json(result) != expected_raw:
                 raise ValueError("Strattester rows do not match the source receipt")
@@ -151,7 +162,7 @@ class ResearchArchive:
         return None if row is None else row[0]
 
     @staticmethod
-    def _rows(database, source_id, table):
+    def _rows(database, source_id, table, *, legacy=False):
         rows = database.execute(
             "SELECT ordinal, row_json FROM archived_research_rows_v1 "
             "WHERE source_id = ? AND table_name = ? ORDER BY ordinal", (source_id, table))
@@ -162,21 +173,30 @@ class ResearchArchive:
             stamp = int(table == "staged_research_results") + 4
             if type(row) is list and len(row) > stamp and row[stamp] in ("inf", "-inf"):
                 row[stamp] = float.fromhex(row[stamp])
-            if _pack(table, row)[1] != raw:
+            if _pack(table, row, legacy=legacy)[1] != raw:
                 raise ValueError("invalid archived row encoding")
             yield tuple(row)
 
     def _verify(self, database, source_id, receipt):
         try:
-            tables = {table: _scan(table, self._rows(database, source_id, table))
-                      for table in _TABLES}
+            names = _check_tables(receipt["tables"])
+            legacy = len(names) == 1
+            if legacy and database.execute(
+                "SELECT 1 FROM archived_research_rows_v1 WHERE source_id = ? AND table_name <> ? LIMIT 1",
+                (source_id, _LEGACY_TABLE),
+            ).fetchone():
+                raise ValueError("unexpected staged rows in legacy archive")
+            tables = {
+                table: _scan(table, self._rows(database, source_id, table, legacy=legacy),
+                             legacy=legacy) for table in names
+            }
             if canonical_json(_receipt(receipt["source_snapshot_sha256"], tables)) != canonical_json(receipt):
                 raise ValueError("archived rows do not match receipt")
         except (KeyError, TypeError, ValueError) as exc:
             raise RuntimeError("Strattester archive integrity failure") from exc
 
     def read_snapshot(self, source_id):
-        """Yield (table, disposition, original row) after verifying both tables."""
+        """Yield (table, disposition, original row) after verifying the snapshot."""
         _source_id(source_id)
         with self._ledger._paper_event_transaction(write=False) as database:
             archived = self._stored_receipt(database, source_id)
@@ -187,11 +207,13 @@ class ResearchArchive:
             except (TypeError, ValueError) as exc:
                 raise RuntimeError("Strattester archive integrity failure") from exc
             self._verify(database, source_id, receipt)
-            for table in _TABLES:
-                for row in self._rows(database, source_id, table):
+            names = _check_tables(receipt["tables"])
+            legacy = len(names) == 1
+            for table in names:
+                for row in self._rows(database, source_id, table, legacy=legacy):
                     if table == "staged_research_results":
                         disposition = "STAGED_UNVERIFIED"
-                    elif row[6] is None:
+                    elif legacy or row[6] is None:
                         disposition = "LEGACY_UNFENCED"
                     else:
                         disposition = "PUBLISHED_UNVERIFIED"

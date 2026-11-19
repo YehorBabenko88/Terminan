@@ -1,4 +1,5 @@
 from contextlib import closing
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -87,3 +88,34 @@ class ResearchArchiveTests(unittest.TestCase):
         restored = [row for table, _, row in self.archive().read_snapshot("source-1")
                     if table == PUBLISHED]
         self.assertEqual(restored, published)
+
+    def test_six_column_backup_is_read_only_and_round_trips_without_stage(self):
+        legacy = self.path.with_name("legacy.sqlite3")
+        columns = "run_id,symbol,strategy_id,strategy_version,created_at,metrics"
+        with closing(sqlite3.connect(legacy)) as database, database:
+            database.execute("CREATE TABLE research_results "
+                             "(run_id TEXT,symbol TEXT,strategy_id TEXT,strategy_version TEXT,"
+                             "created_at REAL,metrics TEXT)")
+            database.executemany("INSERT INTO research_results VALUES (?,?,?,?,?,?)",
+                                 [row[:6] for row in ROWS[PUBLISHED]])
+        original = legacy.read_bytes()
+        source_sha = sha256(original).hexdigest()
+        with closing(sqlite3.connect(legacy.as_uri() + "?mode=ro&immutable=1", uri=True)) as database:
+            projected = list(database.execute(
+                f"SELECT {columns} FROM research_results ORDER BY run_id,symbol,strategy_id,strategy_version"))
+        tables = {PUBLISHED: projected}
+        receipt = research_result_receipt(source_sha, tables)
+        self.assertEqual(set(receipt["tables"]), {PUBLISHED})
+        self.archive().import_snapshot("six", tables, receipt)
+        self.assertEqual(self.archive().import_snapshot("six", tables, receipt), receipt)
+        self.assertEqual(list(self.archive().read_snapshot("six")),
+                         [(PUBLISHED, "LEGACY_UNFENCED", row) for row in projected])
+        self.assertEqual(legacy.read_bytes(), original)
+        self.assertEqual(list(legacy.parent.glob("legacy.sqlite3*")), [legacy])
+
+    def test_six_column_receipt_never_accepts_padded_or_staged_rows(self):
+        tables = {PUBLISHED: [ROWS[PUBLISHED][0][:6]]}
+        receipt = research_result_receipt("a" * 64, tables)
+        for incorrect in ({PUBLISHED: ROWS[PUBLISHED]}, dict(tables, **{STAGED: []})):
+            with self.assertRaises(ValueError):
+                self.archive().import_snapshot("six", incorrect, receipt)

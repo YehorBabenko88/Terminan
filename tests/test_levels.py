@@ -1,4 +1,5 @@
 from contextlib import closing
+from hashlib import sha256
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
 import json
@@ -6,7 +7,8 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from terminan.levels import untouched_levels,merge_levels
+from terminan.levels import grid_level_candles, untouched_levels, merge_levels
+from terminan.paper_ledger import canonical_json
 from terminan.server import Handler
 
 class LevelTests(unittest.TestCase):
@@ -44,5 +46,71 @@ class LevelTests(unittest.TestCase):
                 server.shutdown()
                 worker.join()
         legacy.assert_not_called()
+
+    def test_pinned_grid_rollup_projects_to_math_levels(self):
+        hour = 3_600_000
+        request = dict(venue="bybit", market_type="linear", symbol="BTCUSDT",
+                       start_ms=0, end_ms=hour, as_of_ms=hour + 100)
+        row = dict(event_start_ms=0, event_end_ms=hour, high=110.5, low=95.25,
+                   available_at_ms=hour + 10, watermark_ms=hour)
+
+        def signable(candle):
+            payload = dict(schema="grid.history.rollup.v1", evidence_class="HISTORICAL",
+                           request=request, timeframe="1h", rows=[candle], source={},
+                           parent_dataset_id="fixture", parent_dataset_fingerprint="b" * 64)
+            return dict(payload, dataset_fingerprint=sha256(canonical_json(payload)).hexdigest())
+
+        def project(snapshot, pin=None, timeframe="1h"):
+            return grid_level_candles(
+                snapshot, trusted_fingerprint=pin or snapshot["dataset_fingerprint"],
+                symbol="BTCUSDT", market_type="linear", timeframe=timeframe,
+                start_ms=0, end_ms=hour, as_of_ms=hour + 100)
+
+        original = signable(row)
+        candles = project(original)
+        self.assertEqual(candles, [dict(t=0, h=110.5, l=95.25, complete=True)])
+        self.assertEqual([value["price"] for value in untouched_levels(candles, "1h", hour)],
+                         [110.5, 95.25])
+        for invalid in (dict(row, complete=False), dict(row, event_end_ms=hour - 1),
+                        dict(row, event_start_ms=60_000), dict(row, high=-1),
+                        dict(row, available_at_ms=hour + 101)):
+            with self.subTest(row=invalid), self.assertRaises(ValueError):
+                project(signable(invalid))
+        with self.assertRaises(ValueError):
+            project(original, "a" * 64)
+        with self.assertRaises(ValueError):
+            project(dict(original, rows=[dict(row, high=500)]))
+        with self.assertRaises(ValueError):
+            project(original, timeframe="4h")
+
+    def test_multipin_projects_all_math_timeframes_and_checks_parent_order(self):
+        day = 86_400_000
+        for timeframe, start, width in (
+            ("1h", 0, 3_600_000), ("4h", 0, 14_400_000),
+            ("1d", 0, day), ("1w", 4 * day, 7 * day),
+        ):
+            with self.subTest(timeframe=timeframe):
+                end = start + width
+                request = dict(venue="bybit", market_type="linear", symbol="BTCUSDT",
+                               start_ms=start, end_ms=end, timeframe=timeframe,
+                               snapshot_ids=["a" * 64, "b" * 64])
+                parents = [dict(snapshot_id=pin, dataset_id=str(i), dataset_fingerprint="c" * 64)
+                           for i, pin in enumerate(request["snapshot_ids"])]
+                row = dict(event_start_ms=start, event_end_ms=end, high=10, low=5,
+                           watermark_ms=end, available_at_ms=end)
+                payload = dict(schema="grid.history.rollup.v2", timeframe=timeframe, source={},
+                               evidence_class="HISTORICAL", request=request, units={},
+                               as_of_ms=end, parents=parents, rows=[row])
+
+                def project(snapshot):
+                    pin = sha256(canonical_json(snapshot)).hexdigest()
+                    return grid_level_candles(
+                        dict(snapshot, dataset_fingerprint=pin), trusted_fingerprint=pin,
+                        symbol="BTCUSDT", market_type="linear", timeframe=timeframe,
+                        start_ms=start, end_ms=end, as_of_ms=end)
+
+                self.assertEqual(project(payload), [dict(t=start, h=10, l=5, complete=True)])
+                with self.assertRaises(ValueError):
+                    project(dict(payload, parents=list(reversed(parents))))
 
 if __name__=='__main__':unittest.main()

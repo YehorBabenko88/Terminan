@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/math
-          ref: ba7a07e8a7730c7d6be328b2dfd39132274e1e8e
+          ref: bb9cd1fac956620b0ab59482e8b7fd9e8b1f003b
           path: upstream/math-sdk
           persist-credentials: false
       - uses: actions/setup-python@v5
