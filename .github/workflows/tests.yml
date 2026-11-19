@@ -64,3 +64,27 @@ jobs:
         run: |
           python -m pip install --no-deps --target "$RUNNER_TEMP/terminan-check" dist/*.whl
           python -c "import os,subprocess,sys,tempfile; env=os.environ.copy(); env['PYTHONPATH']=os.path.join(os.environ['RUNNER_TEMP'],'terminan-check'); code='from importlib.resources import files; import terminan; from terminan.paper import PaperEngine; from terminan.server import Handler; assert terminan.__version__==\"0.1.0\"; assert files(\"terminan\").joinpath(\"index.html\").is_file(); assert files(\"terminan\").joinpath(\"monitor.html\").is_file(); assert PaperEngine().enabled is False; print(\"INSTALLED_TERMINAN=PASS\")'; subprocess.run([sys.executable,'-c',code],env=env,cwd=tempfile.mkdtemp(),check=True)"
+
+  grid-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install exact Playwright test package (no browser download)
+        run: npm install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
+      - name: Test source-quality UI in a real browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            export CHROME_PATH="$(command -v google-chrome)"
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            export CHROME_PATH="$(command -v google-chrome-stable)"
+          elif command -v chromium >/dev/null 2>&1; then
+            export CHROME_PATH="$(command -v chromium)"
+          else
+            echo "Chromium/Chrome unavailable; browser qualification cannot pass"
+            exit 1
+          fi
+          node --test tests/browser/test_grid_source.cjs
