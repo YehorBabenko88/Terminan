@@ -1,6 +1,6 @@
 """Local, append-only receipts for Terminan's offline paper replay."""
 
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
@@ -92,6 +92,18 @@ class PaperReplayLedger:
 
     def _connect(self):
         return sqlite3.connect(self.path, timeout=5)
+
+    @contextmanager
+    def _paper_event_transaction(self, *, write):
+        with closing(self._connect()) as database, database:
+            if not write:
+                database.execute("PRAGMA query_only = ON")
+            else:
+                database.execute("PRAGMA synchronous = FULL")
+            database.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+            if self._application_id(database) != _APPLICATION_ID:
+                raise RuntimeError("paper replay requires a dedicated database")
+            yield database
 
     @staticmethod
     def _application_id(database):
