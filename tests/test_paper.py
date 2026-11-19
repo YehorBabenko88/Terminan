@@ -234,6 +234,16 @@ class OfflinePaperApiTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     replay_paper(request, compute=mock_math)
 
+    def test_single_existing_terminal_renders_offline_paper_route(self):
+        from importlib.resources import files
+        html = files("terminan").joinpath("index.html").read_text(
+            encoding="utf-8")
+        for marker in ("id=\"paperinput\"", "id=\"paperrun\"",
+                       "/api/paper/replay", "OFFLINE / UNATTESTED"):
+            self.assertIn(marker, html)
+        self.assertNotIn("submitOrder(", html)
+        self.assertNotIn("createOrder(", html)
+
     def test_same_origin_http_paper_replay_and_forbidden_order_endpoint(self):
         from http.server import ThreadingHTTPServer
         from terminan.server import Handler
