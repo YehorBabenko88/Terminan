@@ -306,6 +306,8 @@ def replay_paper(request, *, compute=None):
     # qualified Grid dataset or proof that a non-POC strategy was executed.
     # Only the actual registered POC BASE algorithm is currently supported.
     comparison = request.get("comparison")
+    if "comparison" in request and comparison is None:
+        raise ValueError("missing Grid comparison context")
     if comparison is not None:
         if (type(comparison) is not dict or set(comparison) != {
                 "schema", "dataset_id", "dataset_hash", "strategy_name",
