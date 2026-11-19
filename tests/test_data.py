@@ -216,3 +216,113 @@ class GridReadOnlyGatewayTests(unittest.TestCase):
                     server.server_close()
                     worker.join(timeout=3)
                     self.assertFalse(worker.is_alive())
+
+
+class GridMarketConsumerCutoverTests(unittest.TestCase):
+    """Real Terminan runtime routes use Grid's source-owner API, never SQL."""
+
+    @staticmethod
+    def unavailable(dataset, symbol, count):
+        return {
+            "api_version": {"major": 1, "minor": 0},
+            "producer": "bybit-cluster-grid",
+            "read_only": True,
+            "status": "UNAVAILABLE",
+            "reason": "SOURCE_PROVENANCE_UNAVAILABLE",
+            "rows": [],
+            "limit": count,
+            "symbol": symbol,
+            "timeframe": "1m",
+        }
+
+    def test_both_market_views_call_grid_v1_not_direct_postgres(self):
+        for dataset, caller, count in (
+            ("candles", data.grid_candles, 300),
+            ("footprint", data.footprint, 500),
+        ):
+            with self.subTest(dataset=dataset):
+                seen = []
+                def grid_get(port, path):
+                    seen.append((port, path))
+                    return self.unavailable(dataset, "BTCUSDT", count)
+                with mock.patch.dict(os.environ, {"TERMINAN_GRID_API_PORT": "18766"}):
+                    with mock.patch("terminan.data._grid_internal_get", side_effect=grid_get):
+                        with mock.patch("terminan.data.grid_query",
+                                        side_effect=AssertionError("direct SQL forbidden")):
+                            self.assertEqual(caller("BTCUSDT"), [])
+                self.assertEqual(seen, [
+                    (18766, f"/internal/v1/{dataset}?symbol=BTCUSDT&limit={count}")
+                ])
+
+    def test_never_accepts_unattested_or_injected_market_rows(self):
+        for dataset, caller, count in (
+            ("candles", data.grid_candles, 300),
+            ("footprint", data.footprint, 500),
+        ):
+            good = self.unavailable(dataset, "BTCUSDT", count)
+            for change in (
+                {"rows": [{"t": 123, "price": "1"}]},
+                {"status": "QUALIFIED"},
+                {"reason": "unreviewed-provider"},
+                {"read_only": False},
+                {"producer": "meta_analyse"},
+                {"limit": count + 1},
+                {"api_version": {"major": 2, "minor": 0}},
+            ):
+                with self.subTest(dataset=dataset, change=change):
+                    with mock.patch.dict(os.environ, {"TERMINAN_GRID_API_PORT": "18766"}):
+                        with mock.patch("terminan.data._grid_internal_get",
+                                        return_value={**good, **change}):
+                            self.assertEqual(caller("BTCUSDT"), [])
+
+    def test_offline_and_invalid_port_never_revert_to_sql(self):
+        for raw in (None, "65536", "http://bad", "00123"):
+            with self.subTest(port=raw):
+                env = {} if raw is None else {"TERMINAN_GRID_API_PORT": raw}
+                with mock.patch.dict(os.environ, env, clear=True):
+                    with mock.patch("terminan.data._grid_internal_get",
+                                    side_effect=AssertionError("no grid request")):
+                        with mock.patch("terminan.data.grid_query",
+                                        side_effect=AssertionError("no DB fallback")):
+                            self.assertEqual(data.grid_candles("BTCUSDT"), [])
+                            self.assertEqual(data.footprint("BTCUSDT"), [])
+
+    def test_public_http_grid_views_use_switched_consumer(self):
+        from http.server import ThreadingHTTPServer
+        from terminan.server import Handler
+        paths = []
+        def grid_get(port, path):
+            paths.append(path)
+            dataset = "candles" if "/candles?" in path else "footprint"
+            count = 300 if dataset == "candles" else 500
+            return self.unavailable(dataset, "BTCUSDT", count)
+        with mock.patch.dict(os.environ, {"TERMINAN_GRID_API_PORT": "18766"}):
+            with mock.patch("terminan.data._grid_internal_get", side_effect=grid_get):
+                with mock.patch("terminan.data.grid_query",
+                                side_effect=AssertionError("no direct market SQL")):
+                    with mock.patch.object(Handler, "log_message", return_value=None):
+                        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+                        server.daemon_threads = True
+                        worker = threading.Thread(target=server.serve_forever, daemon=True)
+                        worker.start()
+                        try:
+                            for endpoint in ("/api/grid/candles", "/api/grid/footprint"):
+                                conn = http.client.HTTPConnection(
+                                    "127.0.0.1", server.server_port, timeout=3
+                                )
+                                try:
+                                    conn.request("GET", endpoint + "?symbol=BTCUSDT")
+                                    response = conn.getresponse()
+                                    self.assertEqual(response.status, 200)
+                                    self.assertEqual(json.loads(response.read()), [])
+                                finally:
+                                    conn.close()
+                        finally:
+                            server.shutdown()
+                            server.server_close()
+                            worker.join(timeout=3)
+                            self.assertFalse(worker.is_alive())
+        self.assertEqual(len(paths), 2)
+        self.assertIn("/internal/v1/candles?symbol=BTCUSDT&limit=300", paths)
+        self.assertIn("/internal/v1/footprint?symbol=BTCUSDT&limit=500", paths)
+
