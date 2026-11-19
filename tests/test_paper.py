@@ -316,3 +316,81 @@ class OfflinePaperApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TradingSizingOwnershipTests(unittest.TestCase):
+    """Pinned Math history_sizing execution policy before owner cutover."""
+
+    @staticmethod
+    def rows():
+        return [
+            {"signal_id": "a", "pnl": -2.0, "fees": .2, "slippage": .1,
+             "mfe": 4, "mae": -3},
+            {"signal_id": "b", "pnl": -1.0, "fees": .2, "slippage": .1,
+             "mfe": 2, "mae": -1},
+            {"signal_id": "c", "pnl": 3.0, "fees": .2, "slippage": .1,
+             "mfe": 5, "mae": -1},
+            {"signal_id": "d", "pnl": 4.0, "fees": .2, "slippage": .1},
+        ]
+
+    def test_fixed_policy_is_original_identity(self):
+        from terminan.paper import apply_sizing
+        rows = self.rows()
+        actual = apply_sizing(rows)
+        self.assertEqual(rows, [
+            {k: v for k, v in row.items()} for row in self.rows()
+        ])
+        self.assertEqual([row["size_multiplier"] for row in actual], [1.] * 4)
+        self.assertEqual([row["pnl"] for row in actual], [-2., -1., 3., 4.])
+
+    def test_martingale_loss_streak_matches_pinned_policy(self):
+        from terminan.paper import apply_sizing
+        rows = apply_sizing(self.rows(), "MARTINGALE",
+                            base_size=1, multiplier=2, max_steps=3, max_size=4)
+        self.assertEqual([row["size_multiplier"] for row in rows], [1, 2, 4, 1])
+        self.assertEqual([row["pnl"] for row in rows], [-2., -2., 12., 4.])
+        self.assertEqual([row["fees"] for row in rows], [.2, .4, .8, .2])
+        self.assertEqual([row["slippage"] for row in rows], [.1, .2, .4, .1])
+
+    def test_antimartingale_win_streak_matches_pinned_policy(self):
+        from terminan.paper import apply_sizing
+        rows = [
+            {"pnl": 1., "fees": 0., "slippage": 0.},
+            {"pnl": 2., "fees": 0., "slippage": 0.},
+            {"pnl": -1., "fees": 0., "slippage": 0.},
+            {"pnl": 1., "fees": 0., "slippage": 0.},
+        ]
+        sized = apply_sizing(rows, "ANTI_MARTINGALE", max_size=4)
+        self.assertEqual([r["size_multiplier"] for r in sized], [1, 2, 4, 1])
+        with self.assertRaises(ValueError):
+            apply_sizing(rows, mode="UNKNOWN")
+
+    def test_equity_and_ruin_original_thresholds(self):
+        from terminan.paper import ruin_stats, trade_net_pnl
+        rows = self.rows()
+        self.assertEqual(trade_net_pnl(rows[0]), -2.3)
+        report = ruin_stats(rows, starting_equity=10, ruin_fraction=.5)
+        value = 10.0
+        peak = value
+        minimum = value
+        max_drawdown = 0.0
+        ruined = False
+        for row in rows:
+            value += float(row["pnl"]) - float(row["fees"]) - float(row["slippage"])
+            peak = max(peak, value)
+            minimum = min(minimum, value)
+            max_drawdown = max(max_drawdown, peak - value)
+            ruined |= value <= 5.0
+        self.assertEqual(report, {
+            "ending_equity": value, "min_equity": minimum,
+            "max_drawdown": max_drawdown, "ruin_threshold": 5.0,
+            "ruined": ruined,
+        })
+
+    def test_old_source_import_never_required(self):
+        from terminan import paper
+        from terminan.contracts import StrategyRegistry
+        self.assertIsInstance(paper.STRATEGIES, StrategyRegistry)
+        self.assertTrue(callable(paper.apply_sizing))
+        self.assertTrue(callable(paper.ruin_stats))
+        self.assertTrue(callable(paper.trade_net_pnl))
