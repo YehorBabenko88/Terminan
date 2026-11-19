@@ -77,6 +77,7 @@ class PaperEngine:
         self.reference: dict[str, tuple[datetime, Decimal]] = {}
         self.positions: dict[str, Position] = {}
         self.fills: list[PaperFill] = []
+        self.last_trade_time: dict[str, datetime] = {}
         self.enabled = False
 
     @staticmethod
@@ -97,6 +98,9 @@ class PaperEngine:
         poc = D(minute.poc)
         if not poc.is_finite() or poc <= 0:
             raise ValueError("invalid math POC")
+        previous = self.reference.get(symbol)
+        if previous is not None and start < previous[0]:
+            raise ValueError("out-of-order closed minute")
         self.reference[symbol] = (start, poc)
 
     def on_math_closed_minute(self, symbol, start, request, *, compute=None):
@@ -150,6 +154,10 @@ class PaperEngine:
         if not price.is_finite() or price <= 0:
             raise ValueError("invalid execution price")
         symbol = trade.symbol
+        prior = self.last_trade_time.get(symbol)
+        if prior is not None and trade.time < prior:
+            raise ValueError("out-of-order paper execution")
+        self.last_trade_time[symbol] = trade.time
         position = self.positions.get(symbol)
         if position:
             if position.side == "long":
