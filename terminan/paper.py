@@ -10,10 +10,9 @@ arithmetic is execution-fill accounting, not a statistical/math kernel.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any
 
 D = Decimal
 
@@ -99,6 +98,43 @@ class PaperEngine:
         if not poc.is_finite() or poc <= 0:
             raise ValueError("invalid math POC")
         self.reference[symbol] = (start, poc)
+
+    def on_math_closed_minute(self, symbol, start, request, *, compute=None):
+        """Consume the installed canonical Math SDK, never a local POC copy.
+
+        Caller-supplied snapshot digest is UNATTESTED by the SDK. This method
+        is offline/paper-only and does not qualify public Grid market feeds.
+        """
+        if (not isinstance(request, dict)
+                or request.get("schema") != "math.market.compute.v1"
+                or request.get("execution_authority") is not False
+                or not isinstance(request.get("operations"), list)
+                or len(request["operations"]) != 1
+                or not isinstance(request["operations"][0], dict)
+                or request["operations"][0].get("operation") != "volume_profile_poc"):
+            raise ValueError("invalid Math POC request")
+        if compute is None:
+            from market_compute_api import compute_batch
+            compute = compute_batch
+        result = compute(request)
+        if (not isinstance(result, dict)
+                or result.get("schema") != "math.market.result.v1"
+                or result.get("execution_authority") is not False
+                or result.get("trading_authorized") is not False
+                or result.get("provenance") != "CALLER_SUPPLIED_UNATTESTED"
+                or result.get("source") != request.get("source")
+                or not isinstance(result.get("results"), list)
+                or len(result["results"]) != 1
+                or result["results"][0].get("operation") != "volume_profile_poc"
+                or result["results"][0].get("value") is None):
+            raise ValueError("Math POC result not admitted")
+        minute = ClosedMinute(
+            self._minute_start(start),
+            D(result["results"][0]["value"]),
+            True,
+            "CALLER_SUPPLIED_UNATTESTED",
+        )
+        self.on_closed_minute(symbol, minute)
 
     def on_gap(self, symbol: str) -> None:
         """Invalidate possible new entries; retain existing positions."""
