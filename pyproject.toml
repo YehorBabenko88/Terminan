@@ -10,10 +10,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
-[project.optional-dependencies]
-# The Math runtime is independently released/pinned by Unified; this extra is
-# only a development convenience, never an implicit exchange/network provider.
-math = ["unified-math-kernels==0.1.0"]
+# Math is installed only from an independently verified, source-pinned
+# wheel by Unified. Do not resolve an unapproved Math dependency from an index.
 
 [project.scripts]
 terminan = "terminan.server:run"
