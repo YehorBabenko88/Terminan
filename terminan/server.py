@@ -14,11 +14,22 @@ class Handler(BaseHTTPRequestHandler):
         from urllib.parse import urlsplit
         from json import JSONDecodeError
 
-        if urlsplit(self.path).path != "/api/paper/replay" or urlsplit(self.path).query:
-            return self.send_error(404)
         status, result = 400, {"error": "INVALID_OFFLINE_REPLAY"}
         try:
             self.connection.settimeout(3)
+            length = self.headers.get("Content-Length", "")
+            if (self.headers.get("Transfer-Encoding")
+                    or len(self.headers.get_all("Content-Length", [])) != 1
+                    or not length.isdecimal() or not 0 < int(length) <= 262144):
+                raise ValueError("bounded offline request required")
+            # Consume only the bounded body before rejecting route/origin.
+            # Closing with unread TCP data can discard the HTTP rejection
+            # through a connection reset on Windows. No rejected JSON is parsed.
+            raw = self.rfile.read(int(length))
+            if len(raw) != int(length):
+                raise ValueError("incomplete offline request")
+            if urlsplit(self.path).path != "/api/paper/replay" or urlsplit(self.path).query:
+                return self.send_error(404)
             host = self.headers.get("Host", "")
             if (not (host.startswith("127.0.0.1:") or
                      host.startswith("localhost:")) or
@@ -30,12 +41,6 @@ class Handler(BaseHTTPRequestHandler):
                     (self.headers.get("Content-Type") or "").split(";", 1)[0]
                     .strip().lower() != "application/json"):
                 raise ValueError("invalid request provenance")
-            length = self.headers.get("Content-Length", "")
-            if not length.isdecimal() or not 0 < int(length) <= 262144:
-                raise ValueError("bounded offline request required")
-            raw = self.rfile.read(int(length))
-            if len(raw) != int(length):
-                raise ValueError("incomplete offline request")
             def unique_pairs(pairs):
                 result = {}
                 for key, value in pairs:

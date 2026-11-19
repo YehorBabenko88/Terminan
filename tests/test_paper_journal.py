@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
+from decimal import Context, localcontext
 from hashlib import sha256
 from pathlib import Path
 from threading import Barrier
@@ -55,6 +56,27 @@ class PaperJournalTests(unittest.TestCase):
         self.assertEqual(list(restarted.read_fills()), [ack])
         with self.assertRaises(ReplayConflict):
             restarted.submit(dict(EXIT, price="101"))
+
+    def test_restart_and_readback_ignore_callers_decimal_exponent_range(self):
+        # The engine's default slippage must be initialized in the same
+        # deterministic context as its transitions, including after restart.
+        baseline = self.open()
+        for item in (ENABLE, MINUTE, ENTRY, EXIT):
+            expected = baseline.submit(item)
+        expected_fill = expected["fill"]
+        self.assertEqual(expected_fill["entry"], "101.9796")
+        self.assertEqual(expected_fill["exit"], "100.0200")
+        self.path = self.path.with_name("restricted-context.db")
+        with localcontext(Context(prec=1, Emin=-2, Emax=2)):
+            journal = self.open()
+            for item in (ENABLE, MINUTE, ENTRY, EXIT):
+                ack = journal.submit(item)
+            self.assertEqual(ack["fill"], expected_fill)
+            self.assertEqual(list(journal.read_fills()), [ack])
+        self.assertEqual(self.open().read_checkpoint(), ack)
+        self.assertEqual(list(self.open().read_fills()), [ack])
+        with localcontext(Context(prec=1, Emin=-2, Emax=2)):
+            self.assertEqual(list(self.open().read_fills()), [ack])
 
     def test_failure_after_fill_computation_rolls_back_ack_and_checkpoint(self):
         journal = self.open()

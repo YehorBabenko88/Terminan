@@ -84,7 +84,8 @@ class PaperJournal:
         self._key = (source_id, run_id)
         self._symbol = symbol
         self._lock = Lock()
-        self._engine = PaperEngine()
+        with localcontext(Context(prec=28)):
+            self._engine = PaperEngine()
         self._sequence = 0
         self._watermark = None
         self._failed = False
@@ -186,7 +187,9 @@ class PaperJournal:
 
     def read_fills(self):
         """Yield ordered committed fill ACKs; exhaust or close the snapshot."""
-        for ack, _ in self._recover(PaperEngine()):
+        with localcontext(Context(prec=28)):
+            engine = PaperEngine()
+        for ack, _ in self._recover(engine):
             if ack["fill"] is not None:
                 yield ack
 
