@@ -1,5 +1,18 @@
+"""Terminan contract and pinned Strattester metadata migration regression tests.
+
+Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+"""
+import hashlib
+import inspect
+import json
 import unittest
-from terminan.contracts import TradeEvent, align_trades, aggregate_footprint, poc_close_events
+from enum import Enum
+
+from terminan.contracts import (
+    DataRequirement, HypothesisSpec, StrategyDefinition, StrategyRegistry,
+    TradeEvent, aggregate_footprint, align_trades, executable_hypotheses,
+    poc_close_events, strategy_fingerprint,
+)
 
 class ContractTests(unittest.TestCase):
     def test_trade_validation(self):
@@ -22,7 +35,6 @@ class StrategyMigrationTests(unittest.TestCase):
 
     @staticmethod
     def definition(version='1'):
-        from terminan.contracts import StrategyDefinition, DataRequirement
         class NoOp:
             pass
         return StrategyDefinition(
@@ -30,7 +42,6 @@ class StrategyMigrationTests(unittest.TestCase):
         )
 
     def test_duplicate_registration_and_fingerprint_stability(self):
-        from terminan.contracts import StrategyRegistry, strategy_fingerprint
         registry = StrategyRegistry()
         registry.register(self.definition())
         with self.assertRaises(ValueError):
@@ -42,13 +53,11 @@ class StrategyMigrationTests(unittest.TestCase):
         self.assertNotEqual(initial, strategy_fingerprint(self.definition('2')))
 
     def test_invalid_dataset_fails_closed(self):
-        from terminan.contracts import DataRequirement
         with self.assertRaises(ValueError):
             DataRequirement('future_unknown_data')
         self.assertEqual(DataRequirement('open_interest').dataset, 'open_interest')
 
     def test_spec_only_never_becomes_executable(self):
-        from terminan.contracts import HypothesisSpec, executable_hypotheses
         planned = HypothesisSpec('poc', 'poc', {'setup': 'retest'})
         executable = HypothesisSpec(
             'explicit', 'levels', {}, execution_status='EXECUTABLE',
@@ -58,4 +67,87 @@ class StrategyMigrationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             HypothesisSpec('unsafe', 'levels', {}, execution_status='EXECUTABLE')
 
-if __name__=='__main__':unittest.main()
+
+class LegacyDatasetKind(str, Enum):
+    CANDLES = "candles"
+
+class Candidate:
+    def run(self, candles, checkpoint=None):
+        return []
+
+def definition(version="1"):
+    return StrategyDefinition(
+        "sample", version, (DataRequirement("candles", ("1m",)),), Candidate
+    )
+
+def original_fingerprint(definition):
+    # Direct independent copy of the original fingerprint's serialization.
+    try:
+        source = inspect.getsource(definition.implementation)
+    except (OSError, TypeError):
+        source = (
+            f"{definition.implementation.__module__}."
+            f"{definition.implementation.__qualname__}"
+        )
+    payload = {
+        "id": definition.id,
+        "version": definition.version,
+        "requirements": [
+            (r.dataset, r.timeframes, r.required) for r in definition.requirements
+        ],
+        "impl": (
+            f"{definition.implementation.__module__}."
+            f"{definition.implementation.__qualname__}"
+        ),
+        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "feature_versions": definition.feature_versions,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+class StrategyLegacyParityTests(unittest.TestCase):
+    def test_duplicate_rejected_and_order(self):
+        reg = StrategyRegistry()
+        reg.register(definition("1"))
+        reg.register(definition("2"))
+        self.assertEqual([d.version for d in reg.discover()], ["1", "2"])
+        with self.assertRaises(ValueError):
+            reg.register(definition("1"))
+
+    def test_enable_preserves_fingerprint(self):
+        reg = StrategyRegistry()
+        reg.register(definition())
+        before = strategy_fingerprint(reg.discover()[0])
+        reg.set_enabled("sample", "1", False)
+        self.assertFalse(reg.discover()[0].enabled)
+        self.assertEqual(before, strategy_fingerprint(reg.discover()[0]))
+        with self.assertRaises(KeyError):
+            reg.set_enabled("unknown", "1", True)
+
+    def test_legacy_fingerprint_wire_parity(self):
+        a = definition()
+        self.assertEqual(strategy_fingerprint(a), original_fingerprint(a))
+        self.assertNotEqual(strategy_fingerprint(a), strategy_fingerprint(definition("2")))
+        self.assertEqual(DataRequirement(LegacyDatasetKind.CANDLES).dataset, "candles")
+
+    def test_invalid_inputs_fail_closed(self):
+        with self.assertRaises(ValueError):
+            DataRequirement("secret_exchange_provider")
+        with self.assertRaises(ValueError):
+            DataRequirement("candles", ["1m"])
+        with self.assertRaises(ValueError):
+            StrategyDefinition("", "1", (), Candidate)
+        with self.assertRaises(ValueError):
+            StrategyDefinition("a", "1", (), lambda: None)
+        with self.assertRaises(ValueError):
+            StrategyDefinition("a", "1", (), Candidate, enabled=1)
+        with self.assertRaises(TypeError):
+            StrategyRegistry().register({"id": "a"})
+
+    def test_registration_never_executes_strategy(self):
+        class Dangerous:
+            def __init__(self):
+                raise AssertionError("strategy instantiated")
+        reg = StrategyRegistry()
+        reg.register(StrategyDefinition("inert", "1", (), Dangerous))
+        self.assertEqual(len(reg.discover()), 1)
+
