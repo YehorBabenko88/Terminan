@@ -4,7 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import closing
+from contextlib import closing, contextmanager
 from hashlib import sha256
 from pathlib import Path
 from unittest.mock import patch
@@ -153,3 +153,27 @@ journal.submit(json.loads(sys.argv[2]))
         with self.assertRaisesRegex(ValueError, "event time regressed"):
             restarted.submit(event(3, "gap", "00:00:59"))
         self.assertEqual(restarted.submit(ENTRY)["checkpoint"], 3)
+
+    def test_committed_fill_can_be_reconciled_after_ack_is_lost(self):
+        journal = self.open()
+        self.assertIsNone(journal.read_checkpoint())
+        for item in (ENABLE, MINUTE, ENTRY):
+            journal.submit(item)
+        transaction = journal._ledger._paper_event_transaction
+
+        @contextmanager
+        def disconnect_after_commit(*, write):
+            with transaction(write=write) as database:
+                yield database
+            raise OSError("simulated disconnect after commit")
+
+        with patch.object(journal._ledger, "_paper_event_transaction", disconnect_after_commit):
+            with self.assertRaises(OSError):
+                journal.submit(EXIT)
+
+        restarted = self.open()
+        saved = restarted.read_checkpoint()
+        self.assertEqual(saved["checkpoint"], 4)
+        self.assertEqual(saved["fill_id"], ["grid-fixture", "run1", 4])
+        self.assertEqual(restarted.submit(EXIT), saved)
+        self.assertEqual(list(restarted.read_fills()), [saved])

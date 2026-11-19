@@ -180,6 +180,10 @@ os._exit(42)
         def unavailable(_):
             self.fail("retry should return the committed receipt")
 
+        for invalid in (float("nan"), float("inf"), float("-inf")):
+            rejected = dict(self.request, parameters={"notional": invalid})
+            self.assertEqual(post(unavailable, rejected)[0], 400)
+        self.assertFalse(self.path.exists())
         status, first = post(mock_math, self.request)
         self.assertEqual(status, 200)
         self.assertEqual(len(first["fills"]), 1)

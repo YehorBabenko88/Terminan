@@ -190,6 +190,27 @@ class PaperJournal:
             if ack["fill"] is not None:
                 yield ack
 
+    def _event_at(self, database, sequence):
+        return database.execute(
+            "SELECT event, ack, ack_sha256 FROM paper_events_v1 "
+            "WHERE source_id = ? AND run_id = ? AND sequence = ?",
+            (*self._key, sequence)).fetchone()
+
+    def read_checkpoint(self):
+        """Return the latest durable ACK for reconciliation after reopening.
+
+        A producer must match the stored sequence and digest to its own
+        event before advancing its upstream cursor.
+        """
+        with self._ledger._paper_event_transaction(write=False) as database:
+            sequence = self._checkpoint(database)
+            if sequence == 0:
+                return None
+            row = self._event_at(database, sequence)
+            if row is None:
+                raise RuntimeError("paper journal checkpoint gap")
+            return self._decode(sequence, *row)
+
     def submit(self, event):
         _validate(event)
         raw = canonical_json(event)
@@ -203,10 +224,7 @@ class PaperJournal:
             try:
                 with self._ledger._paper_event_transaction(write=True) as database:
                     latest = self._checkpoint(database)
-                    existing = database.execute(
-                        "SELECT event, ack, ack_sha256 FROM paper_events_v1 "
-                        "WHERE source_id = ? AND run_id = ? AND sequence = ?",
-                        (*self._key, sequence)).fetchone()
+                    existing = self._event_at(database, sequence)
                     if existing is not None:
                         if sequence > latest:
                             raise RuntimeError("paper journal checkpoint gap")

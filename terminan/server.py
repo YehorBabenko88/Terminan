@@ -5,7 +5,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
-from .levels import merge_levels
 from .monitor import fleet_snapshot
 
 class Handler(BaseHTTPRequestHandler):
@@ -82,12 +81,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/research": result = data.research(symbol)
                 elif url.path == "/api/levels":
                     data.validate(symbol)
-                    from datetime import datetime, timezone
-                    now=int(datetime.now(timezone.utc).timestamp()*1000)
-                    series={}
-                    for tf in ("1h","4h","1d"):
-                        series[tf]=[{"t":int(r["t"]),"h":r["h"],"l":r["l"]} for r in data.candles(symbol,tf,1000)]
-                    result=merge_levels(series,now)
+                    raise RuntimeError("qualified Grid timeframe series unavailable")
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
