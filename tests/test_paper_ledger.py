@@ -264,6 +264,14 @@ os._exit(42)
                 invalid["comparison"].update(change)
                 with self.assertRaises(ValueError):
                     replay_paper(invalid, compute=mock_math)
+        null_context = copy.deepcopy(request)
+        null_context["comparison"] = None
+        with self.assertRaises(ValueError):
+            replay_paper(null_context, compute=mock_math)
+        resumed_as_input = copy.deepcopy(request)
+        resumed_as_input["checkpoint"] = {"state": "COMPLETE_RESULT_ONLY"}
+        with self.assertRaises(ValueError):
+            replay_paper(resumed_as_input, compute=mock_math)
         self.assertFalse(self.path.exists())
 
     def test_grid_ui_is_present_alongside_durable_paper_api(self):
