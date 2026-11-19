@@ -314,10 +314,6 @@ class OfflinePaperApiTests(unittest.TestCase):
                     self.assertFalse(worker.is_alive())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TradingSizingOwnershipTests(unittest.TestCase):
     """Pinned Math history_sizing execution policy before owner cutover."""
 
@@ -394,3 +390,7 @@ class TradingSizingOwnershipTests(unittest.TestCase):
         self.assertTrue(callable(paper.apply_sizing))
         self.assertTrue(callable(paper.ruin_stats))
         self.assertTrue(callable(paper.trade_net_pnl))
+
+
+if __name__ == "__main__":
+    unittest.main()
