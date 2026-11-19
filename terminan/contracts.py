@@ -52,3 +52,110 @@ def poc_close_events(minutes, candles):
     """Diagnostic POC-close observations, NOT trading signals or backtest fills."""
     closes = {int(c['t']): float(c['c']) for c in candles}
     return [{'t':m['t'],'poc':m['poc'],'close':closes[m['t']], 'relation':'above' if closes[m['t']] > m['poc'] else 'below' if closes[m['t']] < m['poc'] else 'at'} for m in minutes if m['t'] in closes]
+
+
+# Strategy ownership transferred from Strattester:
+# strattester/strategies/{base,registry}.py and builtin/research_common.py.
+# These are metadata/registry contracts only. No strategy is executed here.
+from hashlib import sha256
+import inspect
+import json
+from typing import Mapping
+
+STRATEGY_DATASETS = frozenset((
+    'candles', 'mark_price', 'index_price', 'premium_index',
+    'open_interest', 'funding', 'long_short_ratio', 'public_trades',
+    'public_trade_aggregates', 'orderbook_l2', 'liquidations',
+))
+
+
+@dataclass(frozen=True)
+class DataRequirement:
+    dataset: str
+    timeframes: tuple[str, ...] = ()
+    required: bool = True
+
+    def __post_init__(self):
+        name = getattr(self.dataset, 'value', self.dataset)
+        if type(name) is not str or name not in STRATEGY_DATASETS:
+            raise ValueError('unknown strategy dataset')
+        object.__setattr__(self, 'dataset', name)
+
+
+@dataclass(frozen=True)
+class StrategyDefinition:
+    id: str
+    version: str
+    requirements: tuple[DataRequirement, ...]
+    implementation: type
+    enabled: bool = True
+    feature_versions: tuple[str, ...] = ()
+
+
+def strategy_fingerprint(definition: StrategyDefinition) -> str:
+    """Identity only; unchanged by enable/disable, not a scientific proof."""
+    try:
+        source = inspect.getsource(definition.implementation)
+    except (OSError, TypeError):
+        source = (
+            f'{definition.implementation.__module__}.'
+            f'{definition.implementation.__qualname__}'
+        )
+    payload = {
+        'id': definition.id, 'version': definition.version,
+        'requirements': [
+            (req.dataset, req.timeframes, req.required)
+            for req in definition.requirements
+        ],
+        'impl': (
+            f'{definition.implementation.__module__}.'
+            f'{definition.implementation.__qualname__}'
+        ),
+        'source_sha256': sha256(source.encode()).hexdigest(),
+        'feature_versions': definition.feature_versions,
+    }
+    return sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+class StrategyRegistry:
+    """Single Terminan-owned strategy metadata registry; no data side effects."""
+
+    def __init__(self):
+        self._items = {}
+
+    def register(self, definition: StrategyDefinition):
+        key = (definition.id, definition.version)
+        if key in self._items:
+            raise ValueError(f'duplicate strategy {key}')
+        self._items[key] = definition
+
+    def discover(self):
+        return list(self._items.values())
+
+    def set_enabled(self, strategy_id, version, enabled):
+        old = self._items[(strategy_id, version)]
+        self._items[(strategy_id, version)] = StrategyDefinition(
+            old.id, old.version, old.requirements, old.implementation,
+            enabled, old.feature_versions,
+        )
+
+
+@dataclass(frozen=True)
+class HypothesisSpec:
+    name: str
+    family: str
+    params: Mapping[str, Any]
+    control: bool = False
+    execution_status: str = 'SPEC_ONLY'
+    signal_generator: str | None = None
+
+    def __post_init__(self):
+        if self.execution_status not in ('SPEC_ONLY', 'EXECUTABLE'):
+            raise ValueError('execution_status')
+        if self.execution_status == 'EXECUTABLE' and not self.signal_generator:
+            raise ValueError('executable hypothesis requires signal_generator')
+
+
+def executable_hypotheses(items):
+    """Exclude declarative research ideas from executable strategy selection."""
+    return tuple(x for x in items if x.execution_status == 'EXECUTABLE')
