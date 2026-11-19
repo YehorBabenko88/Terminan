@@ -1,5 +1,18 @@
+"""Terminan contract and pinned Strattester metadata migration regression tests.
+
+Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+"""
+import hashlib
+import inspect
+import json
 import unittest
-from terminan.contracts import TradeEvent, align_trades, aggregate_footprint, poc_close_events
+from enum import Enum
+
+from terminan.contracts import (
+    DataRequirement, HypothesisSpec, StrategyDefinition, StrategyRegistry,
+    TradeEvent, aggregate_footprint, align_trades, executable_hypotheses,
+    poc_close_events, strategy_fingerprint,
+)
 
 class ContractTests(unittest.TestCase):
     def test_trade_validation(self):
@@ -22,7 +35,6 @@ class StrategyMigrationTests(unittest.TestCase):
 
     @staticmethod
     def definition(version='1'):
-        from terminan.contracts import StrategyDefinition, DataRequirement
         class NoOp:
             pass
         return StrategyDefinition(
@@ -30,7 +42,6 @@ class StrategyMigrationTests(unittest.TestCase):
         )
 
     def test_duplicate_registration_and_fingerprint_stability(self):
-        from terminan.contracts import StrategyRegistry, strategy_fingerprint
         registry = StrategyRegistry()
         registry.register(self.definition())
         with self.assertRaises(ValueError):
@@ -42,13 +53,11 @@ class StrategyMigrationTests(unittest.TestCase):
         self.assertNotEqual(initial, strategy_fingerprint(self.definition('2')))
 
     def test_invalid_dataset_fails_closed(self):
-        from terminan.contracts import DataRequirement
         with self.assertRaises(ValueError):
             DataRequirement('future_unknown_data')
         self.assertEqual(DataRequirement('open_interest').dataset, 'open_interest')
 
     def test_spec_only_never_becomes_executable(self):
-        from terminan.contracts import HypothesisSpec, executable_hypotheses
         planned = HypothesisSpec('poc', 'poc', {'setup': 'retest'})
         executable = HypothesisSpec(
             'explicit', 'levels', {}, execution_status='EXECUTABLE',
@@ -58,23 +67,6 @@ class StrategyMigrationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             HypothesisSpec('unsafe', 'levels', {}, execution_status='EXECUTABLE')
 
-
-
-
-"""Strattester-to-Terminan strategy registry migration regressions.
-
-Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
-(strategies/base.py, registry.py, marketdata/datasets.py).
-"""
-import hashlib
-import inspect
-import json
-import unittest
-from enum import Enum
-
-from terminan.contracts import (
-    DataRequirement, StrategyDefinition, StrategyRegistry, strategy_fingerprint,
-)
 
 class LegacyDatasetKind(str, Enum):
     CANDLES = "candles"
