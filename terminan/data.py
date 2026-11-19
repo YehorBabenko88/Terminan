@@ -61,16 +61,49 @@ def grid_query(sql, params):
             cur.execute(sql, params)
             return cur.fetchall()
 
-def grid_candles(symbol, limit=300):
+def _grid_market_rows(dataset, symbol, limit):
+    """Consume the existing Grid v1 loopback market endpoint, never SQL directly.
+
+    The current Grid endpoint has no source-qualified dataset. Reject every
+    unqualified/nonempty response; do not turn archived rows into live evidence.
+    An authenticated Unified Gateway and qualified Grid receipt are required
+    before enabling actual strategy/chart data.
+    """
     validate(symbol)
-    rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    count = max(1, min(int(limit), 1000))
+    port_text = os.environ.get("TERMINAN_GRID_API_PORT", "")
+    if not re.fullmatch(r"[1-9][0-9]{0,4}", port_text):
+        return []
+    port = int(port_text)
+    if port > 65535:
+        return []
+    try:
+        envelope = _grid_internal_get(
+            port, f"/internal/v1/{dataset}?symbol={symbol}&limit={count}"
+        )
+        if (type(envelope) is not dict
+                or envelope.get("api_version") != {"major": 1, "minor": 0}
+                or envelope.get("producer") != "bybit-cluster-grid"
+                or envelope.get("read_only") is not True
+                or envelope.get("status") != "UNAVAILABLE"
+                or envelope.get("reason") != "SOURCE_PROVENANCE_UNAVAILABLE"
+                or envelope.get("rows") != []
+                or envelope.get("limit") != count
+                or envelope.get("symbol") != symbol
+                or envelope.get("timeframe") != "1m"):
+            raise ValueError("unqualified Grid market response")
+    except Exception:
+        # Fail closed without exposing remote errors, internal paths or DSNs.
+        return []
+    return []
+
+
+def grid_candles(symbol, limit=300):
+    return _grid_market_rows("candles", symbol, limit)
+
 
 def footprint(symbol, limit=500):
-    validate(symbol)
-    rows = grid_query("SELECT extract(epoch from ts)*1000,price,buy_volume,sell_volume,delta,volume FROM footprint_1m WHERE symbol=%s ORDER BY ts DESC,price DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","price","buy","sell","delta","volume"),map(float,r))) for r in rows]
-
+    return _grid_market_rows("footprint", symbol, limit)
 
 # Grid owns all exchange connectivity. This bounded probe consumes ONLY the
 # existing Grid public-data capability API on the same host; it never retrieves
