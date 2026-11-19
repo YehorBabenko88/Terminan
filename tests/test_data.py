@@ -1,8 +1,9 @@
-import io
+import http.client
 import json
 import os
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest import mock
 from terminan import data
@@ -171,3 +172,47 @@ class GridReadOnlyGatewayTests(unittest.TestCase):
                 result = data.grid_source_status()
         self.assertNotIn("never-print-me", str(result))
         self.assertEqual(result["connection"], "UNAVAILABLE")
+
+    def test_status_http_routes_are_bounded_and_read_only(self):
+        from http.server import ThreadingHTTPServer
+        from terminan.server import Handler
+
+        fixed = {
+            "api_version": {"major": 1, "minor": 0},
+            "producer": "bybit-cluster-grid",
+            "connection": "CONNECTED_UNQUALIFIED",
+            "market_data": "UNAVAILABLE",
+            "database": "READ_ONLY",
+            "candles": "UNAVAILABLE",
+            "footprint": "UNAVAILABLE",
+            "live_l2": False,
+            "execution_authority": False,
+        }
+        with mock.patch("terminan.data.grid_source_status", return_value=fixed):
+            with mock.patch.object(Handler, "log_message", return_value=None):
+                server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+                server.daemon_threads = True
+                worker = threading.Thread(target=server.serve_forever, daemon=True)
+                worker.start()
+                try:
+                    for route in ("/api/grid/source", "/api/status"):
+                        conn = http.client.HTTPConnection(
+                            "127.0.0.1", server.server_port, timeout=3
+                        )
+                        try:
+                            conn.request("GET", route)
+                            resp = conn.getresponse()
+                            self.assertEqual(resp.status, 200)
+                            self.assertEqual(resp.getheader("Cache-Control"), "no-store")
+                            result = json.loads(resp.read())
+                        finally:
+                            conn.close()
+                        source = result if route == "/api/grid/source" else result["grid_source"]
+                        self.assertEqual(source["market_data"], "UNAVAILABLE")
+                        self.assertFalse(source["execution_authority"])
+                        self.assertFalse(source["live_l2"])
+                finally:
+                    server.shutdown()
+                    server.server_close()
+                    worker.join(timeout=3)
+                    self.assertFalse(worker.is_alive())
