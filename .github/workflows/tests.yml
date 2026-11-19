@@ -12,3 +12,27 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q terminan
+
+  paper-source-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/meta_analyse
+          ref: 9d0fb5c79a5da13b23f8daa066035b09f676a6fc
+          path: upstream/meta
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: YehorBabenko88/math
+          ref: 98d6783522aac7155cbb4635e5b29239746d88e0
+          path: upstream/math
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --no-deps ./upstream/math
+      - run: python tests/check_paper_source_parity.py
