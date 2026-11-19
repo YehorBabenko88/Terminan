@@ -16,8 +16,9 @@ from .contracts import (DataRequirement, StrategyDefinition,
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
-import json
+import os
 import re
+from .paper_ledger import PaperReplayLedger, canonical_json
 
 D = Decimal
 
@@ -246,14 +247,6 @@ def _timestamp(value):
     return _EPOCH + timedelta(milliseconds=value)
 
 
-def _canonical_json(value):
-    try:
-        return json.dumps(value, sort_keys=True, separators=(",", ":"),
-                          ensure_ascii=True, allow_nan=False).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise ValueError("invalid JSON replay request") from exc
-
-
 def _serialize(value):
     if isinstance(value, Decimal):
         return str(value)
@@ -271,7 +264,9 @@ def replay_paper(request, *, compute=None):
 
     Every closed minute obtains POC from the installed canonical Math SDK.
     The request's source SHA is caller-supplied, NOT authenticated Grid data.
-    This API cannot advertise live/history qualification or persist results.
+    Set TERMINAN_PAPER_LEDGER to a dedicated local SQLite file to retain
+    completed receipts. Without it, replay stays stateless. A configured
+    ledger must successfully record the receipt before replay returns it.
     """
     expected = {"schema", "run_id", "source", "parameters", "events"}
     if (type(request) is not dict or
@@ -294,7 +289,8 @@ def replay_paper(request, *, compute=None):
             or choice["version"] != definition.version
             or not definition.enabled):
         raise ValueError("strategy not registered or disabled")
-    if len(_canonical_json(request)) > 262144:
+    request_bytes = canonical_json(request)
+    if len(request_bytes) > 262144:
         raise ValueError("paper replay body limit")
     events = request["events"]
     params = request["parameters"]
@@ -315,6 +311,13 @@ def replay_paper(request, *, compute=None):
             or not 0 <= source["as_of_ms"] <= 2**63 - 1
             or source["units"] != {"price": "quote/base", "volume": "base"}):
         raise ValueError("invalid source identity or units")
+    request_sha256 = sha256(request_bytes).hexdigest()
+    ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
+    ledger = PaperReplayLedger(ledger_path) if ledger_path else None
+    if ledger is not None:
+        existing = ledger.read(request["run_id"], request_sha256)
+        if existing is not None:
+            return existing
     engine = PaperEngine(**params)
     engine.enabled = True  # Only offline simulated fills; no live order route.
     previous_ms = -1
@@ -373,7 +376,7 @@ def replay_paper(request, *, compute=None):
         "execution_authority": False,
         "trading_authorized": False,
         "source": request["source"],
-        "request_sha256": sha256(_canonical_json(request)).hexdigest(),
+        "request_sha256": request_sha256,
         "events_processed": len(events),
         "fills": [_serialize(asdict(fill)) for fill in engine.fills],
         "open_positions": {
@@ -381,7 +384,9 @@ def replay_paper(request, *, compute=None):
             for symbol, position in sorted(engine.positions.items())
         },
     }
-    result["result_sha256"] = sha256(_canonical_json(result)).hexdigest()
+    result["result_sha256"] = sha256(canonical_json(result)).hexdigest()
+    if ledger is not None:
+        return ledger.record(result)
     return result
 
 
