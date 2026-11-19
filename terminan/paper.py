@@ -11,6 +11,8 @@ arithmetic is execution-fill accounting, not a statistical/math kernel.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from .contracts import (DataRequirement, StrategyDefinition,
+                        StrategyRegistry, strategy_fingerprint)
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
@@ -216,6 +218,20 @@ class PaperEngine:
         return None
 
 
+# One application registry instance, using the ONLY implementation owned by
+# terminan.contracts. Registration is inert: no workers, collectors or orders.
+STRATEGIES = StrategyRegistry()
+STRATEGIES.register(StrategyDefinition(
+    id="meta.poc.next_minute",
+    version="1",
+    requirements=(
+        DataRequirement("public_trades"),
+        DataRequirement("candles", ("1m",), required=False),
+    ),
+    implementation=PaperEngine,
+))
+
+
 REPLAY_SCHEMA = "terminan.paper.replay.v1"
 REPLAY_RESULT = "terminan.paper.result.v1"
 _MAX_EVENTS = 1024
@@ -257,12 +273,27 @@ def replay_paper(request, *, compute=None):
     The request's source SHA is caller-supplied, NOT authenticated Grid data.
     This API cannot advertise live/history qualification or persist results.
     """
+    expected = {"schema", "run_id", "source", "parameters", "events"}
     if (type(request) is not dict or
-            set(request) != {"schema", "run_id", "source", "parameters", "events"} or
+            set(request) not in (expected, expected | {"strategy"}) or
             request["schema"] != REPLAY_SCHEMA or
             type(request["run_id"]) is not str or
             not _RUN_ID.fullmatch(request["run_id"])):
         raise ValueError("invalid paper replay contract")
+    # Binding to the same real registry used by Terminan, not a second
+    # replay-only strategy map. The optional strategy descriptor is backward
+    # compatible with v1 offline request fixtures.
+    definition = STRATEGIES.discover()[0]
+    choice = request.get("strategy", {
+        "id": definition.id, "version": definition.version,
+    })
+    if (type(choice) is not dict or set(choice) != {"id", "version"}
+            or type(choice["id"]) is not str
+            or type(choice["version"]) is not str
+            or choice["id"] != definition.id
+            or choice["version"] != definition.version
+            or not definition.enabled):
+        raise ValueError("strategy not registered or disabled")
     if len(_canonical_json(request)) > 262144:
         raise ValueError("paper replay body limit")
     events = request["events"]
@@ -332,6 +363,11 @@ def replay_paper(request, *, compute=None):
     result = {
         "schema": REPLAY_RESULT,
         "run_id": request["run_id"],
+        "strategy": {
+            "id": definition.id,
+            "version": definition.version,
+            "fingerprint": strategy_fingerprint(definition),
+        },
         "status": "OFFLINE_UNATTESTED",
         "provenance": "CALLER_SUPPLIED_UNATTESTED",
         "execution_authority": False,
