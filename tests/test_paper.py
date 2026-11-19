@@ -57,10 +57,22 @@ class PaperMigrationTests(unittest.TestCase):
         e.on_closed_minute("BTCUSDT", minute())
         e.on_trade(trade(121, "103"))
         self.assertEqual(e.positions, {})
+        with self.assertRaises(ValueError):
+            e.on_trade(trade(60, "98"))
+        e = PaperEngine()
+        e.enabled = True
+        e.on_closed_minute("BTCUSDT", minute())
         e.on_trade(trade(60, "98"))
         e.on_trade(trade(61, "97.9"))
         self.assertEqual(len(e.positions), 1)
         self.assertEqual(len(e.fills), 0)
+
+    def test_out_of_order_closed_minute_is_rejected(self):
+        e = PaperEngine()
+        e.on_closed_minute("BTCUSDT", minute(at=T + timedelta(minutes=1)))
+        with self.assertRaises(ValueError):
+            e.on_closed_minute("BTCUSDT", minute())
+        self.assertEqual(e.reference["BTCUSDT"][0], T + timedelta(minutes=1))
 
     def test_unclosed_minute_and_gap_fence_new_entries(self):
         e = PaperEngine()
