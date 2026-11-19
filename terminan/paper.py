@@ -16,6 +16,7 @@ from .contracts import (DataRequirement, StrategyDefinition,
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
+from math import isfinite
 import os
 import re
 from .paper_ledger import PaperReplayLedger, canonical_json
@@ -449,6 +450,16 @@ def replay_paper(request, *, compute=None):
 # they are NOT mathematical statistics or live order quantities.
 
 
+def _finite_accounting_value(value, field):
+    try:
+        numeric = float(value)
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise ValueError(f"invalid paper accounting field: {field}") from exc
+    if not isfinite(numeric):
+        raise ValueError(f"nonfinite paper accounting field: {field}")
+    return numeric
+
+
 def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
                  max_steps=3, max_size=4.0):
     """Apply legacy FIXED/MARTINGALE/ANTI_MARTINGALE paper sizing policy."""
@@ -457,37 +468,49 @@ def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
     for row in trades:
         x = dict(row)
         if mode == "FIXED":
-            size = float(base_size)
+            size = _finite_accounting_value(base_size, "base size")
         elif mode in ("MARTINGALE", "ANTI_MARTINGALE"):
-            size = min(float(max_size), float(base_size) * (float(multiplier) ** step))
+            cap = _finite_accounting_value(max_size, "max size")
+            base = _finite_accounting_value(base_size, "base size")
+            factor = _finite_accounting_value(multiplier, "multiplier")
+            try:
+                step_limit = int(max_steps)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError("invalid paper sizing step limit") from exc
+            try:
+                size = _finite_accounting_value(min(cap, base * factor ** step), "size multiplier")
+            except OverflowError as exc:
+                raise ValueError("paper sizing exponent overflow") from exc
         else:
             raise ValueError("unknown sizing mode")
         x["sizing_mode"] = mode
         x["size_multiplier"] = size
         for k in ("pnl", "fees", "slippage", "mfe", "mae"):
             if k in x and x[k] is not None:
-                x[k] = float(x[k]) * size
+                x[k] = _finite_accounting_value(_finite_accounting_value(x[k], k) * size, k)
         net = trade_net_pnl(x)
         out.append(x)
         if mode == "MARTINGALE":
-            step = min(int(max_steps), step + 1) if net < 0 else 0
+            step = min(step_limit, step + 1) if net < 0 else 0
         elif mode == "ANTI_MARTINGALE":
-            step = min(int(max_steps), step + 1) if net > 0 else 0
+            step = min(step_limit, step + 1) if net > 0 else 0
     return out
 
 
 def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
     """Legacy simulated trading account equity/ruin ledger, NOT Math research."""
-    equity = peak = float(starting_equity)
+    equity = peak = _finite_accounting_value(starting_equity, "starting equity")
     min_eq = equity
     max_dd = 0.0
     ruined = False
-    threshold = starting_equity * float(ruin_fraction)
+    threshold = _finite_accounting_value(
+        equity * _finite_accounting_value(ruin_fraction, "ruin fraction"), "ruin threshold",
+    )
     for x in trades:
-        equity += trade_net_pnl(x)
+        equity = _finite_accounting_value(equity + trade_net_pnl(x), "account equity")
         peak = max(peak, equity)
         min_eq = min(min_eq, equity)
-        max_dd = max(max_dd, peak - equity)
+        max_dd = max(max_dd, _finite_accounting_value(peak - equity, "drawdown"))
         if equity <= threshold:
             ruined = True
     return {
@@ -501,4 +524,7 @@ def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
 
 def trade_net_pnl(row):
     """Old Math history_statistics._net: virtual execution PnL accounting only."""
-    return float(row.get("pnl", 0)) - float(row.get("fees", 0)) - float(row.get("slippage", 0))
+    pnl = _finite_accounting_value(row.get("pnl", 0), "pnl")
+    fees = _finite_accounting_value(row.get("fees", 0), "fees")
+    slippage = _finite_accounting_value(row.get("slippage", 0), "slippage")
+    return _finite_accounting_value(pnl - fees - slippage, "net pnl")
