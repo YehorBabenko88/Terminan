@@ -92,6 +92,8 @@ class Handler(BaseHTTPRequestHandler):
                 else: return self.send_error(404)
                 body = json.dumps(result,allow_nan=False,default=str).encode()
                 self.send_response(200); self.send_header("Content-Type","application/json; charset=utf-8")
+                if url.path in ("/api/instruments", "/api/candles"):
+                    self.send_header("X-Terminan-Data-Status", "OFFLINE_LEGACY_UNVERIFIED")
             except ValueError as exc:
                 body = json.dumps({"error":str(exc)}).encode(); self.send_response(400); self.send_header("Content-Type","application/json")
             except Exception:

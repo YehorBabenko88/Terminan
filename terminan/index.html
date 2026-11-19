@@ -4,7 +4,60 @@
 <div id="grid-quality" class="muted" role="status" aria-atomic="true"></div>
 <p><button id="grid-check" type="button">Проверить Grid</button></p>
 <h2>ПОДКЛЮЧЕНИЯ</h2><pre id="status"></pre><p id="error"></p></section></main><script>
-let symbol='BTCUSDT', all=[], currentLevels=[];const el=id=>document.getElementById(id);async function api(path){const r=await fetch(path);const v=await r.json();if(!r.ok)throw Error(v.error||'Unavailable');return v}function draw(rows){const c=el('chart'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!rows.length){el('chartmsg').textContent='Нет свечей в подключённой базе';return}el('chartmsg').textContent=rows.length+' свечей · исторические данные';const hi=Math.max(...rows.map(r=>Number(r.h))),lo=Math.min(...rows.map(r=>Number(r.l)));const y=p=>10+(hi-p)/Math.max(hi-lo,1e-9)*(h-20),dx=w/rows.length;currentLevels.forEach(l=>{if(!el('showlevels').checked||l.price<lo||l.price>hi)return;x.strokeStyle=l.side==='high'?'#f0b66e':'#75a9f5';x.setLineDash([5,4]);x.beginPath();x.moveTo(0,y(l.price));x.lineTo(w,y(l.price));x.stroke();x.setLineDash([]);x.fillStyle=x.strokeStyle;x.fillText(l.timeframe+' '+l.side+' '+l.price,5,Math.max(12,y(l.price)-3))});rows.forEach((r,i)=>{let up=Number(r.c)>=Number(r.o);x.strokeStyle=x.fillStyle=up?'#43bea2':'#e0717b';const px=(i+.5)*dx;x.beginPath();x.moveTo(px,y(Number(r.h)));x.lineTo(px,y(Number(r.l)));x.stroke();x.fillRect(px-dx*.28,Math.min(y(Number(r.o)),y(Number(r.c))),Math.max(1,dx*.56),Math.max(1,Math.abs(y(Number(r.o))-y(Number(r.c))))})}function list(){el('symbols').replaceChildren();const filter=el('search').value.toUpperCase();all.filter(s=>s.includes(filter)).slice(0,150).forEach(s=>{let b=document.createElement('button');b.className='instrument'+(s===symbol?' active':'');b.textContent=s;b.onclick=()=>{symbol=s;list();refresh()};el('symbols').append(b)})}async function refresh(){el('selected').textContent=symbol;el('error').textContent='';currentLevels=await api('/api/levels?symbol='+symbol).catch(()=>[]);el('levels').textContent=currentLevels.length?currentLevels.length+' активных уровней':'Нет доступных уровней';try{const logs=await api('/api/logs?symbol='+symbol);el('logs').textContent=logs.state==='SOURCE_ADAPTER_NOT_CONNECTED'?'Источник логов пока не подключён':JSON.stringify(logs.events,null,2)}catch{el('logs').textContent='Логи недоступны'}try{let rows=await api('/api/candles?symbol='+symbol+'&timeframe='+el('tf').value);if(!rows.length&&el('tf').value==='1m')rows=await api('/api/grid/candles?symbol='+symbol).catch(()=>[]);draw(rows)}catch(e){draw([]);el('error').textContent=e.message}try{let f=await api('/api/grid/footprint?symbol='+symbol);el('footprint').textContent=f.length?f.slice(0,25).map(r=>r.price+' | Buy '+r.buy+' | Sell '+r.sell+' | Δ '+r.delta).join('\n'):'Нет доступных footprint данных';el('footprint').style.whiteSpace='pre-wrap'}catch{el('footprint').textContent='Grid недоступен'}try{let r=await api('/api/research?symbol='+symbol);el('research').textContent=r.length?JSON.stringify(r,null,2):'Нет результатов'}catch{el('research').textContent='Research DB недоступна'}}el('paperrun').onclick=async()=>{const out=el('paperresult');out.textContent='Проверка офлайн-запроса...';try{const raw=el('paperinput').value;if(!raw||raw.length>262144)throw Error('Неверный размер запроса');const request=JSON.parse(raw);if(request.schema!=='terminan.paper.replay.v1')throw Error('Требуется terminan.paper.replay.v1');const response=await fetch('/api/paper/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw Error(result.error||'Офлайн-симуляция недоступна');out.textContent='OFFLINE / UNATTESTED · без торговых ордеров\\n'+JSON.stringify(result,null,2)}catch(err){out.textContent='OFFLINE недоступен: '+err.message}};el('search').oninput=list;el('refresh').onclick=refresh;el('tf').onchange=refresh;el('showlevels').onchange=refresh;(async()=>{try{el('status').textContent=JSON.stringify(await api('/api/status'),null,2);all=await api('/api/instruments');if(!all.length)all=['BTCUSDT'];symbol=all[0];list();await refresh()}catch(e){el('error').textContent=e.message}})();
+let symbol='BTCUSDT', all=[], currentLevels=[];const el=id=>document.getElementById(id);const LEGACY='OFFLINE_LEGACY_UNVERIFIED';async function api(path,source){const r=await fetch(path);const v=await r.json();if(!r.ok)throw Error(v.error||'Unavailable');if(source&&(!Array.isArray(v)||r.headers.get('X-Terminan-Data-Status')!==source))throw Error('Происхождение данных не указано');return v}function draw(rows){const c=el('chart'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!rows.length){el('chartmsg').textContent='Нет свечей в подключённой базе';return}el('chartmsg').textContent=rows.length+' свечей · '+LEGACY+' · локальная история Strattester, происхождение не подтверждено';const hi=Math.max(...rows.map(r=>Number(r.h))),lo=Math.min(...rows.map(r=>Number(r.l)));const y=p=>10+(hi-p)/Math.max(hi-lo,1e-9)*(h-20),dx=w/rows.length;currentLevels.forEach(l=>{if(!el('showlevels').checked||l.price<lo||l.price>hi)return;x.strokeStyle=l.side==='high'?'#f0b66e':'#75a9f5';x.setLineDash([5,4]);x.beginPath();x.moveTo(0,y(l.price));x.lineTo(w,y(l.price));x.stroke();x.setLineDash([]);x.fillStyle=x.strokeStyle;x.fillText(l.timeframe+' '+l.side+' '+l.price,5,Math.max(12,y(l.price)-3))});rows.forEach((r,i)=>{let up=Number(r.c)>=Number(r.o);x.strokeStyle=x.fillStyle=up?'#43bea2':'#e0717b';const px=(i+.5)*dx;x.beginPath();x.moveTo(px,y(Number(r.h)));x.lineTo(px,y(Number(r.l)));x.stroke();x.fillRect(px-dx*.28,Math.min(y(Number(r.o)),y(Number(r.c))),Math.max(1,dx*.56),Math.max(1,Math.abs(y(Number(r.o))-y(Number(r.c)))))})}function list(){el('symbols').replaceChildren();const filter=el('search').value.toUpperCase();all.filter(s=>s.includes(filter)).slice(0,150).forEach(s=>{let b=document.createElement('button');b.className='instrument'+(s===symbol?' active':'');b.textContent=s;b.onclick=()=>{symbol=s;list();refresh()};el('symbols').append(b)})}let refreshGeneration = 0;
+async function refresh() {
+  const generation = ++refreshGeneration;
+  const requestedSymbol = symbol;
+  const timeframe = el('tf').value;
+  const selected = 'symbol=' + encodeURIComponent(requestedSymbol);
+  el('selected').textContent = requestedSymbol;
+  el('error').textContent = '';
+  currentLevels = [];
+  el('levels').textContent = '';
+  draw([]);
+  const levels = await api('/api/levels?' + selected).catch(() => []);
+  if (generation !== refreshGeneration) return;
+  currentLevels = levels;
+  el('levels').textContent = levels.length ? levels.length + ' активных уровней' : 'Нет доступных уровней';
+  try {
+    const logs = await api('/api/logs?' + selected);
+    if (generation !== refreshGeneration) return;
+    el('logs').textContent = logs.state === 'SOURCE_ADAPTER_NOT_CONNECTED' ?
+      'Источник логов пока не подключён' : JSON.stringify(logs.events, null, 2);
+  } catch {
+    if (generation !== refreshGeneration) return;
+    el('logs').textContent = 'Логи недоступны';
+  }
+  try {
+    const rows = await api('/api/candles?' + selected + '&timeframe=' + encodeURIComponent(timeframe), LEGACY);
+    if (generation !== refreshGeneration) return;
+    draw(rows);
+  } catch (error) {
+    if (generation !== refreshGeneration) return;
+    draw([]);
+    el('error').textContent = error.message;
+  }
+  try {
+    const rows = await api('/api/grid/footprint?' + selected);
+    if (generation !== refreshGeneration) return;
+    el('footprint').textContent = rows.length ? rows.slice(0, 25).map(
+      row => row.price + ' | Buy ' + row.buy + ' | Sell ' + row.sell + ' | Δ ' + row.delta
+    ).join('\n') : 'Нет доступных footprint данных';
+    el('footprint').style.whiteSpace = 'pre-wrap';
+  } catch {
+    if (generation !== refreshGeneration) return;
+    el('footprint').textContent = 'Grid недоступен';
+  }
+  try {
+    const rows = await api('/api/research?' + selected);
+    if (generation !== refreshGeneration) return;
+    el('research').textContent = rows.length ? JSON.stringify(rows, null, 2) : 'Нет результатов';
+  } catch {
+    if (generation !== refreshGeneration) return;
+    el('research').textContent = 'Research DB недоступна';
+  }
+}
+el('paperrun').onclick=async()=>{const out=el('paperresult');out.textContent='Проверка офлайн-запроса...';try{const raw=el('paperinput').value;if(!raw||raw.length>262144)throw Error('Неверный размер запроса');const request=JSON.parse(raw);if(request.schema!=='terminan.paper.replay.v1')throw Error('Требуется terminan.paper.replay.v1');const response=await fetch('/api/paper/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw Error(result.error||'Офлайн-симуляция недоступна');out.textContent='OFFLINE / UNATTESTED · без торговых ордеров\\n'+JSON.stringify(result,null,2)}catch(err){out.textContent='OFFLINE недоступен: '+err.message}};el('search').oninput=list;el('refresh').onclick=refresh;el('tf').onchange=refresh;el('showlevels').onchange=refresh;(async()=>{try{el('status').textContent=JSON.stringify(await api('/api/status'),null,2);all=await api('/api/instruments',LEGACY);el('source').textContent=all.length?LEGACY+' · локальный список Strattester':'';if(!all.length)all=['BTCUSDT'];symbol=all[0];list();await refresh()}catch(e){el('error').textContent=e.message}})();
 </script>
 <script>
 (() => {

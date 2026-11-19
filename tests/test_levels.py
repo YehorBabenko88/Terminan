@@ -7,7 +7,7 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from terminan.levels import grid_level_candles, untouched_levels, merge_levels
+from terminan.levels import grid_level_candles, levels_from_grid_series, untouched_levels, merge_levels
 from terminan.paper_ledger import canonical_json
 from terminan.server import Handler
 
@@ -112,5 +112,47 @@ class LevelTests(unittest.TestCase):
                 self.assertEqual(project(payload), [dict(t=start, h=10, l=5, complete=True)])
                 with self.assertRaises(ValueError):
                     project(dict(payload, parents=list(reversed(parents))))
+
+    def test_series_checks_continuity_and_lineage_before_calculating_levels(self):
+        width = 3_600_000
+        end = 2 * width
+
+        def candle(start, high, low):
+            stop = start + width
+            return dict(event_start_ms=start, event_end_ms=stop, high=high, low=low,
+                        watermark_ms=stop, available_at_ms=stop)
+
+        first, second = candle(0, 20, 5), candle(width, 15, 7)
+        parent = dict(snapshot_id="a" * 64, dataset_id="page", dataset_fingerprint="b" * 64)
+        payload = dict(schema="grid.history.rollup.v3", timeframe="1h",
+                       source=dict(identity="grid-bybit", source_revision="one", epoch="one"),
+                       evidence_class="HISTORICAL", as_of_ms=end,
+                       units=dict(price="quote/base", volume="base"), parents=[parent],
+                       request=dict(schema="grid.history.selection.v4", venue="bybit",
+                                    market_type="linear", symbol="BTCUSDT", start_ms=0,
+                                    end_ms=end, timeframe="1h", snapshot_ids=[parent["snapshot_id"]]),
+                       rows=[first, second])
+
+        def levels(response, pin=None):
+            fingerprint = sha256(canonical_json(response)).hexdigest()
+            return levels_from_grid_series(
+                dict(response, dataset_fingerprint=fingerprint),
+                trusted_fingerprint=pin or fingerprint, symbol="BTCUSDT",
+                market_type="linear", timeframe="1h", start_ms=0, end_ms=end, as_of_ms=end,
+            )
+
+        combined = levels(payload)
+        self.assertEqual({item["price"] for item in combined}, {20, 5, 15, 7})
+        with patch("terminan.levels.untouched_levels") as compute:
+            for response, pin in [
+                (dict(payload, rows=[first]), None), (dict(payload, rows=[second, first]), None),
+                (dict(payload, rows=[first, first]), None), (payload, "d" * 64),
+                (dict(payload, rows=[first, candle(end, 15, 7)]), None),
+                (dict(payload, source=dict(identity="grid-bybit", source_revision="one")), None),
+                (dict(payload, rows=[first, dict(second, available_at_ms=end + 1)]), None),
+            ]:
+                with self.subTest(response=response), self.assertRaises(ValueError):
+                    levels(response, pin)
+            compute.assert_not_called()
 
 if __name__=='__main__':unittest.main()

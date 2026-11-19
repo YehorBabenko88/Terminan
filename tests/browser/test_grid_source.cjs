@@ -10,6 +10,8 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
   try {
     const page = await browser.newPage();
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
     const html = fs.readFileSync(path.join(__dirname, '../../terminan/index.html'), 'utf8');
     const unavailable = {
       api_version: { major: 1, minor: 0 },
@@ -24,6 +26,9 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     };
     let reply = unavailable;
     let release;
+    let legacyMarked = true;
+    let gridCandleRequests = 0;
+    let pauseCandle = null;
     await page.route('http://127.0.0.1:8765/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/') {
@@ -32,7 +37,17 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
         if (reply instanceof Promise) await reply;
         if (reply === null) await route.abort();
         else await route.fulfill({ json: reply });
+      } else if (url.pathname === '/api/instruments' || url.pathname === '/api/candles') {
+        const headers = legacyMarked ? { 'X-Terminan-Data-Status': 'OFFLINE_LEGACY_UNVERIFIED' } : {};
+        const candle = { t: 0, o: 100, h: 110, l: 90, c: 105 };
+        if (url.pathname === '/api/candles' && url.searchParams.get('timeframe') === '1m' && pauseCandle) {
+          await pauseCandle;
+        }
+        const rows = url.pathname === '/api/instruments' ? ['BTCUSDT'] :
+          url.searchParams.get('timeframe') === '5m' ? [candle, { ...candle, t: 300000 }] : [candle];
+        await route.fulfill({ headers, json: rows });
       } else {
+        if (url.pathname === '/api/grid/candles') gridCandleRequests++;
         await route.fulfill({ json: url.pathname === '/api/status' ? {} : [] });
       }
     });
@@ -42,6 +57,29 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     });
     await goto();
     await waitForState('unavailable');
+    await page.locator('#chartmsg').filter({ hasText: 'OFFLINE_LEGACY_UNVERIFIED' }).waitFor({ timeout: 4000 });
+    assert.match(await page.locator('#source').innerText(), /OFFLINE_LEGACY_UNVERIFIED/);
+    legacyMarked = false;
+    await page.locator('#refresh').click();
+    await page.locator('#error').filter({ hasText: 'Происхождение данных не указано' }).waitFor({ timeout: 4000 });
+    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /OFFLINE_LEGACY_UNVERIFIED/);
+    assert.equal(gridCandleRequests, 0);
+    legacyMarked = true;
+    let resumeCandle;
+    pauseCandle = new Promise(resolve => { resumeCandle = resolve; });
+    const oldCandle = event => new URL(event.url()).searchParams.get('timeframe') === '1m';
+    const oldest = page.waitForRequest(oldCandle, { timeout: 4000 });
+    await page.locator('#refresh').click();
+    await oldest;
+    await page.locator('#tf').selectOption('5m');
+    const currentChart = page.locator('#chartmsg').filter({ hasText: '2 свечей' });
+    await currentChart.waitFor({ timeout: 4000 });
+    const staleResponse = page.waitForResponse(oldCandle, { timeout: 4000 });
+    resumeCandle();
+    pauseCandle = null;
+    await staleResponse;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await currentChart.count(), 1);
     const button = page.getByRole('button', { name: 'Проверить Grid' });
     reply = { ...unavailable, connection: 'CONNECTED_UNQUALIFIED', database: 'READ_ONLY' };
     await button.focus();
@@ -66,6 +104,7 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     await goto();
     await waitForState('unqualified');
     assert.equal(await page.locator('#grid-quality').count(), 1);
+    assert.deepEqual(pageErrors, []);
   } finally {
     await browser.close();
   }

@@ -4,9 +4,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
 from hashlib import sha256
 from pathlib import Path
+from threading import Barrier
 from unittest.mock import patch
 
 from terminan.paper_journal import PaperJournal
@@ -77,10 +79,7 @@ class PaperJournalTests(unittest.TestCase):
         self.assertEqual(self.open().submit(disabled_trade)["checkpoint"], 1)
         self.assertEqual(list(self.open().read_fills()), [])
 
-    def test_process_exit_after_inserting_fill_before_commit(self):
-        journal = self.open()
-        for item in (ENABLE, MINUTE, ENTRY):
-            journal.submit(item)
+    def test_process_exit_before_commit_or_after_commit_before_ack(self):
         child = """
 import json
 import os
@@ -96,17 +95,30 @@ original = ledger._paper_event_transaction
 def interrupted(*, write):
     with original(write=write) as db:
         yield db
-        os._exit(42)
+        if sys.argv[3] == "before":
+            os._exit(42)
+    os._exit(42)
 ledger._paper_event_transaction = interrupted
 journal.submit(json.loads(sys.argv[2]))
 """
-        proc = subprocess.run([sys.executable, "-c", child, str(self.path), json.dumps(EXIT)],
-                              timeout=15, check=False)
-        self.assertEqual(proc.returncode, 42)
-        restored = self.open()
-        self.assertEqual(list(restored.read_fills()), [])
-        self.assertEqual(restored.submit(EXIT)["checkpoint"], 4)
-        self.assertEqual(len(list(self.open().read_fills())), 1)
+        for timing in ("before", "after"):
+            with self.subTest(timing=timing):
+                self.path = self.path.with_name(timing + ".db")
+                journal = self.open()
+                for item in (ENABLE, MINUTE, ENTRY):
+                    journal.submit(item)
+                proc = subprocess.run(
+                    [sys.executable, "-c", child, str(self.path), json.dumps(EXIT), timing],
+                    timeout=15, check=False)
+                self.assertEqual(proc.returncode, 42)
+                restored = self.open()
+                initial = list(restored.read_fills())
+                self.assertEqual(len(initial), int(timing == "after"))
+                ack = restored.submit(EXIT)
+                if initial:
+                    self.assertEqual(initial, [ack])
+                self.assertEqual(ack["checkpoint"], 4)
+                self.assertEqual(list(self.open().read_fills()), [ack])
 
     def test_stale_writer_and_backup(self):
         first = self.open()
@@ -177,3 +189,41 @@ journal.submit(json.loads(sys.argv[2]))
         self.assertEqual(saved["fill_id"], ["grid-fixture", "run1", 4])
         self.assertEqual(restarted.submit(EXIT), saved)
         self.assertEqual(list(restarted.read_fills()), [saved])
+
+    def test_two_writers_cannot_commit_different_events_at_one_sequence(self):
+        original = self.open()
+        for item in (ENABLE, MINUTE, ENTRY):
+            original.submit(item)
+        barrier = Barrier(2)
+
+        def submit(journal, candidate):
+            barrier.wait(timeout=5)
+            try:
+                return journal.submit(candidate)
+            except ReplayConflict:
+                return None
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            attempts = [pool.submit(submit, self.open(), candidate)
+                        for candidate in (EXIT, dict(EXIT, price="99"))]
+            committed = [result for attempt in attempts if (result := attempt.result()) is not None]
+        self.assertEqual(len(committed), 1)
+        self.assertEqual(list(self.open().read_fills()), committed)
+
+    def test_canonical_retry_and_corrupt_input_refusal(self):
+        journal = self.open()
+        for item in (ENABLE, MINUTE, ENTRY, EXIT):
+            ack = journal.submit(item)
+        differently_serialized = json.dumps(dict(reversed(list(EXIT.items()))), indent=2)
+        self.assertEqual(journal.submit(json.loads(differently_serialized)), ack)
+        with self.assertRaises(ReplayConflict):
+            journal.submit(dict(EXIT, price="100.0"))
+        with closing(sqlite3.connect(self.path)) as database, database:
+            database.execute("UPDATE paper_events_v1 SET event = ? WHERE sequence = 4",
+                             (json.dumps(dict(EXIT, price="90")).encode(),))
+        with self.assertRaisesRegex(RuntimeError, "acknowledgement integrity"):
+            journal.read_checkpoint()
+        with self.assertRaisesRegex(RuntimeError, "acknowledgement integrity"):
+            list(journal.read_fills())
+        with self.assertRaisesRegex(RuntimeError, "acknowledgement integrity"):
+            self.open()
