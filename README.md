@@ -2,7 +2,7 @@
 
 Read-only research terminal for Strattester and Bybit Cluster Grid. No order submission.
 
-Run with Python 3.11 or later: `python -m terminan`. Open http://127.0.0.1:8765.
+Run with Python 3.12 or later: `python -m terminan`. Open http://127.0.0.1:8765.
 
 Optional environment variables:
 
