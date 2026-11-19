@@ -209,3 +209,54 @@ class SingleRegistryImportContractTests(unittest.TestCase):
         self.assertIs(StrategyDefinition, api.StrategyDefinition)
         self.assertIs(DataRequirement, api.DataRequirement)
         self.assertIs(strategy_fingerprint, api.strategy_fingerprint)
+
+
+class FourModuleBoundaryTests(unittest.TestCase):
+    """Terminan is a consumer; Bybit/PG bootstrap control belongs elsewhere."""
+
+    def test_no_independent_bybit_transport_or_postgres_provisioning(self):
+        root = Path(__file__).resolve().parents[1] / "terminan"
+        forbidden_modules = (
+            "pybit", "bybit", "websockets", "websocket",
+            "ccxt", "asyncpg",
+        )
+        forbidden_calls = {
+            "initdb", "pg_ctl", "createdb", "create_database",
+            "create_cluster", "launch_bybit",
+        }
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    names = ([alias.name for alias in node.names]
+                             if isinstance(node, ast.Import) else
+                             [node.module or ""])
+                    for name in names:
+                        self.assertFalse(
+                            any(name == bad or name.startswith(bad + ".")
+                                for bad in forbidden_modules),
+                            f"forbidden provider import {name} in {path}",
+                        )
+                if isinstance(node, ast.Call):
+                    called = node.func
+                    function = (called.id if isinstance(called, ast.Name)
+                                else called.attr if isinstance(called, ast.Attribute)
+                                else "")
+                    self.assertNotIn(function, forbidden_calls, str(path))
+
+    def test_pg_legacy_adapter_is_explicitly_read_only(self):
+        from terminan import data
+        source = inspect.getsource(data.grid_query)
+        self.assertIn("default_transaction_read_only=on", source)
+        self.assertIn("statement_timeout=3000", source)
+        self.assertNotIn("autocommit=True", source)
+
+    def test_math_sdk_is_optional_and_no_strategy_code_lives_in_math(self):
+        from terminan.paper import PaperEngine
+        self.assertEqual(PaperEngine.__module__, "terminan.paper")
+        self.assertFalse(PaperEngine().enabled)
+        from terminan import paper
+        source = inspect.getsource(paper)
+        self.assertIn("from market_compute_api import compute_batch", source)
+        self.assertNotIn("def volume_profile_poc(", source)
+        self.assertNotIn("class Bybit", source)
