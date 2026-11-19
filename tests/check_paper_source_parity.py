@@ -32,6 +32,7 @@ def pinned_head(path, expected):
 
 pinned_head(META_ROOT, META_SHA)
 pinned_head(MATH_ROOT, MATH_SHA)
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(META_ROOT / "src"))
 
 from meta_analyse.core import (  # noqa: E402
