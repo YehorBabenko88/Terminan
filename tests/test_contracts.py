@@ -16,4 +16,46 @@ class ContractTests(unittest.TestCase):
         self.assertEqual([e['relation'] for e in events],['above','at'])
     def test_no_negative_volume(self):
         with self.assertRaises(ValueError):aggregate_footprint([dict(t=1,price=2,volume=-1)])
+
+class StrategyMigrationTests(unittest.TestCase):
+    """Preserve Strattester registry/spec behavior without starting a worker."""
+
+    @staticmethod
+    def definition(version='1'):
+        from terminan.contracts import StrategyDefinition, DataRequirement
+        class NoOp:
+            pass
+        return StrategyDefinition(
+            'example', version, (DataRequirement('candles', ('1m',)),), NoOp,
+        )
+
+    def test_duplicate_registration_and_fingerprint_stability(self):
+        from terminan.contracts import StrategyRegistry, strategy_fingerprint
+        registry = StrategyRegistry()
+        registry.register(self.definition())
+        with self.assertRaises(ValueError):
+            registry.register(self.definition())
+        initial = strategy_fingerprint(registry.discover()[0])
+        registry.set_enabled('example', '1', False)
+        self.assertEqual(initial, strategy_fingerprint(registry.discover()[0]))
+        self.assertFalse(registry.discover()[0].enabled)
+        self.assertNotEqual(initial, strategy_fingerprint(self.definition('2')))
+
+    def test_invalid_dataset_fails_closed(self):
+        from terminan.contracts import DataRequirement
+        with self.assertRaises(ValueError):
+            DataRequirement('future_unknown_data')
+        self.assertEqual(DataRequirement('open_interest').dataset, 'open_interest')
+
+    def test_spec_only_never_becomes_executable(self):
+        from terminan.contracts import HypothesisSpec, executable_hypotheses
+        planned = HypothesisSpec('poc', 'poc', {'setup': 'retest'})
+        executable = HypothesisSpec(
+            'explicit', 'levels', {}, execution_status='EXECUTABLE',
+            signal_generator='reviewed-v1',
+        )
+        self.assertEqual(executable_hypotheses([planned, executable]), (executable,))
+        with self.assertRaises(ValueError):
+            HypothesisSpec('unsafe', 'levels', {}, execution_status='EXECUTABLE')
+
 if __name__=='__main__':unittest.main()
