@@ -368,7 +368,7 @@ class TradingSizingOwnershipTests(unittest.TestCase):
     def test_equity_and_ruin_original_thresholds(self):
         from terminan.paper import ruin_stats, trade_net_pnl
         rows = self.rows()
-        self.assertEqual(trade_net_pnl(rows[0]), -2.3)
+        self.assertAlmostEqual(trade_net_pnl(rows[0]), -2.3)
         report = ruin_stats(rows, starting_equity=10, ruin_fraction=.5)
         value = 10.0
         peak = value
