@@ -186,3 +186,95 @@ os._exit(42)
         self.assertEqual(post(unavailable, self.request), (200, first))
         changed = dict(self.request, parameters={"notional": "200"})
         self.assertEqual(post(unavailable, changed)[0], 400)
+
+    def _comparison_request(self):
+        request = copy.deepcopy(self.request)
+        request["comparison"] = {
+            "schema": "terminan.grid.comparison.v1",
+            "dataset_id": "73f663a0-3991-4ee5-9c01-0238a4e97270",
+            "dataset_hash": "b" * 64,
+            "strategy_name": "meta.poc.next_minute",
+            "setup": "POC",
+            "variant": "BASE",
+            "fold": 2,
+            "comparison_group": request["run_id"] + ":BTCUSDT:POC",
+            "symbol": "BTCUSDT",
+        }
+        return request
+
+    def test_legacy_base_fold_context_is_inert_and_recoverable(self):
+        request = self._comparison_request()
+        receipt = replay_paper(request, compute=mock_math)
+        self.assertEqual(receipt["status"], "OFFLINE_UNATTESTED")
+        self.assertFalse(receipt["trading_authorized"])
+        self.assertEqual(receipt["comparison"]["variant"], "BASE")
+        self.assertEqual(receipt["comparison"]["fold"], 2)
+        self.assertFalse(receipt["comparison"]["dataset_qualified"])
+        self.assertEqual(receipt["comparison"]["strategy_executed"],
+                         "meta.poc.next_minute")
+        self.assertEqual(receipt["comparison"]["status"],
+                         "CALLER_SUPPLIED_UNATTESTED")
+        self.assertEqual(receipt["comparison"]["history_requirements"], [
+            {"dataset": "public_trades", "timeframes": [],
+             "required": True, "coverage_verified": False},
+            {"dataset": "candles", "timeframes": ["1m"],
+             "required": False, "coverage_verified": False},
+        ])
+        self.assertEqual(receipt["receipt_checkpoint"], {
+            "state": "COMPLETE_RESULT_ONLY",
+            "resumable": False,
+            "events_processed": len(request["events"]),
+            "request_sha256": receipt["request_sha256"],
+        })
+        self.assertEqual(receipt, PaperReplayLedger(self.path).read(
+            request["run_id"], receipt["request_sha256"]))
+        self.assertEqual(receipt, replay_paper(
+            request, compute=lambda _: self.fail("must reuse durable receipt")))
+
+    def test_fold_context_participates_in_immutable_receipt_identity(self):
+        request = self._comparison_request()
+        receipt = replay_paper(request, compute=mock_math)
+        modified = copy.deepcopy(request)
+        modified["comparison"]["fold"] = 3
+        with self.assertRaises(ReplayConflict):
+            replay_paper(modified, compute=mock_math)
+        self.assertEqual(replay_paper(request, compute=mock_math), receipt)
+
+    def test_unimplemented_grid_variants_and_mismatched_scope_rejected(self):
+        request = self._comparison_request()
+        for variant in ("REGIME", "MARKOV", "REGIME_MARKOV", "ML",
+                        "ML_MARKOV", "OTHER"):
+            with self.subTest(variant=variant):
+                invalid = copy.deepcopy(request)
+                invalid["comparison"]["variant"] = variant
+                with self.assertRaises(ValueError):
+                    replay_paper(invalid, compute=mock_math)
+        for change in (
+            {"strategy_name": "other.strategy"},
+            {"setup": "BREAKOUT"},
+            {"symbol": "ETHUSDT"},
+            {"comparison_group": "unverified-group"},
+            {"dataset_hash": "not-a-valid-digest"},
+            {"fold": -1},
+            {"fold": True},
+            {"dataset_id": "../outside"},
+        ):
+            with self.subTest(change=change):
+                invalid = copy.deepcopy(request)
+                invalid["comparison"].update(change)
+                with self.assertRaises(ValueError):
+                    replay_paper(invalid, compute=mock_math)
+        self.assertFalse(self.path.exists())
+
+    def test_grid_ui_is_present_alongside_durable_paper_api(self):
+        from importlib.resources import files
+        html = files("terminan").joinpath("index.html").read_text(
+            encoding="utf-8")
+        for required in ('id="grid-quality"', 'id="grid-check"',
+                         "/api/grid/source", "/api/paper/replay"):
+            self.assertIn(required, html)
+        self.assertIn("Происхождение не подтверждено", html)
+        self.assertNotIn("submitOrder(", html)
+        self.assertNotIn("createOrder(", html)
+        self.assertEqual(len(replay_paper(
+            self.request, compute=mock_math)["fills"]), 1)
