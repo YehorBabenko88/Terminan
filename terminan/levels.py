@@ -15,6 +15,7 @@ _GRID_LEVEL_WIDTHS = {"1h": 3_600_000, "4h": 14_400_000, "1d": _DAY, "1w": 7 * _
 _MAX_GRID_LEVEL_CANDLES = 1000
 _MAX_GRID_SERIES_CANDLES = 32
 _MAX_GRID_SERIES_SPAN_MS = 14 * _DAY
+_GRID_MAX_TIMESTAMP = 2**53 - 1
 
 
 def _fingerprint(value):
@@ -32,7 +33,7 @@ def _grid_window_width(timeframe, start_ms, end_ms, as_of_ms):
     width = _GRID_LEVEL_WIDTHS[timeframe]
     anchor = 4 * _DAY if timeframe == "1w" else 0
     if (any(type(value) is not int for value in (start_ms, end_ms, as_of_ms))
-            or not 0 <= start_ms < end_ms <= as_of_ms < 2**63
+            or not 0 <= start_ms < end_ms <= as_of_ms <= _GRID_MAX_TIMESTAMP
             or (start_ms - anchor) % width or (end_ms - anchor) % width
             or (end_ms - start_ms) // width > _MAX_GRID_LEVEL_CANDLES):
         raise ValueError("invalid Grid levels window")

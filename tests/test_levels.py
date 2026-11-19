@@ -155,4 +155,22 @@ class LevelTests(unittest.TestCase):
                     levels(response, pin)
             compute.assert_not_called()
 
+    def test_grid_timestamp_cannot_exceed_producer_safe_integer_range(self):
+        hour = 3_600_000
+        snapshot = dict(
+            schema="grid.history.rollup.v1", timeframe="1h", evidence_class="HISTORICAL",
+            source={}, parent_dataset_id="legacy", parent_dataset_fingerprint="b" * 64,
+            request=dict(venue="bybit", symbol="BTCUSDT", market_type="linear",
+                         start_ms=0, end_ms=hour, as_of_ms=2**53),
+            rows=[dict(event_start_ms=0, event_end_ms=hour, available_at_ms=hour,
+                       watermark_ms=hour, high=10, low=5)],
+        )
+        pin = sha256(canonical_json(snapshot)).hexdigest()
+        with self.assertRaisesRegex(ValueError, "window"):
+            grid_level_candles(
+                dict(snapshot, dataset_fingerprint=pin), trusted_fingerprint=pin,
+                symbol="BTCUSDT", market_type="linear", timeframe="1h",
+                start_ms=0, end_ms=hour, as_of_ms=2**53,
+            )
+
 if __name__=='__main__':unittest.main()
