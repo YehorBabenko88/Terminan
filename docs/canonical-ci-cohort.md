@@ -9,3 +9,5 @@ Windows and Linux wheel jobs compare every runtime member against raw Git blobs 
 Local installed-cohort validation ran the existing four history/levels tests using only the canonical isolated wheel site. Native service, installer and protection changes were not run. Full hosted tests, browser flow and process-fault gates remain enabled in CI and require their own current-SHA evidence.
 
 Independent QA found that the installed constructor smoke initially preceded Math installation. The job now installs the three exact built wheels together before any PaperEngine constructor, avoiding a false standalone success or missing-kernel failure.
+
+Feature commits run through pull-request events once; pushes to main retain their own check. Per-PR concurrency cancels superseded runs. This avoids duplicate push/PR matrices for an unchanged candidate. No manual rerun on unchanged code is requested.
