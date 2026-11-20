@@ -6,6 +6,7 @@ level_quality.py and history.validate_fixed_interval. Math owns all level prices
 from dataclasses import dataclass
 from datetime import datetime,timedelta,timezone
 from .core import Candle,Level,untouched_levels
+from market_profile_math import candle_ohlcv_valid
 
 FIXED_STEPS={'M1':timedelta(minutes=1),'H1':timedelta(hours=1),'D1':timedelta(days=1)}
 @dataclass(frozen=True)
@@ -38,6 +39,8 @@ def verified_levels(candles,timeframe,start,end,*,as_of):
     eligible={}
     for candle in candles:
         if not isinstance(candle,Candle):raise ValueError('Candle DTO required')
+        if not candle_ohlcv_valid(candle.open,candle.high,candle.low,candle.close,candle.volume):
+            raise ValueError('invalid Candle OHLCV domain')
         stamp=_utc(candle.start)
         if start<=stamp<end:
             if (stamp-start)%step or stamp in eligible:raise ValueError('duplicate or unaligned candle')
