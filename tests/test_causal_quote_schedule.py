@@ -36,3 +36,35 @@ class CausalScheduleTests(unittest.TestCase):
   # Correct complete schedule has events200/400; only200 lies within entry110..exit310.
   f=dict(v['funding']);f.pop('sha256');f['events']=[receipt('f'+str(t),event_ms=t,observed_ms=t,rate='0.01',mark_price='100') for t in (200,400)];f['next_ms']=600;v['funding']=seal(f);v['now_ms']=451;v['max_quote_age_ms']=200
   self.assertEqual(self.validate(v),(('100','0.01'),))
+
+class BoundedPreflightTests(unittest.TestCase):
+ def test_oversized_graph_and_scalar_refuse_before_serialization(self):
+  from unittest.mock import patch
+  from terminan.causal_quotes import validate_causal_schedule
+  cases=[]
+  v=fixture();v['funding']['events']=[{}]*129;cases.append(v)
+  v=fixture();v['quotes']=[{}]*3;cases.append(v)
+  v=fixture();v['quotes'][0]['bid']='9'*5000000;cases.append(v)
+  v=fixture();v['quotes'][1]['unknown']='x'*5000000;cases.append(v)
+  v=fixture();v['funding']['receipt_id']='x'*5000000;cases.append(v)
+  for value in cases:
+   with self.subTest(kind=list(value)),patch('terminan.causal_quotes.canonical_json',side_effect=AssertionError('SERIALIZATION_BEFORE_BOUNDS')) as encode,self.assertRaises(ValueError):validate_causal_schedule(**value)
+   encode.assert_not_called()
+ def test_hostile_container_subclasses_refuse_before_iteration(self):
+  from terminan.causal_quotes import validate_causal_schedule
+  class Hostile(list):
+   def __iter__(self):raise AssertionError('HOSTILE_ITERATION')
+  for field in ('quotes','events'):
+   v=fixture()
+   if field=='quotes':v[field]=Hostile(v[field])
+   else:v['funding'][field]=Hostile([])
+   with self.assertRaises(ValueError):validate_causal_schedule(**v)
+ def test_overlarge_valid_list_rejection_has_bounded_extra_allocation(self):
+  import tracemalloc
+  from terminan.causal_quotes import validate_causal_schedule
+  v=fixture();v['funding']['events']=[{}]*1000000
+  tracemalloc.start()
+  try:
+   with self.assertRaises(ValueError):validate_causal_schedule(**v)
+   self.assertLess(tracemalloc.get_traced_memory()[1],65536)
+  finally:tracemalloc.stop()
