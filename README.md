@@ -41,7 +41,7 @@ remain Unified System's responsibility. Release remains NO_GO.
 The original Terminan screen now has a dedicated **OFFLINE / UNATTESTED**
 paper-replay panel. Its POST route is part of the existing loopback server:
 
-- `POST /api/paper/replay` accepts `terminan.paper.replay.v1`, at most
+- `POST /api/paper/replay` accepts `terminan.paper.replay.v2`, at most
   256 KiB and 1024 ordered market events, never real orders.
 - Closed-minute POC is delegated to the installed Math-owned SDK
   `market_compute_api.compute_batch`, not recalculated in Terminan.
@@ -62,11 +62,11 @@ Minimal *synthetic offline* example for pasting into Terminan (not Bybit data):
 
 ```json
 {
-  "schema": "terminan.paper.replay.v1",
+  "schema": "terminan.paper.replay.v2",
   "run_id": "offline-sample",
   "source": {
     "snapshot_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "as_of_ms": 0,
+    "as_of_ms": 62000,
     "units": {"price": "quote/base", "volume": "base"}
   },
   "parameters": {},
@@ -84,9 +84,8 @@ missing, Terminan returns `MATH_SDK_UNAVAILABLE` rather than substituting a
 second POC algorithm. This is offline development functionality, **not
 release acceptance**. Qualified MarketData history/live ingestion, durable fenced
 results migration to the final Unified-managed installation, physical
-Windows/browser tests, and Terminan-owned trading PnL remain release gates.
-Math owns POC/research only; it does NOT implement execution, fees, simulated
-orders, equity, or strategy promotion. No live trading route exists.
+Windows/browser tests, and canonical execution/source acceptance remain release gates.
+Math owns POC and financial arithmetic (fees, fill metrics, sizing and equity). Terminan owns simulation state and execution policy. No live trading route exists.
 
 ## Independent package (Stage 9 candidate)
 
@@ -115,9 +114,9 @@ source-origin acceptance and physical Windows E2E require further gates.
 
 ## Optional historical comparison metadata (Stage 12, unqualified)
 
-`terminan.paper.replay.v1` may include a `comparison` object with
+`terminan.paper.replay.v2` may include a `comparison` object with
 `schema: "terminan.market_data.comparison.v1"`, `dataset_id`, `dataset_hash`
-(64 lowercase hex), `strategy_name: "meta.poc.next_minute"`,
+(64 lowercase hex), `strategy_name: "poc_next_minute"`,
 `setup: "POC"`, `variant: "BASE"`, a nonnegative integer `fold`,
 `symbol`, and `comparison_group: "<run_id>:<symbol>:POC"`.
 

@@ -41,3 +41,9 @@ class SignalExecutionTests(unittest.TestCase):
   self.assertEqual(engine.__dict__,before)
   with patch('market_math.paper_fill_metrics',side_effect=ValueError('OWNER_REFUSED')),self.assertRaises(ValueError):self.execute([(60000,'100','101','98','100')],engine=engine)
   self.assertEqual(engine.__dict__,before)
+
+ def test_nonaligned_limit_decision_uses_next_bar_boundary_for_both_sides(self):
+  for side,opening,stop,target in [('long','99','98','102'),('short','101','102','98')]:
+   with self.subTest(side=side):
+    result,_=self.execute([(60000,'100','104','96','100'),(120000,opening,opening,opening,opening)],side=side,kind='limit',decision=60001,entry='100',stop=stop,target=target)
+    self.assertEqual(result.entry_ms,120000);self.assertEqual(result.fill.entry,D(opening))
