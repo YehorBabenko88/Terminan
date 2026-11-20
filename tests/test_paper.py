@@ -362,9 +362,10 @@ class TradingSizingOwnershipTests(unittest.TestCase):
             apply_sizing(rows, mode="UNKNOWN")
 
     def test_equity_and_ruin_original_thresholds(self):
-        from terminan.paper import ruin_stats, trade_net_pnl
+        from terminan.paper import ruin_stats
+        from market_profile_math import paper_net_pnl
         rows = self.rows()
-        self.assertAlmostEqual(trade_net_pnl(rows[0]), -2.3)
+        self.assertAlmostEqual(paper_net_pnl(rows[0].get('pnl',0),rows[0].get('fees',0),rows[0].get('slippage',0)), -2.3)
         report = ruin_stats(rows, starting_equity=10, ruin_fraction=.5)
         value = 10.0
         peak = value
@@ -389,10 +390,11 @@ class TradingSizingOwnershipTests(unittest.TestCase):
         self.assertIsInstance(paper.STRATEGIES, StrategyRegistry)
         self.assertTrue(callable(paper.apply_sizing))
         self.assertTrue(callable(paper.ruin_stats))
-        self.assertTrue(callable(paper.trade_net_pnl))
+        self.assertFalse(hasattr(paper,'trade_net_pnl'))
 
     def test_trade_accounting_refuses_nonfinite_inputs_and_overflow(self):
-        from terminan.paper import apply_sizing, ruin_stats, trade_net_pnl
+        from terminan.paper import apply_sizing, ruin_stats
+        from market_profile_math import paper_net_pnl
 
         for field in ("pnl", "fees", "slippage"):
             for invalid in ("NaN", "Infinity", float("-inf")):
@@ -400,9 +402,9 @@ class TradingSizingOwnershipTests(unittest.TestCase):
                 row[field] = invalid
                 with self.subTest(field=field, invalid=invalid):
                     with self.assertRaises(ValueError):
-                        trade_net_pnl(row)
+                        paper_net_pnl(row.get('pnl',0),row.get('fees',0),row.get('slippage',0))
         with self.assertRaises(ValueError):
-            trade_net_pnl({"pnl": 1e308, "fees": -1e308})
+            paper_net_pnl(1e308,-1e308,0)
         for trades, params in (([{"pnl": 1}], {"base_size": float("nan")}),
                                ([{"pnl": 1}], {"base_size": float("inf")}),
                                ([{"pnl": -1}], {"mode": "MARTINGALE", "max_steps": float("inf")}),
