@@ -34,7 +34,7 @@ for name,module in tuple(sys.modules.items()):
  source=pathlib.Path(module.__file__).resolve(strict=True)
  if not source.is_relative_to(site) or source.suffix!='.py' or str(source.relative_to(site)) not in before:raise RuntimeError('INSTALLED_ORIGIN_REQUIRED')
  expected=pathlib.Path(importlib.util.cache_from_source(str(source)))
- if module.__cached__!=str(expected) or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
+ if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
 raise SystemExit(not(result.wasSuccessful() and result.testsRun==8 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
