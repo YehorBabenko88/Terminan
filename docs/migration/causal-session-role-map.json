@@ -1,0 +1,120 @@
+{
+  "schema": "terminan.migration.causal-session-roles.v2",
+  "source": {
+    "repository": "YehorBabenko88/unified-system",
+    "commit": "31db6660079e759dc6207d9b62f03acb89381236",
+    "module": "unified_system/lab_paper_pipeline.py",
+    "tests": "tests/test_lab_paper_pipeline.py"
+  },
+  "canonical": {
+    "session": "terminan.causal_session.CausalPaperSession",
+    "strategy": "terminan.analytics.book_tape_research.BookTapeResearch",
+    "account": "terminan.causal_account.CausalAccountJournal",
+    "execution": "terminan.paper.PaperEngine",
+    "numerics": "market_math",
+    "packets": "market_data.paper_inputs",
+    "infrastructure_owner": "unified_system"
+  },
+  "roles": [
+    [
+      "numeric funding units",
+      "test_fractional_funding_units_are_exact_and_nonintegral_clock_is_unavailable",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "kernel/source admission before factories",
+      "test_revoked_freshness_refuses_before_strategy_factories_or_files",
+      "OFFLINE_FRESHNESS_ONLY_OPERATIONAL_ROOT_GATE_UNQUALIFIED"
+    ],
+    [
+      "ten actual strategies/risk/later quotes/ledger/writer",
+      "test_ten_symbols_actual_data_math_engine_and_verified_artifact",
+      "TERM_ACTUAL_DATA_MATH_ENGINE_COVERED_ROOT_WRITER_PENDING"
+    ],
+    [
+      "unknown funding/context no fill",
+      "test_unknown_funding_never_creates_a_fill_or_reserved_cash",
+      "TERM_COVERED_WITH_DATA_CONTEXT_TESTS"
+    ],
+    [
+      "funding use-time delay without relabel",
+      "test_processing_delay_does_not_relabel_source_request_or_funding_observation",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "fractional hours/integral float clock",
+      "test_fractional_funding_units_are_exact_and_nonintegral_clock_is_unavailable",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "risk delay cannot refresh TTL",
+      "test_risk_processing_delay_does_not_refresh_expired_proposal_window",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "reconnect collateral/no old book",
+      "test_reconnect_retains_uncertain_collateral_and_never_reuses_old_quote",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "publisher failure stops/no retry/source read",
+      null,
+      "ROOT_PUBLICATION_PORT_REQUIRED"
+    ],
+    [
+      "tiny hold forecast before audit/factories",
+      "test_capacity_forecast_refuses_before_strategy_factories",
+      "TERM_FACTORY_BOUNDARY_COVERED_ROOT_AUDIT_PENDING"
+    ],
+    [
+      "prelatency quote not fill",
+      "test_actual_strategy_risk_new_quotes_close_and_immutable_publication_descriptor",
+      "TERM_PURE_COVERED"
+    ],
+    [
+      "revocation before next read",
+      "test_revocation_precedes_another_packet_validation_and_keeps_reserved_bytes",
+      "TERM_BEFORE_VALIDATION_COVERED_ROOT_BEFORE_IO_PENDING"
+    ],
+    [
+      "elapsed window stops reads/qualification",
+      "test_elapsed_window_ends_without_consuming_another_packet",
+      "TERM_NO_INPUT_WORK_COVERED_ROOT_IO_PENDING"
+    ],
+    [
+      "provider failure holds cursor/later asof",
+      "test_no_packet_arrival_holds_cursor_then_later_packet_has_own_asof",
+      "TERM_FINITE_FEED_COVERED_ROOT_PROVIDER_FAILURE_PENDING"
+    ],
+    [
+      "foreign ledger blocks publication",
+      "test_foreign_completed_result_blocks_before_a_publication_descriptor",
+      "TERM_VERIFIED_ARTIFACT_COVERED_ROOT_WRITER_PENDING"
+    ],
+    [
+      "actual result to writer/pinned reader",
+      "test_ten_symbols_actual_data_math_engine_and_verified_artifact",
+      "TERM_ARTIFACT_COVERED_ROOT_WRITER_READER_COHORT_PENDING"
+    ]
+  ],
+  "limits": {
+    "symbols": 10,
+    "planned_duration_ms_max": 3600000,
+    "history_window": 32,
+    "min_history_min": 4,
+    "min_history_max": 32,
+    "forecast_closed_max": 200,
+    "forecast_decisions_max": 512,
+    "descriptor_events_max": 4096,
+    "descriptor_bytes_max": 65536,
+    "verified_artifact_bytes_max": 4194304
+  },
+  "retirement": "NOT_AUTHORIZED_UNTIL_ROOT_COMPOSED_ROLE_CLOSURE",
+  "qualification": {
+    "mode": "SYNTHETIC_OFFLINE",
+    "source_authenticity": "NOT_EVALUATED",
+    "point_in_time_availability": "UNKNOWN",
+    "operational_admission": "UNQUALIFIED",
+    "native_process_crash": "NOT_RUN"
+  }
+}

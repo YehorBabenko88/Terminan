@@ -354,3 +354,12 @@ class CausalAccountJournal:
   with self._transaction() as (db,(records,last,sequence,previous,rows)):
    if now_ms<last:raise ValueError('causal clock regressed')
    self._reconcile(db,records,rows,now_ms,sequence,previous)
+
+ def verified_results(self):
+  """Owned read-only paper artifact; no cross-database atomicity/auth claim."""
+  from .causal_artifacts import ARTIFACT_SCHEMA,BALANCES_BASIS,CONSISTENCY
+  records,last,sequence,previous,rows=self._verify();balance=self._balances(records,rows)
+  value=dict(schema=ARTIFACT_SCHEMA,account_id=self.ownership.account_id,policy_sha256=self.ownership.policy_sha256,sequence=sequence,row_count=len(rows),rows=copy.deepcopy(list(rows.values())),balances=dict(cash_usdt=str(balance.cash),peak_usdt=str(balance.peak),reserved_usdt=str(balance.reserved),available_usdt=str(balance.available_cash)),balances_basis=BALANCES_BASIS,consistency=CONSISTENCY,source_authenticity='NOT_EVALUATED',point_in_time_availability='UNKNOWN',execution_authority=False,trading_authorized=False)
+  raw=canonical_json(value)
+  if len(raw)>4*1024*1024:raise ValueError('verified paper artifact byte budget refused')
+  return value
