@@ -223,7 +223,7 @@ class PaperEngine:
         fee_bps is this explicit quote policy, distinct from ordinary tick/POC
         fee_rate ordering. Schedule hashes establish no source authenticity.
         """
-        from .causal_quotes import validate_causal_schedule,QuoteExecution
+        from .causal_quotes import validate_causal_schedule,QuoteExecution,_decimal_value
         if self.enabled is not True:raise ValueError('paper engine disabled')
         args=dict(open_decision=open_decision,close_decision=close_decision,quotes=quotes,funding=funding,latency_ms=latency_ms,max_quote_age_ms=max_quote_age_ms,max_hold_ms=max_hold_ms,now_ms=now_ms)
         # Validate bounded closed shapes before making the detached snapshot.
@@ -231,8 +231,8 @@ class PaperEngine:
         selected=validate_causal_schedule(**args);a=args['open_decision'];symbol=a['symbol'];side=a['side'];x,y=args['quotes']
         owner=_paper_math();book=getattr(owner,'paper_quote_book_valid',None);funding_valid=getattr(owner,'paper_quote_funding_valid',None);calculate=getattr(owner,'paper_quote_metrics',None)
         if not callable(book) or not callable(funding_valid) or not callable(calculate):raise ValueError('CAUSAL_MATH_CAPABILITY_UNAVAILABLE')
-        if any(book(D(row['bid']),D(row['ask'])) is not True for row in (x,y)):raise ValueError('invalid causal quote book')
-        if any(funding_valid(D(row['mark_price']),D(row['rate'])) is not True for row in args['funding']['events']):raise ValueError('invalid causal funding event')
+        if any(book(_decimal_value(row['bid']),_decimal_value(row['ask'])) is not True for row in (x,y)):raise ValueError('invalid causal quote book')
+        if any(funding_valid(_decimal_value(row['mark_price']),_decimal_value(row['rate'])) is not True for row in args['funding']['events']):raise ValueError('invalid causal funding event')
         if symbol in self.positions:raise ValueError('paper instrument already has a position')
         decision=_timestamp(a['decision_ms']);prior=self.last_trade_time.get(symbol)
         if prior is not None and decision<prior:raise ValueError('out-of-order quote decision')
