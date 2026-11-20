@@ -285,6 +285,9 @@ class PaperReplayLedger:
                     if len(row[2].encode('utf8'))>4*1024*1024:raise RuntimeError('owned recovery receipt budget exceeded')
                     cls._read(database,row[0],row[1])
                 elif name=='paper_events_v2' and sha256(row[4]).hexdigest()!=row[5]:raise RuntimeError('owned recovery ACK integrity failure')
+        if 'paper_streams_v2' in tables:
+            from .paper_journal import PaperJournal
+            PaperJournal._validate_existing_state(database)
         version=database.execute('PRAGMA user_version').fetchone()[0]
         if type(version) is not int or not -(2**31)<=version<2**31:raise RuntimeError('owned recovery version identity mismatch')
         return digest.hexdigest(),version
