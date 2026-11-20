@@ -283,7 +283,10 @@ class ResearchWindow(QWidget):
     def update_rules(self):
         if not all(hasattr(self, name) for name in ("threshold", "stop", "fee")):
             return
-        rules = tuple(Decimal(str(spin.value())) / 100 for spin in (self.threshold, self.stop, self.fee))
+        from market_math import percent_to_fraction
+        rules = {name: percent_to_fraction(Decimal(str(spin.value())))
+                 for name, spin in (('threshold', self.threshold),
+                                    ('stop_pct', self.stop), ('fee_rate', self.fee))}
         self.schedule(self.service.configure_paper(rules=rules))
     def repaint_state(self):
         self.status.setText(self._snapshot.status)
