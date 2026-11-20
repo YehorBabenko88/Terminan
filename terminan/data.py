@@ -9,6 +9,61 @@ from pathlib import Path
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
 TIMEFRAMES = {"1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"}
 
+
+_PRIVATE_DATA_ENV='UNIFIED_MARKET_DATA_READ_CAPABILITY'
+_private_market_data_client=None
+
+class MarketDataReadClient:
+    """Private route scope from the owned runtime; no startup authority."""
+    __slots__=('_port','_token','_admission')
+    def __init__(self,record,admission,release_id):
+        if admission is None or admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
+        fields={'port','token','source_commit','release_id','epoch'}
+        if type(record) is not dict or set(record)!=fields:raise ValueError('PRIVATE_SOURCE_REJECTED')
+        if (type(record['port']) is not int or not 1<=record['port']<=65535
+                or any(type(record[key]) is not str for key in fields-{'port'})
+                or not re.fullmatch('[a-f0-9]{64}',record['token'])
+                or not re.fullmatch('[a-f0-9]{40}',record['source_commit'])
+                or not re.fullmatch('[a-f0-9-]{32,36}',record['epoch'])
+                or not 0<len(release_id)<=128 or record['release_id']!=release_id):raise ValueError('PRIVATE_SOURCE_REJECTED')
+        if admission.source_identity('market_data')['commit']!=record['source_commit']:raise ValueError('SOURCE_REVISION_REJECTED')
+        self._port=record['port'];self._token=record['token'];self._admission=admission
+    @property
+    def port(self):return self._port
+    def __repr__(self):return '<MarketDataReadClient private read-only capability>'
+    def get(self,path):
+        if (path not in ('/internal/v1/health','/internal/v1/capabilities')
+                and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+        if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
+        result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
+        if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
+        return result
+
+def configure_market_data_client(startup_admission):
+    global _private_market_data_client
+    _private_market_data_client=None
+    raw=os.environ.pop(_PRIVATE_DATA_ENV,None)
+    if not os.environ.get('UNIFIED_MODULE_ID'):
+        if raw is not None:raise ValueError('UNMANAGED_PRIVATE_SOURCE_REJECTED')
+        return
+    if os.environ.get('UNIFIED_MODULE_ID')!='terminan' or type(raw) is not str or len(raw)>2048:raise ValueError('PRIVATE_SOURCE_REQUIRED')
+    def unique(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result:raise ValueError('PRIVATE_SOURCE_REJECTED')
+            result[key]=value
+        return result
+    try:
+        record=json.loads(raw,object_pairs_hook=unique)
+        client=MarketDataReadClient(record,startup_admission,os.environ.get('UNIFIED_RELEASE_ID',''))
+    except Exception:raise ValueError('PRIVATE_SOURCE_REJECTED') from None
+    _private_market_data_client=client
+
+def _market_data_port():
+    if _private_market_data_client is not None:return _private_market_data_client.port
+    return os.environ.get('MARKET_DATA_API_PORT')
+
+
 def validate(symbol, timeframe="1m"):
     if not SYMBOL.fullmatch(symbol) or timeframe not in TIMEFRAMES:
         raise ValueError("invalid symbol or timeframe")
@@ -49,7 +104,7 @@ def _market_data_market_rows(dataset, symbol, limit):
     """
     validate(symbol)
     count = max(1, min(int(limit), 1000))
-    port_text = os.environ.get("MARKET_DATA_API_PORT", "")
+    port_text = str(_market_data_port() or "")
     if not re.fullmatch(r"[1-9][0-9]{0,4}", port_text):
         return []
     port = int(port_text)
@@ -91,12 +146,20 @@ _MARKET_DATA_HEALTH_PATH = "/internal/v1/health"
 _MARKET_DATA_MAX_JSON = 16384
 
 
-def _market_data_internal_get(port, path):
-    """One direct loopback GET; no DNS, redirects, proxy, credentials or writes."""
+def _market_data_internal_get(port,path):
+    if _private_market_data_client is not None:
+        if port!=_private_market_data_client.port:raise ValueError("SOURCE_ENDPOINT_REJECTED")
+        return _private_market_data_client.get(path)
+    if os.environ.get("UNIFIED_MODULE_ID"):raise ValueError("PRIVATE_SOURCE_REQUIRED")
+    return _market_data_http_get(port,path)
+
+
+def _market_data_http_get(port, path, *, headers=None):
+    """One direct loopback GET; no DNS, redirects, proxy or writes."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
     try:
         conn.request("GET", path, headers={"Accept": "application/json",
-                                           "Connection": "close"})
+                                           "Connection": "close",**(headers or {})})
         response = conn.getresponse()
         if response.status != 200:
             raise ValueError("market-data gateway unavailable")
@@ -134,7 +197,8 @@ def market_data_source_status():
         "live_l2": False,
         "execution_authority": False,
     }
-    raw_port = os.environ.get("MARKET_DATA_API_PORT")
+    raw_port = _market_data_port()
+    if raw_port is not None:raw_port=str(raw_port)
     if raw_port is None:
         return unavailable
     # Strict literal port. No URLs or addresses from environment, so SSRF,
