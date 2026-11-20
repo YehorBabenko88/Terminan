@@ -2,7 +2,7 @@ import math
 from terminan.volatility import VolatilityAnalyzer,VolatilityRegime
 
 def _bar(t,o,h,l,c,v=100,turnover=10000):
-    return {'event_start_ms':t,'open':o,'high':h,'low':l,'close':c,'volume':v,'turnover':turnover}
+    return {'event_start_ms':t,'available_at_ms':t+60,'open':o,'high':h,'low':l,'close':c,'volume':v,'turnover':turnover}
 
 import unittest
 class VolatilityTransferTests(unittest.TestCase):
@@ -72,3 +72,12 @@ class CanonicalVolatilityBoundaryTests(unittest.TestCase):
     def test_invalid_configuration_is_not_silently_coerced(self):
         with self.assertRaises(ValueError):VolatilityAnalyzer(version=True)
         with self.assertRaises(ValueError):VolatilityAnalyzer(window=True).analyze([],bar_duration_ms=60)
+    def test_delayed_declared_clock_is_not_replaced_by_bar_end(self):
+        rows=[dict(_bar(0,100,101,99,100),available_at_ms=1000),_bar(60,100,102,99,101),_bar(120,101,103,100,102)]
+        values=VolatilityAnalyzer(window=2).analyze(rows,bar_duration_ms=60)
+        self.assertEqual([value.available_at_ms for value in values],[1000,1000])
+        self.assertTrue(all(value.availability_basis=='CALLER_DECLARED_PREFIX_MAX' for value in values))
+        self.assertTrue(all(value.source_authentication=='NOT_EVALUATED' and not value.execution_authority for value in values))
+    def test_missing_availability_is_not_inferred_by_adapter(self):
+        row=_bar(0,100,101,99,100);del row['available_at_ms']
+        with self.assertRaises(ValueError):VolatilityAnalyzer(window=2).analyze([row,_bar(60,100,101,99,100)],bar_duration_ms=60)
