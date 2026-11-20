@@ -11,25 +11,26 @@ Global constraints: no PS/CMD/native services/sockets/user-data writes; no dupli
 Review focus: invalid final bar leaves state unchanged; intrabar pre-entry wick cannot grant TP; caller Decimal context cannot change fills; changed retry cannot overwrite a receipt; old journal bytes survive identity migration.
 
 ## Task1: inventory and typed source policy
-- [ ] Record exact source blobs/symbols and concrete canonical owner; mark unported graphs retained.
-- [ ] Add failing typed signal/bar validation and no-lookahead controller fixtures.
-- [ ] Implement only DTO/source/time admission in new research module; no execution copy.
-- [ ] Verify refusal cases with native execution denied.
+- [x] Record exact source blobs/symbols and concrete canonical owner; mark unported graphs retained.
+- [x] Add failing typed signal/bar validation and no-lookahead controller fixtures.
+- [x] Implement only DTO/source/time admission in new research module; no execution copy.
+- [x] Verify refusal cases with native execution denied.
 
 ## Task2: existing PaperEngine numerical delegation
-- [ ] Pin current hand vectors and invalid-event atomicity tests before implementation.
-- [ ] Consume the frozen six Math APIs; move local entry/stop/fee/PnL arithmetic and stage event mutations.
-- [ ] Coordinate Math float helpers; keep policy loops, remove local pure net formula API and migrate consumers.
-- [ ] Run existing paper/historical vectors plus hostile-context fixtures; commit verified source.
+- [x] Pin current hand vectors and invalid-event atomicity tests before implementation.
+- [x] Consume the frozen six Math APIs; move local entry/stop/fee/PnL arithmetic and stage event mutations.
+- [x] Coordinate Math float helpers; keep policy loops, remove local pure net formula API and migrate consumers.
+- [x] Run existing paper/historical vectors plus hostile-context fixtures; commit verified source.
 
 ## Task3: canonical identity and historical persistence
-- [ ] Add failing old-active-ID/schema refusal and historical-byte preservation tests.
-- [ ] Rename registry/UI/API consumers, version active journal/replay contracts, preserve original tables/records without silent rewriting.
-- [ ] Add explicit read-only v1 receipt/event export and isolated restore proof; no old active alias.
-- [ ] Verify restart/changed-retry/disabled-strategy behavior and source backup hashes.
+- [x] Add failing old-active-ID/schema refusal and historical-byte preservation tests.
+- [x] Rename registry/UI/API consumers, version active journal/replay contracts, preserve original tables/records without silent rewriting.
+- [x] Add explicit read-only v1 receipt/event export and isolated restore proof; no old active alias.
+- [x] Verify restart/changed-retry/disabled-strategy behavior and source backup hashes.
 
 ## Task4: signal/OHLC execution and replay
-- [ ] Add failing long/short market/limit SL/TP/EOD, opening-gap and intrabar conservative/optimistic policy tests.
-- [ ] Implement PaperEngine.execute_signal using existing Position/PaperFill and Math kernels, all batch preflighted before commit.
-- [ ] Add bounded run_signal_replay/offline CLI using existing ledger, and restart/conflict/no-lookahead tests.
-- [ ] Verify complete reviewed pure paper/receipt suite on both Python versions; publish exact SHA/Draft PR and limits.
+- [x] Add failing long/short market/limit SL/TP/EOD, opening-gap and intrabar conservative/optimistic policy tests.
+- [x] Implement PaperEngine.execute_signal using existing Position/PaperFill and Math kernels, all batch preflighted before commit.
+- [x] Add bounded run_signal_replay/offline CLI using existing ledger, and restart/conflict/no-lookahead tests.
+- [x] Verify reviewed pure paper/receipt/private-client suite on both Python versions (86 tests each).
+- [ ] Publish exact SHA/Draft PR and limits.

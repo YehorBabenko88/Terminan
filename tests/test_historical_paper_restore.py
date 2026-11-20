@@ -14,7 +14,7 @@ class HistoricalRestoreTests(unittest.TestCase):
   return self.migration().restore_historical_paper_stream(self.source,pin or self.pin,'preserved-v1-source','paper-v1-run',target or self.target,target_source_id='restored',target_run_id='canonical-run')
  def test_historical_receipt_is_read_only_and_needs_no_math_sdk(self):
   mod=self.migration();before=self.source.read_bytes()
-  with patch.dict('sys.modules',{'market_profile_math':None}):
+  with patch.dict('sys.modules',{'market_math':None}):
    receipt=mod.read_historical_paper_receipt(self.source,self.pin,'historical-receipt',FIXTURE['receipt']['request_sha256'])
   self.assertEqual(receipt,FIXTURE['receipt']);self.assertEqual(self.source.read_bytes(),before);self.assertEqual({p.name for p in self.root.iterdir()},{'original.sqlite'})
  def test_original_events_restore_into_new_database_and_recover_open_position(self):
@@ -41,7 +41,7 @@ class HistoricalRestoreTests(unittest.TestCase):
 
  def test_owner_refusal_or_unknown_columns_precede_fresh_destination(self):
   mod=self.migration();before=self.source.read_bytes()
-  with patch('market_profile_math.paper_position_size',side_effect=ValueError('OWNER_REFUSED')),self.assertRaises(ValueError):self.restore()
+  with patch('market_math.paper_position_size',side_effect=ValueError('OWNER_REFUSED')),self.assertRaises(ValueError):self.restore()
   self.assertFalse(self.target.exists());self.assertEqual(self.source.read_bytes(),before)
   db=sqlite3.connect(self.source)
   try:db.execute('ALTER TABLE paper_streams_v1 ADD COLUMN unknown TEXT');db.commit()

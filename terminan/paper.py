@@ -66,13 +66,19 @@ class ExecutionTrade:
 
 
 def _paper_math():
-    import market_profile_math
-    return market_profile_math
+    import market_math
+    return market_math
 
 
 def _policy_decimal(value):
     if type(value) not in (str,int,Decimal):raise ValueError('Decimal policy value required')
     return D(value)
+
+
+def _paper_price(value):
+    # Validate without applying execution rounding to a raw observed price/POC.
+    if _paper_math().candle_ohlcv_valid(value,value,value,value,D(0)) is not True:raise ValueError('bounded Decimal paper price required')
+    return value
 
 
 class PaperEngine:
@@ -111,7 +117,7 @@ class PaperEngine:
         if start != minute.start.astimezone(timezone.utc):
             raise ValueError("minute start not aligned")
         if not isinstance(minute.poc,Decimal):raise ValueError('Decimal POC required')
-        poc=_paper_math().adverse_execution_price(minute.poc,'long',D(0),True)
+        poc=_paper_price(minute.poc)
         previous = self.reference.get(symbol)
         if previous is not None and start < previous[0]:
             raise ValueError("out-of-order closed minute")
@@ -164,7 +170,7 @@ class PaperEngine:
         gross,fees,net=owner.paper_fill_metrics(position.side,position.entry,exit_price,position.size,position.entry_fee,self.fee_rate)
         return PaperFill(position.symbol,position.side,position.entry,exit_price,reason,gross,fees,net,when)
 
-    def execute_signal(self,signal,bars,*,bar_ms,as_of_ms,ambiguity_policy='SL_FIRST'):
+    def execute_signal(self,signal,bars,*,bar_ms,as_of_ms,available_from_ms=0,ambiguity_policy='SL_FIRST'):
         """Bounded offline OHLC model, staged completely before engine commit.
 
         Continuous OHLC is an explicit model assumption, not observed tick order.
@@ -173,7 +179,7 @@ class PaperEngine:
         """
         from .research_signals import validate_signal_batch,SignalExecution
         if self.enabled is not True:raise ValueError('paper engine disabled')
-        rows=validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=as_of_ms,ambiguity_policy=ambiguity_policy)
+        rows=validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=as_of_ms,available_from_ms=available_from_ms,ambiguity_policy=ambiguity_policy)
         if signal.symbol in self.positions:raise ValueError('paper instrument already has a position')
         prior=self.last_trade_time.get(signal.symbol)
         if prior is not None and _timestamp(signal.decision_ms)<prior:raise ValueError('out-of-order signal decision')
@@ -216,7 +222,7 @@ class PaperEngine:
         if not isinstance(trade.symbol,str) or not trade.symbol:raise ValueError('invalid symbol')
         timestamp=self._minute_start(trade.time)
         if not isinstance(trade.price,Decimal):raise ValueError('Decimal execution price required')
-        owner=_paper_math();price=owner.adverse_execution_price(trade.price,'long',D(0),True)
+        owner=_paper_math();price=_paper_price(trade.price)
         symbol=trade.symbol;prior=self.last_trade_time.get(symbol)
         if prior is not None and trade.time<prior:raise ValueError('out-of-order paper execution')
         position=self.positions.get(symbol)

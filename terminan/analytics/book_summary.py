@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from .liquidity import large_levels
-from market_profile_math import book_summary_metrics
+from market_math import book_summary_metrics
 
 @dataclass(frozen=True)
 class BookSummary:

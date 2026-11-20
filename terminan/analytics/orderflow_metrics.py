@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Iterable
-from market_profile_math import orderflow_volume_metrics
+from market_math import orderflow_volume_metrics
 
 
 @dataclass(frozen=True)

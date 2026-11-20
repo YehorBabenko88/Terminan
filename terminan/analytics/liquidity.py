@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
-from market_profile_math import large_liquidity_levels
+from market_math import large_liquidity_levels
 
 @dataclass(frozen=True)
 class LiquiditySignal:

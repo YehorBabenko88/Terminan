@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from decimal import Decimal
-from market_profile_math import exact_sum
+from market_math import exact_sum
 from .paper import PaperEngine
 from .analytics.flow_bridge import FlowBridge
 from .analytics.orderflow_adapters import from_records

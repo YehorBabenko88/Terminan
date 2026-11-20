@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from decimal import Decimal
-from market_profile_math import tape_velocity_metrics, tick_distance, within_tick_distance, wall_notional
+from market_math import tape_velocity_metrics, tick_distance, within_tick_distance, wall_notional
 
 @dataclass(frozen=True)
 class TapeSnapshot:

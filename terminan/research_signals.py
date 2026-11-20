@@ -34,11 +34,12 @@ class SignalExecution:
     model:str
     tick_ordering:str='UNKNOWN'
 
-def validate_signal_batch(signal,bars,*,bar_ms,as_of_ms,ambiguity_policy):
-    import market_profile_math as owner
+def validate_signal_batch(signal,bars,*,bar_ms,as_of_ms,ambiguity_policy,available_from_ms=0):
+    import market_math as owner
     if type(signal) is not ResearchSignal or type(signal.symbol) is not str or re.fullmatch('[A-Z0-9]{2,30}',signal.symbol) is None:raise ValueError('typed signal instrument required')
     if (type(bar_ms) is not int or not 1<=bar_ms<=2678400000 or type(as_of_ms) is not int or not 0<=as_of_ms<=4102444800000
-            or type(signal.decision_ms) is not int or not 0<=signal.decision_ms<=as_of_ms):raise ValueError('bounded closed signal clock required')
+            or type(available_from_ms) is not int or not 0<=available_from_ms<=as_of_ms
+            or type(signal.decision_ms) is not int or not available_from_ms<=signal.decision_ms<=as_of_ms):raise ValueError('bounded closed signal clock required')
     if type(signal.side) is not str or type(signal.entry_kind) is not str or type(ambiguity_policy) is not str or signal.side not in ('long','short') or signal.entry_kind not in ('market','limit') or ambiguity_policy not in ('SL_FIRST','TP_FIRST'):raise ValueError('explicit signal execution policy required')
     for price in (signal.stop,signal.target):owner.adverse_execution_price(price,'long',Decimal(0),True)
     if signal.entry_kind=='market':
@@ -50,7 +51,7 @@ def validate_signal_batch(signal,bars,*,bar_ms,as_of_ms,ambiguity_policy):
     if type(bars) not in (tuple,list) or not 1<=len(bars)<=20000:raise ValueError('bounded closed OHLC bars required')
     rows=tuple(bars);previous=None
     for bar in rows:
-        if type(bar) is not ResearchBar or type(bar.start_ms) is not int or bar.start_ms<0 or bar.start_ms%bar_ms or bar.start_ms+bar_ms>as_of_ms:raise ValueError('unaligned or future OHLC bar')
+        if type(bar) is not ResearchBar or type(bar.start_ms) is not int or bar.start_ms<available_from_ms or bar.start_ms%bar_ms or bar.start_ms+bar_ms>as_of_ms:raise ValueError('unaligned or future OHLC bar')
         if previous is not None and bar.start_ms!=previous+bar_ms:raise ValueError('continuous strictly ordered OHLC bars required')
         if owner.candle_ohlcv_valid(bar.open,bar.high,bar.low,bar.close,bar.volume) is not True:raise ValueError('invalid OHLCV domain')
         previous=bar.start_ms

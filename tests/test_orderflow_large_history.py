@@ -99,7 +99,7 @@ def test_math_batch_limit_remains_strict_and_stream_bucket_budget_is_bounded():
     """Streaming is a separate bounded Math contract, not a batch-limit bypass."""
     import pytest
     from market_compute_api import STREAM_ABI
-    from market_profile_math import aggregate_orderflow, MAX_ORDERFLOW_BATCH
+    from market_math import aggregate_orderflow, MAX_ORDERFLOW_BATCH
     from terminan.analytics.orderflow_aggregation import aggregate_by_time
 
     assert STREAM_ABI == "math.market.orderflow.stream.v1"

@@ -6,7 +6,7 @@ level_quality.py and history.validate_fixed_interval. Math owns all level prices
 from dataclasses import dataclass
 from datetime import datetime,timedelta,timezone
 from .core import Candle,Level,untouched_levels
-from market_profile_math import candle_ohlcv_valid
+from market_math import candle_ohlcv_valid
 
 FIXED_STEPS={'M1':timedelta(minutes=1),'H1':timedelta(hours=1),'D1':timedelta(days=1)}
 @dataclass(frozen=True)

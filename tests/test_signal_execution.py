@@ -39,5 +39,5 @@ class SignalExecutionTests(unittest.TestCase):
    self.assertEqual(engine.__dict__,before)
   with self.assertRaises(ValueError):self.execute([(60000,'100','101','98','100')],engine=engine,as_of=119999)
   self.assertEqual(engine.__dict__,before)
-  with patch('market_profile_math.paper_fill_metrics',side_effect=ValueError('OWNER_REFUSED')),self.assertRaises(ValueError):self.execute([(60000,'100','101','98','100')],engine=engine)
+  with patch('market_math.paper_fill_metrics',side_effect=ValueError('OWNER_REFUSED')),self.assertRaises(ValueError):self.execute([(60000,'100','101','98','100')],engine=engine)
   self.assertEqual(engine.__dict__,before)

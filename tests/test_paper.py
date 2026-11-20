@@ -364,7 +364,7 @@ class TradingSizingOwnershipTests(unittest.TestCase):
 
     def test_equity_and_ruin_original_thresholds(self):
         from terminan.paper import ruin_stats
-        from market_profile_math import paper_net_pnl
+        from market_math import paper_net_pnl
         rows = self.rows()
         self.assertAlmostEqual(paper_net_pnl(rows[0].get('pnl',0),rows[0].get('fees',0),rows[0].get('slippage',0)), -2.3)
         report = ruin_stats(rows, starting_equity=10, ruin_fraction=.5)
@@ -395,7 +395,7 @@ class TradingSizingOwnershipTests(unittest.TestCase):
 
     def test_trade_accounting_refuses_nonfinite_inputs_and_overflow(self):
         from terminan.paper import apply_sizing, ruin_stats
-        from market_profile_math import paper_net_pnl
+        from market_math import paper_net_pnl
 
         for field in ("pnl", "fees", "slippage"):
             for invalid in ("NaN", "Infinity", float("-inf")):

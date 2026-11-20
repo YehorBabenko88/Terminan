@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass,field
 from decimal import Decimal
-from market_profile_math import (price_bucket, volume_profile_poc, executed_volume_delta,
+from market_math import (price_bucket, volume_profile_poc, executed_volume_delta,
     footprint_cell_update, exact_sum)
 
 @dataclass
