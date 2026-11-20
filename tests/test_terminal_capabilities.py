@@ -174,3 +174,15 @@ class TransportBudgetTests(unittest.IsolatedAsyncioTestCase):
    with self.assertRaises(ValueError):await terminal.add_level(1,'BTCUSDT',price,'GreaterThanEqual','terminan:'+'a'*24)
   with self.assertRaises(ValueError):await terminal.open_combos(['BTCUSDT','BTCUSDT'])
   self.assertEqual(len(client.calls),2)
+
+class AmbiguousResponseTests(unittest.IsolatedAsyncioTestCase):
+ async def test_competing_known_wrappers_never_create_duplicate_annotation(self):
+  from terminan.metascalp_levels import PREFIX,signature,parse_rows
+  owned={'id':1,'price':'10','note':PREFIX+signature('BTCUSDT',report().levels[0])}
+  for response in ({'items':[],'levels':[owned]},{'items':None,'levels':[owned]}):
+   class Raw(FakeTerminal):
+    async def levels(self,*args):self.calls.append(('read',));return response
+   terminal=Raw();sync=LevelSync(terminal)
+   with self.assertRaises(ValueError):await sync.replace(1,'BTCUSDT',report(),connection_verified=True,instrument_verified=True)
+   self.assertEqual(terminal.calls,[('read',)])
+   with self.assertRaises(ValueError):parse_rows(response)
