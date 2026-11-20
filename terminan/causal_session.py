@@ -8,17 +8,49 @@ from dataclasses import dataclass
 from hashlib import sha256
 from threading import RLock
 from .paper_ledger import canonical_json
-from .causal_replay import SYMBOLS,digest,label
+from .causal_replay import SYMBOLS,digest,label,fields
+from .bounded_json import preflight_json,load_bounded_json
 from .causal_quotes import _clock,_decimal_value
 from .causal_account import CausalAccountJournal
+
+_DESCRIPTOR_FIELDS=('schema','sequence','kind','run_id','symbol','reservation_id','at_ms','detail','source_packet_sha256','evidence_class','source_authenticity','point_in_time_availability','execution_authority','trading_authorized')
+_DETAIL_FIELDS={'SOURCE_PACKET_OBSERVED':('cursor','source_request_sha256'),'RISK_DECISION':('strategy_bundle','proposal','risk'),'ENTRY_DECISION':('decision',),'EXIT_DECISION':('decision',),'ENTRY_SELECTED':('quote','row_sha256'),'LEDGER_COMMITTED':('request_sha256','result_sha256','admitted_ms'),'UNCERTAIN':('reason',),'WINDOW_ENDED':('qualification','unresolved_reservations'),'SESSION_FINISHED':('qualification','unresolved_reservations'),'VERIFIED_PAPER_SNAPSHOT':('paper_sha256','account_id','sequence','row_count','result_sha256s','consistency')}
+def _false_authority(value):
+ if type(value) is dict:
+  for key,item in value.items():
+   if key in ('execution_authority','trading_authorized','training_authorized') and item is not False:raise ValueError('descriptor authority representation refused')
+   _false_authority(item)
+ elif type(value) is list:
+  for item in value:_false_authority(item)
+
+def _decode_descriptor(raw,pin):
+ preflight_json(raw,max_bytes=65536)
+ if type(pin) is not str or len(pin)!=64 or re.fullmatch('[a-f0-9]{64}',pin) is None or sha256(raw).hexdigest()!=pin:raise ValueError('descriptor integrity mismatch')
+ value=load_bounded_json(raw,max_bytes=65536);fields(value,_DESCRIPTOR_FIELDS)
+ fixed={'schema':'terminan.paper.session-event.v2','evidence_class':'SYNTHETIC','source_authenticity':'NOT_EVALUATED','point_in_time_availability':'UNKNOWN','execution_authority':False,'trading_authorized':False}
+ if any(type(value[k]) is not type(v) or value[k]!=v for k,v in fixed.items()):raise ValueError('unqualified session descriptor required')
+ if type(value['kind']) is not str or value['kind'] not in _DETAIL_FIELDS or type(value['sequence']) is not int or not 1<=value['sequence']<=4096:raise ValueError('bounded session descriptor kind/sequence required')
+ label(value['run_id'])
+ if len(value['run_id'])>32:raise ValueError('bounded descriptor run required')
+ _clock(value['at_ms']);symbol=value['symbol'];ident=value['reservation_id']
+ if symbol is not None and (type(symbol) is not str or symbol not in SYMBOLS):raise ValueError('bounded descriptor symbol required')
+ if ident is not None:label(ident)
+ global_event=value['kind'] in ('WINDOW_ENDED','SESSION_FINISHED','VERIFIED_PAPER_SNAPSHOT')
+ if global_event and (symbol is not None or ident is not None) or not global_event and symbol is None or value['kind']=='SOURCE_PACKET_OBSERVED' and ident is not None or not global_event and value['kind']!='SOURCE_PACKET_OBSERVED' and ident is None:raise ValueError('descriptor routing identity mismatch')
+ pin=value['source_packet_sha256']
+ if pin is not None and (type(pin) is not str or re.fullmatch('[a-f0-9]{64}',pin) is None):raise ValueError('bounded source packet digest required')
+ fields(value['detail'],_DETAIL_FIELDS[value['kind']]);_false_authority(value['detail'])
+ if value['kind']=='UNCERTAIN' and (type(value['detail']['reason']) is not str or value['detail']['reason'] not in ('SOURCE_GAP','FUNDING_CHANGED','RESTART','REVOKED','QUOTE_TIMEOUT')):raise ValueError('bounded uncertainty descriptor required')
+ if value['kind'] in ('WINDOW_ENDED','SESSION_FINISHED') and (value['detail']['qualification']!='NOT_EVALUATED' or type(value['detail']['qualification']) is not str or type(value['detail']['unresolved_reservations']) is not int or not 0<=value['detail']['unresolved_reservations']<=512):raise ValueError('unqualified bounded end descriptor required')
+ if canonical_json(value)!=raw:raise ValueError('noncanonical session descriptor JSON')
+ return value
 
 @dataclass(frozen=True)
 class SessionDescriptor:
  payload_json:bytes
  sha256:str
- def decode(self):
-  if sha256(self.payload_json).hexdigest()!=self.sha256:raise ValueError('descriptor integrity mismatch')
-  return json.loads(self.payload_json)
+ def __post_init__(self):_decode_descriptor(self.payload_json,self.sha256)
+ def decode(self):return _decode_descriptor(self.payload_json,self.sha256)
 def _seal(value):return dict(value,sha256=digest(value))
 def _ceil_ms(text):return (int(text)+999)//1000
 
@@ -192,14 +224,22 @@ class CausalPaperSession:
     now=self._now()
     if q['as_of_ms']>now:raise ValueError('future source packet cut')
     if now>=self.started_ms+self.duration:return self.advance()
-    batch=state['strategy'].observe_packet(checked,expected_request=expected_request);answers={r['row_id']:r for r in batch.observations};events=[];self._advance(now,events)
+    batch=state['strategy'].observe_packet(checked,expected_request=expected_request);answers={r['row_id']:r for r in batch.observations};events=[]
     tickers=[r for r in checked['rows'] if r['event_type']=='derivatives_ticker']
     if tickers:
-     values=self._funding_values(tickers[-1]['payload']);pending=self._pending.get(symbol)
+     payload=tickers[-1]['payload'];pending=self._pending.get(symbol);funding_fields=('funding_rate','funding_interval_hour','next_funding_time')
+     # A newly observed explicit unknown is not a numeric schedule change.
+     # Invalidate BEFORE hold/close advancement; omitted fields/no arrival
+     # remain distinct and cannot fabricate facts about the prior interval.
+     explicit_unknown=any(key in payload and payload[key] is None for key in funding_fields)
+     complete_unavailable=all(key in payload for key in funding_fields) and checked['funding_status']!='KNOWN_SOURCE_FIELDS'
+     if pending is not None and (explicit_unknown or complete_unavailable):self._uncertain(symbol,'SOURCE_GAP',now,events)
+     values=self._funding_values(payload)
      if values is not None and pending is not None and pending['candidate'].get('funding') is not None:
       prior=pending['candidate']['funding']
       if values!=(prior['interval_ms'],prior['next_ms']):self._uncertain(symbol,'FUNDING_CHANGED',now,events)
      state['funding']=(checked,tickers[-1]) if checked['funding_status']=='KNOWN_SOURCE_FIELDS' and checked['producer_context_status']=='CONSISTENT' else None
+    self._advance(now,events)
     financial=checked['producer_context_status']=='CONSISTENT'
     for row in checked['rows']:
      self._current();at=self._now();connection=self._context(symbol,row,at,events)
