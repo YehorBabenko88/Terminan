@@ -27,8 +27,8 @@ class CausalScheduleTests(unittest.TestCase):
    with self.subTest(mode=mode),self.assertRaises(ValueError):self.validate(v)
    self.assertEqual(v,before)
  def test_ambiguous_funding_boundary_and_missing_schedule_event_refuse(self):
-  for events in ([],[receipt('f1',event_ms=200,observed_ms=201,rate='0.01',mark_price='100')]):
-   v=fixture();f=dict(v['funding']);f.pop('sha256');f.update(kind='COMPLETE_EVENTS',previous_ms=10,next_ms=510,interval_ms=100,observed_ms=312,events=events);v['funding']=seal(f)
+  for mode in ('boundary','missing'):
+   v=fixture();f=dict(v['funding']);f.pop('sha256');f.update(kind='COMPLETE_EVENTS',previous_ms=10 if mode=='boundary' else 0,next_ms=510 if mode=='boundary' else 600,interval_ms=100 if mode=='boundary' else 200,observed_ms=312,events=[]);v['funding']=seal(f)
    with self.assertRaises(ValueError):self.validate(v)
  def test_complete_funding_events_are_selected_only_inside_fill_interval(self):
   v=fixture();events=[receipt('f'+str(t),event_ms=t,observed_ms=t,rate='0.01',mark_price='100') for t in (50,250,450)]
