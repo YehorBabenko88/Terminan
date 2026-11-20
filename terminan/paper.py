@@ -4,7 +4,7 @@ Ported from meta_analyse/src/meta_analyse/core.py at pinned source
 9d0fb5c79a5da13b23f8daa066035b09f676a6fc.
 
 Expects a CLOSED minute whose POC has already been calculated by the
-canonical Math SDK from Grid-sourced data. It never computes POC, connects
+canonical Math SDK from MarketData-sourced data. It never computes POC, connects
 to an exchange, persists market rows, or submits an order. Its trade
 arithmetic is execution-fill accounting, not a statistical/math kernel.
 """
@@ -114,7 +114,7 @@ class PaperEngine:
         """Consume the installed canonical Math SDK, never a local POC copy.
 
         Caller-supplied snapshot digest is UNATTESTED by the SDK. This method
-        is offline/paper-only and does not qualify public Grid market feeds.
+        is offline/paper-only and does not qualify public MarketData market feeds.
         """
         if (not isinstance(request, dict)
                 or request.get("schema") != "math.market.compute.v1"
@@ -264,7 +264,7 @@ def replay_paper(request, *, compute=None):
     """Run bounded deterministic *offline* paper replay, never market orders.
 
     Every closed minute obtains POC from the installed canonical Math SDK.
-    The request's source SHA is caller-supplied, NOT authenticated Grid data.
+    The request's source SHA is caller-supplied, NOT authenticated MarketData data.
     Set TERMINAN_PAPER_LEDGER to a dedicated local SQLite file to retain
     completed receipts. Without it, replay stays stateless. A configured
     ledger must successfully record the receipt before replay returns it.
@@ -303,17 +303,17 @@ def replay_paper(request, *, compute=None):
             or source["units"] != {"price": "quote/base", "volume": "base"}):
         raise ValueError("invalid source identity or units")
 
-    # Grid historical variant/fold metadata is a *caller assertion*, not a
-    # qualified Grid dataset or proof that a non-POC strategy was executed.
+    # MarketData historical variant/fold metadata is a *caller assertion*, not a
+    # qualified MarketData dataset or proof that a non-POC strategy was executed.
     # Only the actual registered POC BASE algorithm is currently supported.
     comparison = request.get("comparison")
     if "comparison" in request and comparison is None:
-        raise ValueError("missing Grid comparison context")
+        raise ValueError("missing MarketData comparison context")
     if comparison is not None:
         if (type(comparison) is not dict or set(comparison) != {
                 "schema", "dataset_id", "dataset_hash", "strategy_name",
                 "setup", "variant", "fold", "comparison_group", "symbol"
-        } or comparison["schema"] != "terminan.grid.comparison.v1"
+        } or comparison["schema"] != "terminan.market_data.comparison.v1"
                 or type(comparison["dataset_id"]) is not str
                 or not _RUN_ID.fullmatch(comparison["dataset_id"])
                 or type(comparison["dataset_hash"]) is not str
@@ -330,7 +330,7 @@ def replay_paper(request, *, compute=None):
                 or any(type(item) is not dict or
                        item.get("symbol") != comparison["symbol"]
                        for item in events)):
-            raise ValueError("unqualified Grid comparison context")
+            raise ValueError("unqualified MarketData comparison context")
     request_sha256 = sha256(request_bytes).hexdigest()
     ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
     ledger = PaperReplayLedger(ledger_path) if ledger_path else None

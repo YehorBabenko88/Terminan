@@ -20,25 +20,13 @@ def sqlite_ro(env):
     return sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
 
 def candles(symbol, timeframe="1m", limit=300):
-    validate(symbol, timeframe)
-    limit = max(1, min(int(limit), 1000))
-    con = sqlite_ro("TERMINAN_STRATTESTER_DB")
-    if con is None:
-        return []
-    try:
-        rows = con.execute("SELECT open_time,open,high,low,close,volume FROM candles WHERE symbol=? AND timeframe=? ORDER BY open_time DESC LIMIT ?", (symbol, timeframe, limit)).fetchall()
-        return [dict(zip(("t","o","h","l","c","v"), row)) for row in reversed(rows)]
-    finally:
-        con.close()
+    validate(symbol,timeframe)
+    # Qualified source API is the only active market-data boundary.
+    return market_data_candles(symbol,limit) if timeframe=="1m" else []
 
 def instruments():
-    con = sqlite_ro("TERMINAN_STRATTESTER_DB")
-    if con is None:
-        return []
-    try:
-        return [r[0] for r in con.execute("SELECT DISTINCT symbol FROM candles ORDER BY symbol LIMIT 2000")]
-    finally:
-        con.close()
+    # Discovery is unavailable until a source-qualified immutable catalogue is admitted.
+    return []
 
 def research(symbol, limit=50):
     validate(symbol)
@@ -51,39 +39,29 @@ def research(symbol, limit=50):
     finally:
         con.close()
 
-def grid_query(sql, params):
-    dsn = os.environ.get("TERMINAN_GRID_DSN")
-    if not dsn:
-        return []
-    import psycopg
-    with psycopg.connect(dsn, connect_timeout=3, options="-c default_transaction_read_only=on -c statement_timeout=3000") as con:
-        with con.cursor() as cur:
-            cur.execute(sql, params)
-            return cur.fetchall()
+def _market_data_market_rows(dataset, symbol, limit):
+    """Consume the existing MarketData v1 loopback market endpoint, never SQL directly.
 
-def _grid_market_rows(dataset, symbol, limit):
-    """Consume the existing Grid v1 loopback market endpoint, never SQL directly.
-
-    The current Grid endpoint has no source-qualified dataset. Reject every
+    The current MarketData endpoint has no source-qualified dataset. Reject every
     unqualified/nonempty response; do not turn archived rows into live evidence.
-    An authenticated Unified Gateway and qualified Grid receipt are required
+    An authenticated Unified Gateway and qualified MarketData receipt are required
     before enabling actual strategy/chart data.
     """
     validate(symbol)
     count = max(1, min(int(limit), 1000))
-    port_text = os.environ.get("TERMINAN_GRID_API_PORT", "")
+    port_text = os.environ.get("MARKET_DATA_API_PORT", "")
     if not re.fullmatch(r"[1-9][0-9]{0,4}", port_text):
         return []
     port = int(port_text)
     if port > 65535:
         return []
     try:
-        envelope = _grid_internal_get(
+        envelope = _market_data_internal_get(
             port, f"/internal/v1/{dataset}?symbol={symbol}&limit={count}"
         )
         if (type(envelope) is not dict
                 or envelope.get("api_version") != {"major": 1, "minor": 0}
-                or envelope.get("producer") != "bybit-cluster-grid"
+                or envelope.get("producer") != "market_data"
                 or envelope.get("read_only") is not True
                 or envelope.get("status") != "UNAVAILABLE"
                 or envelope.get("reason") != "SOURCE_PROVENANCE_UNAVAILABLE"
@@ -91,29 +69,29 @@ def _grid_market_rows(dataset, symbol, limit):
                 or envelope.get("limit") != count
                 or envelope.get("symbol") != symbol
                 or envelope.get("timeframe") != "1m"):
-            raise ValueError("unqualified Grid market response")
+            raise ValueError("unqualified MarketData market response")
     except Exception:
         # Fail closed without exposing remote errors, internal paths or DSNs.
         return []
     return []
 
 
-def grid_candles(symbol, limit=300):
-    return _grid_market_rows("candles", symbol, limit)
+def market_data_candles(symbol, limit=300):
+    return _market_data_market_rows("candles", symbol, limit)
 
 
 def footprint(symbol, limit=500):
-    return _grid_market_rows("footprint", symbol, limit)
+    return _market_data_market_rows("footprint", symbol, limit)
 
-# Grid owns all exchange connectivity. This bounded probe consumes ONLY the
-# existing Grid public-data capability API on the same host; it never retrieves
+# MarketData owns all exchange connectivity. This bounded probe consumes ONLY the
+# existing MarketData public-data capability API on the same host; it never retrieves
 # exchange data, DB credentials, or grants strategy execution authority.
-_GRID_CAPS_PATH = "/internal/v1/capabilities"
-_GRID_HEALTH_PATH = "/internal/v1/health"
-_GRID_MAX_JSON = 16384
+_MARKET_DATA_CAPS_PATH = "/internal/v1/capabilities"
+_MARKET_DATA_HEALTH_PATH = "/internal/v1/health"
+_MARKET_DATA_MAX_JSON = 16384
 
 
-def _grid_internal_get(port, path):
+def _market_data_internal_get(port, path):
     """One direct loopback GET; no DNS, redirects, proxy, credentials or writes."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
     try:
@@ -121,33 +99,33 @@ def _grid_internal_get(port, path):
                                            "Connection": "close"})
         response = conn.getresponse()
         if response.status != 200:
-            raise ValueError("grid gateway unavailable")
+            raise ValueError("market-data gateway unavailable")
         if response.getheader("Content-Encoding"):
-            raise ValueError("grid compressed response unsupported")
+            raise ValueError("market-data compressed response unsupported")
         media_type = (response.getheader("Content-Type") or "").split(";", 1)[0]
         if media_type.strip().lower() != "application/json":
-            raise ValueError("grid content type mismatch")
-        raw = response.read(_GRID_MAX_JSON + 1)
-        if len(raw) > _GRID_MAX_JSON:
-            raise ValueError("grid response size exceeded")
+            raise ValueError("market-data content type mismatch")
+        raw = response.read(_MARKET_DATA_MAX_JSON + 1)
+        if len(raw) > _MARKET_DATA_MAX_JSON:
+            raise ValueError("market-data response size exceeded")
         return json.loads(raw.decode("utf-8"),
                           parse_constant=lambda _value: (_ for _ in ()).throw(
-                              ValueError("nonfinite grid response")))
+                              ValueError("nonfinite market-data response")))
     finally:
         conn.close()
 
 
-def grid_source_status():
-    """Conservative status for the existing Grid v1 internal read API.
+def market_data_source_status():
+    """Conservative status for the existing MarketData v1 internal read API.
 
     Database reachability is not market provenance. Never promote legacy
     unqualified candles/footprints to LIVE or strategy-ready market data.
-    The single source authority is Grid; remote/LAN access must be mediated
+    The single source authority is MarketData; remote/LAN access must be mediated
     later by an authenticated Unified Gateway.
     """
     unavailable = {
         "api_version": {"major": 1, "minor": 0},
-        "producer": "bybit-cluster-grid",
+        "producer": "market_data",
         "connection": "UNAVAILABLE",
         "market_data": "UNAVAILABLE",
         "database": "UNAVAILABLE",
@@ -156,7 +134,7 @@ def grid_source_status():
         "live_l2": False,
         "execution_authority": False,
     }
-    raw_port = os.environ.get("TERMINAN_GRID_API_PORT")
+    raw_port = os.environ.get("MARKET_DATA_API_PORT")
     if raw_port is None:
         return unavailable
     # Strict literal port. No URLs or addresses from environment, so SSRF,
@@ -167,24 +145,24 @@ def grid_source_status():
     if port > 65535:
         return unavailable
     try:
-        caps = _grid_internal_get(port, _GRID_CAPS_PATH)
-        health = _grid_internal_get(port, _GRID_HEALTH_PATH)
+        caps = _market_data_internal_get(port, _MARKET_DATA_CAPS_PATH)
+        health = _market_data_internal_get(port, _MARKET_DATA_HEALTH_PATH)
         for envelope in (caps, health):
             if (type(envelope) is not dict or
                 envelope.get("api_version") != {"major": 1, "minor": 0} or
-                envelope.get("producer") != "bybit-cluster-grid" or
+                envelope.get("producer") != "market_data" or
                 envelope.get("read_only") is not True or
                 envelope.get("status") != "UNAVAILABLE"):
-                raise ValueError("unqualified grid gateway contract")
+                raise ValueError("unqualified market-data gateway contract")
         capabilities = caps.get("capabilities")
         if (type(capabilities) is not dict or
             capabilities.get("candles") != "UNAVAILABLE" or
             capabilities.get("footprint") != "UNAVAILABLE" or
             capabilities.get("live_l2") is not False):
-            raise ValueError("unexpected grid capabilities")
+            raise ValueError("unexpected market-data capabilities")
         db = health.get("database")
         if db not in ("READ_ONLY", "UNAVAILABLE"):
-            raise ValueError("invalid grid database status")
+            raise ValueError("invalid market-data database status")
         return {
             **unavailable,
             "connection": "CONNECTED_UNQUALIFIED",

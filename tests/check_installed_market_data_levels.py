@@ -1,4 +1,4 @@
-"""Test the pinned installed Grid → Terminan → Math cohort without a live DB."""
+"""Test the pinned installed MarketData → Terminan → Math cohort without a live DB."""
 
 from decimal import Decimal, localcontext
 import os
@@ -16,18 +16,18 @@ sys.path.insert(0, str(WHEEL_ROOT))
 
 import market_compute_api
 import market_profile_math
-from grid import history_snapshot
-from grid.provenance import digest
+from market_data import history_snapshot
+from market_data.provenance import digest
 from terminan import levels
 
 
 DAY = 86_400_000
 IDENTITY = {"venue": "bybit", "market_type": "linear", "symbol": "BTCUSDT"}
 GOLDEN = {
-    "1h": "72499da965cbd812fad867e734780807108328d977c919b22bfc5db4e542e4a0",
-    "4h": "080ab13fe37ca2f4b4265bf500dc45c595d896da0fbf68e373bc04d11a68c019",
-    "1d": "948236f4555939c20c6768bacb16016b6396e96d0f86e7678235d03a85460e8a",
-    "1w": "d9b02f8b498be04649e399150df8fcf6469b5b6136ac42bedcdefd488455dce1",
+    "1h": "87a6c51f33daf5a6f5c393981db755253455f33ce9b4c7ff749671dfe9875e32",
+    "4h": "f132f9066cb05eae6315f928ed6c90641432c0ace53a4b2d25bc9ea60da60746",
+    "1d": "bddca3daf42b8feda7b851ec55398ff41a0af8e1dc85b17ab2eca2a7e5de5e62",
+    "1w": "1615da03307712f09c17edf280588eed35a7d713a79a83a61dada77e4af15ea2"
 }
 
 
@@ -52,7 +52,7 @@ def rollup(timeframe, minutes):
         catalog[pin] = page
         pages_by_id[pin] = dict(rows=chunk, source=source, request=request,
                                dataset_id=str(index), dataset_fingerprint=pin)
-    selection = dict(IDENTITY, schema="grid.history.selection.v4", timeframe=timeframe,
+    selection = dict(IDENTITY, schema="market_data.history.selection.v4", timeframe=timeframe,
                      snapshot_ids=list(catalog), start_ms=start, end_ms=end)
 
     def read_fixture(connection, page, catalog, *, continuing=False):
@@ -66,7 +66,7 @@ def rollup(timeframe, minutes):
 def scan(snapshot, pin, timeframe, minutes):
     start = 4 * DAY if timeframe == "1w" else 0
     end = start + 2 * minutes * 60_000
-    return levels.levels_from_grid_series(
+    return levels.levels_from_market_data_series(
         snapshot, trusted_fingerprint=pin, symbol=IDENTITY["symbol"],
         market_type=IDENTITY["market_type"], timeframe=timeframe,
         start_ms=start, end_ms=end, as_of_ms=end,
@@ -79,7 +79,7 @@ def rehash(snapshot):
     ))
 
 
-class InstalledGridLevelsTests(unittest.TestCase):
+class InstalledMarketDataLevelsTests(unittest.TestCase):
     def test_packages_resolve_from_installed_wheel_root(self):
         for module in (levels, history_snapshot, market_compute_api, market_profile_math):
             self.assertTrue(Path(module.__file__).resolve().is_relative_to(WHEEL_ROOT))

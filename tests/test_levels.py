@@ -7,7 +7,7 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from terminan.levels import grid_level_candles, levels_from_grid_series, untouched_levels, merge_levels
+from terminan.levels import market_data_level_candles, levels_from_market_data_series, untouched_levels, merge_levels
 from terminan.paper_ledger import canonical_json
 from terminan.server import Handler
 
@@ -47,7 +47,7 @@ class LevelTests(unittest.TestCase):
                 worker.join()
         legacy.assert_not_called()
 
-    def test_pinned_grid_rollup_projects_to_math_levels(self):
+    def test_pinned_market_data_rollup_projects_to_math_levels(self):
         hour = 3_600_000
         request = dict(venue="bybit", market_type="linear", symbol="BTCUSDT",
                        start_ms=0, end_ms=hour, as_of_ms=hour + 100)
@@ -55,13 +55,13 @@ class LevelTests(unittest.TestCase):
                    available_at_ms=hour + 10, watermark_ms=hour)
 
         def signable(candle):
-            payload = dict(schema="grid.history.rollup.v1", evidence_class="HISTORICAL",
+            payload = dict(schema="market_data.history.rollup.v1", evidence_class="HISTORICAL",
                            request=request, timeframe="1h", rows=[candle], source={},
                            parent_dataset_id="fixture", parent_dataset_fingerprint="b" * 64)
             return dict(payload, dataset_fingerprint=sha256(canonical_json(payload)).hexdigest())
 
         def project(snapshot, pin=None, timeframe="1h"):
-            return grid_level_candles(
+            return market_data_level_candles(
                 snapshot, trusted_fingerprint=pin or snapshot["dataset_fingerprint"],
                 symbol="BTCUSDT", market_type="linear", timeframe=timeframe,
                 start_ms=0, end_ms=hour, as_of_ms=hour + 100)
@@ -98,13 +98,13 @@ class LevelTests(unittest.TestCase):
                            for i, pin in enumerate(request["snapshot_ids"])]
                 row = dict(event_start_ms=start, event_end_ms=end, high=10, low=5,
                            watermark_ms=end, available_at_ms=end)
-                payload = dict(schema="grid.history.rollup.v2", timeframe=timeframe, source={},
+                payload = dict(schema="market_data.history.rollup.v2", timeframe=timeframe, source={},
                                evidence_class="HISTORICAL", request=request, units={},
                                as_of_ms=end, parents=parents, rows=[row])
 
                 def project(snapshot):
                     pin = sha256(canonical_json(snapshot)).hexdigest()
-                    return grid_level_candles(
+                    return market_data_level_candles(
                         dict(snapshot, dataset_fingerprint=pin), trusted_fingerprint=pin,
                         symbol="BTCUSDT", market_type="linear", timeframe=timeframe,
                         start_ms=start, end_ms=end, as_of_ms=end)
@@ -124,18 +124,18 @@ class LevelTests(unittest.TestCase):
 
         first, second = candle(0, 20, 5), candle(width, 15, 7)
         parent = dict(snapshot_id="a" * 64, dataset_id="page", dataset_fingerprint="b" * 64)
-        payload = dict(schema="grid.history.rollup.v3", timeframe="1h",
+        payload = dict(schema="market_data.history.rollup.v3", timeframe="1h",
                        source=dict(identity="grid-bybit", source_revision="one", epoch="one"),
                        evidence_class="HISTORICAL", as_of_ms=end,
                        units=dict(price="quote/base", volume="base"), parents=[parent],
-                       request=dict(schema="grid.history.selection.v4", venue="bybit",
+                       request=dict(schema="market_data.history.selection.v4", venue="bybit",
                                     market_type="linear", symbol="BTCUSDT", start_ms=0,
                                     end_ms=end, timeframe="1h", snapshot_ids=[parent["snapshot_id"]]),
                        rows=[first, second])
 
         def levels(response, pin=None):
             fingerprint = sha256(canonical_json(response)).hexdigest()
-            return levels_from_grid_series(
+            return levels_from_market_data_series(
                 dict(response, dataset_fingerprint=fingerprint),
                 trusted_fingerprint=pin or fingerprint, symbol="BTCUSDT",
                 market_type="linear", timeframe="1h", start_ms=0, end_ms=end, as_of_ms=end,
@@ -155,10 +155,10 @@ class LevelTests(unittest.TestCase):
                     levels(response, pin)
             compute.assert_not_called()
 
-    def test_grid_timestamp_cannot_exceed_producer_safe_integer_range(self):
+    def test_market_data_timestamp_cannot_exceed_producer_safe_integer_range(self):
         hour = 3_600_000
         snapshot = dict(
-            schema="grid.history.rollup.v1", timeframe="1h", evidence_class="HISTORICAL",
+            schema="market_data.history.rollup.v1", timeframe="1h", evidence_class="HISTORICAL",
             source={}, parent_dataset_id="legacy", parent_dataset_fingerprint="b" * 64,
             request=dict(venue="bybit", symbol="BTCUSDT", market_type="linear",
                          start_ms=0, end_ms=hour, as_of_ms=2**53),
@@ -167,7 +167,7 @@ class LevelTests(unittest.TestCase):
         )
         pin = sha256(canonical_json(snapshot)).hexdigest()
         with self.assertRaisesRegex(ValueError, "window"):
-            grid_level_candles(
+            market_data_level_candles(
                 dict(snapshot, dataset_fingerprint=pin), trusted_fingerprint=pin,
                 symbol="BTCUSDT", market_type="linear", timeframe="1h",
                 start_ms=0, end_ms=hour, as_of_ms=2**53,

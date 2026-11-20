@@ -194,7 +194,7 @@ os._exit(42)
     def _comparison_request(self):
         request = copy.deepcopy(self.request)
         request["comparison"] = {
-            "schema": "terminan.grid.comparison.v1",
+            "schema": "terminan.market_data.comparison.v1",
             "dataset_id": "73f663a0-3991-4ee5-9c01-0238a4e97270",
             "dataset_hash": "b" * 64,
             "strategy_name": "meta.poc.next_minute",
@@ -244,7 +244,7 @@ os._exit(42)
             replay_paper(modified, compute=mock_math)
         self.assertEqual(replay_paper(request, compute=mock_math), receipt)
 
-    def test_unimplemented_grid_variants_and_mismatched_scope_rejected(self):
+    def test_unimplemented_market_data_variants_and_mismatched_scope_rejected(self):
         request = self._comparison_request()
         for variant in ("REGIME", "MARKOV", "REGIME_MARKOV", "ML",
                         "ML_MARKOV", "OTHER"):
@@ -278,12 +278,12 @@ os._exit(42)
             replay_paper(resumed_as_input, compute=mock_math)
         self.assertFalse(self.path.exists())
 
-    def test_grid_ui_is_present_alongside_durable_paper_api(self):
+    def test_market_data_ui_is_present_alongside_durable_paper_api(self):
         from importlib.resources import files
         html = files("terminan").joinpath("index.html").read_text(
             encoding="utf-8")
-        for required in ('id="grid-quality"', 'id="grid-check"',
-                         "/api/grid/source", "/api/paper/replay"):
+        for required in ('id="market-data-quality"', 'id="market-data-check"',
+                         "/api/market-data/source", "/api/paper/replay"):
             self.assertIn(required, html)
         self.assertIn("Происхождение не подтверждено", html)
         self.assertNotIn("submitOrder(", html)

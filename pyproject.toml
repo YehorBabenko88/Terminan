@@ -10,14 +10,18 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+desktop = ["PySide6>=6.7,<7"]
+
 # Math is installed only from an independently verified, source-pinned
 # wheel by Unified. Do not resolve an unapproved Math dependency from an index.
 
 [project.scripts]
-terminan = "terminan.server:run"
+terminan = "terminan.server:main"
+terminan-research = "terminan.desktop:main"
 
 [tool.setuptools]
-packages = ["terminan"]
+packages = ["terminan", "terminan.analytics", "terminan.migration"]
 include-package-data = false
 
 [tool.setuptools.package-data]

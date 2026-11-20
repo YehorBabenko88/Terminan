@@ -10,7 +10,7 @@ import sqlite3
 
 
 _APPLICATION_ID = 0x54505231  # TPR1
-_META_RECEIPT = {
+_HISTORICAL_RECEIPT = {
     "schema": "meta.persisted-state.digest.v1",
     "table": "paper_fills",
     "source_status": "UNVERIFIED_LOCAL_READBACK",
@@ -19,16 +19,16 @@ _META_RECEIPT = {
 }
 
 
-def _meta_digest():
+def _historical_digest():
     return sha256(b"meta.persisted-state.digest.v1\0paper_fills\0")
 
 
-def _add_meta_row(digest, raw):
+def _add_historical_row(digest, raw):
     digest.update(len(raw).to_bytes(4, "big"))
     digest.update(raw)
 
 
-def _encode_meta_fill(row):
+def _encode_historical_fill(row):
     if (type(row) not in (tuple, list) or len(row) != 10
             or type(row[0]) is not int or not -(2**63) <= row[0] < 2**63
             or any(type(value) is not str for value in row[1:])):
@@ -50,7 +50,7 @@ def _encode_meta_fill(row):
     return raw
 
 
-def _validate_meta_source(source_id):
+def _validate_historical_source(source_id):
     if type(source_id) is not str or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", source_id):
         raise ValueError("invalid legacy fill source identifier")
 
@@ -157,7 +157,32 @@ class PaperReplayLedger:
             )
             return self._read(database, run_id, request_sha256)
 
-    def import_meta_fills(self, source_id, rows, source_receipt):
+    def migrate_historical_archive_schema(self):
+        """Explicit transactional cutover; preserve a backup before caller use."""
+        mapping=(("meta_fill_archives","historical_fill_archives",
+                  ("source_id","row_count","sha256")),
+                 ("meta_fill_rows","historical_fill_rows",
+                  ("source_id","fill_id","row_json")))
+        with closing(self._connect()) as database, database:
+            database.execute("BEGIN IMMEDIATE")
+            if self._application_id(database)!=_APPLICATION_ID:
+                raise RuntimeError("paper replay requires a dedicated database")
+            names={row[0] for row in database.execute("SELECT name FROM sqlite_schema WHERE type='table'")}
+            old={old for old,new,columns in mapping if old in names}
+            if not old:return False
+            if len(old)!=2 or any(new in names for old,new,columns in mapping):
+                raise ValueError("ambiguous historical archive schema")
+            for old,new,columns in mapping:
+                actual=tuple(row[1] for row in database.execute('PRAGMA table_info("'+old+'")'))
+                if actual!=columns:raise ValueError("unrecognized historical archive schema")
+            archives=list(database.execute("SELECT source_id,row_count,sha256 FROM meta_fill_archives"))
+            for old,new,columns in mapping:
+                database.execute('ALTER TABLE "'+old+'" RENAME TO "'+new+'"')
+            for source_id,count,digest in archives:
+                self._verify_historical_archive(database,source_id,(count,digest))
+            return True
+
+    def import_historical_fills(self, source_id, rows, source_receipt):
         """Archive one immutable Meta digest-v1 snapshot from a trusted export.
 
         The caller provides canonical SQL rows and the separately captured
@@ -165,12 +190,12 @@ class PaperReplayLedger:
         never opens the source database or grants execution authority. Use a
         stable opaque identifier for retries and a new ID for a new snapshot.
         """
-        _validate_meta_source(source_id)
+        _validate_historical_source(source_id)
         if (type(source_receipt) is not dict
-                or source_receipt.keys() != _META_RECEIPT.keys() | {"row_count", "sha256"}
+                or source_receipt.keys() != _HISTORICAL_RECEIPT.keys() | {"row_count", "sha256"}
                 or any(type(source_receipt[key]) is not type(expected)
                        or source_receipt[key] != expected
-                       for key, expected in _META_RECEIPT.items())):
+                       for key, expected in _HISTORICAL_RECEIPT.items())):
             raise ValueError("unsupported legacy fill source receipt")
         count = source_receipt["row_count"]
         expected = source_receipt["sha256"]
@@ -183,87 +208,87 @@ class PaperReplayLedger:
             if self._application_id(database) != _APPLICATION_ID:
                 raise RuntimeError("paper replay requires a dedicated database")
             database.execute(
-                "CREATE TABLE IF NOT EXISTS meta_fill_archives ("
+                "CREATE TABLE IF NOT EXISTS historical_fill_archives ("
                 "source_id TEXT PRIMARY KEY NOT NULL, row_count INTEGER NOT NULL, "
                 "sha256 TEXT NOT NULL)"
             )
             database.execute(
-                "CREATE TABLE IF NOT EXISTS meta_fill_rows ("
+                "CREATE TABLE IF NOT EXISTS historical_fill_rows ("
                 "source_id TEXT NOT NULL, fill_id INTEGER NOT NULL, row_json BLOB NOT NULL, "
                 "PRIMARY KEY (source_id, fill_id))"
             )
-            archive = self._meta_archive(database, source_id)
+            archive = self._historical_archive(database, source_id)
             if archive is not None and archive != (count, expected):
                 raise ReplayConflict("legacy fill source ID already bound to a different snapshot")
-            digest = _meta_digest()
+            digest = _historical_digest()
             total = size = 0
             previous = None
             for row in rows:
-                raw = _encode_meta_fill(row)
+                raw = _encode_historical_fill(row)
                 total += 1
                 size += len(raw)
                 if (total > count or size > 2**30
                         or (previous is not None and previous >= row[0])):
                     raise ValueError("legacy fill export exceeds bounds or IDs are out of order")
                 previous = row[0]
-                _add_meta_row(digest, raw)
+                _add_historical_row(digest, raw)
                 if archive is None:
-                    database.execute("INSERT INTO meta_fill_rows VALUES (?, ?, ?)",
+                    database.execute("INSERT INTO historical_fill_rows VALUES (?, ?, ?)",
                                      (source_id, row[0], raw))
             if (total, digest.hexdigest()) != (count, expected):
                 raise ValueError("legacy fill export does not match source receipt")
             if archive is None:
-                database.execute("INSERT INTO meta_fill_archives VALUES (?, ?, ?)",
+                database.execute("INSERT INTO historical_fill_archives VALUES (?, ?, ?)",
                                  (source_id, count, expected))
-            self._verify_meta_archive(database, source_id, (count, expected))
-        return dict(_META_RECEIPT, row_count=count, sha256=expected)
+            self._verify_historical_archive(database, source_id, (count, expected))
+        return dict(_HISTORICAL_RECEIPT, row_count=count, sha256=expected)
 
-    def restore_meta_fills(self, source_id):
+    def restore_historical_fills(self, source_id):
         """Yield verified canonical rows from a single read-only snapshot.
 
         Exhaust the iterator or close it promptly to release the reader lock.
         """
-        _validate_meta_source(source_id)
+        _validate_historical_source(source_id)
         with closing(self._connect()) as database, database:
             database.execute("PRAGMA query_only = ON")
             database.execute("BEGIN")
             if self._application_id(database) != _APPLICATION_ID:
                 raise RuntimeError("paper replay requires a dedicated database")
-            archive = self._meta_archive(database, source_id)
+            archive = self._historical_archive(database, source_id)
             if archive is None:
                 raise KeyError(source_id)
-            self._verify_meta_archive(database, source_id, archive)
-            for _, raw in self._meta_rows(database, source_id):
+            self._verify_historical_archive(database, source_id, archive)
+            for _, raw in self._historical_rows(database, source_id):
                 yield json.loads(raw)
 
     @staticmethod
-    def _meta_archive(database, source_id):
+    def _historical_archive(database, source_id):
         if not database.execute(
-            "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'meta_fill_archives'"
+            "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'historical_fill_archives'"
         ).fetchone():
             return None
         return database.execute(
-            "SELECT row_count, sha256 FROM meta_fill_archives WHERE source_id = ?",
+            "SELECT row_count, sha256 FROM historical_fill_archives WHERE source_id = ?",
             (source_id,),
         ).fetchone()
 
     @staticmethod
-    def _meta_rows(database, source_id):
+    def _historical_rows(database, source_id):
         return database.execute(
-            "SELECT fill_id, row_json FROM meta_fill_rows WHERE source_id = ? ORDER BY fill_id",
+            "SELECT fill_id, row_json FROM historical_fill_rows WHERE source_id = ? ORDER BY fill_id",
             (source_id,),
         )
 
-    def _verify_meta_archive(self, database, source_id, archive):
-        digest = _meta_digest()
+    def _verify_historical_archive(self, database, source_id, archive):
+        digest = _historical_digest()
         total = 0
-        for fill_id, raw in self._meta_rows(database, source_id):
+        for fill_id, raw in self._historical_rows(database, source_id):
             if (type(raw) is not bytes or len(raw) > 262_144
                     or not raw.startswith(f"[{fill_id},".encode("ascii"))):
                 raise RuntimeError("legacy fill archive integrity failure")
             total += 1
             if total > archive[0]:
                 raise RuntimeError("legacy fill archive integrity failure")
-            _add_meta_row(digest, raw)
+            _add_historical_row(digest, raw)
         if (total, digest.hexdigest()) != archive:
             raise RuntimeError("legacy fill archive integrity failure")

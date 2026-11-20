@@ -1,8 +1,8 @@
 # Source-owned integration contract (proposal v1)
 
-Terminan must not connect to Bybit or run a market-data WebSocket. Cluster Grid owns exchange subscriptions and authoritative data; Strattester owns historical strategies and simulation execution. Both sources should expose authenticated internal read-only APIs / event streams on the existing private network. Terminan consumes them, with no new database.
+Terminan must not connect to Bybit or run a market-data WebSocket. Cluster MarketData owns exchange subscriptions and authoritative data; Strattester owns historical strategies and simulation execution. Both sources should expose authenticated internal read-only APIs / event streams on the existing private network. Terminan consumes them, with no new database.
 
-## Cluster Grid gateway
+## Cluster MarketData gateway
 
 - GET /internal/v1/instruments: symbol, state (active/delisted), supported timeframes, freshness.
 - GET /internal/v1/candles?symbol=&timeframe=&from_ms=&to_ms=: closed/open flag, OHLCV, source timestamps.
