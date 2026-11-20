@@ -1,0 +1,53 @@
+{
+  "schema": "terminan.migration.book-tape-controller.v2",
+  "source": {
+    "repository": "YehorBabenko88/bybit-cluster-grid",
+    "commit": "204897c9f3f6ccaf33ae6d02415b97d0049d7e1e",
+    "path": "grid/book_tape_research.py",
+    "blob": "d53b2b23feeb0360b4b599ea44fb6dafcb509027"
+  },
+  "canonical": {
+    "controller": "terminan.analytics.book_tape_research.BookTapeResearch",
+    "packet_validation": "market_data.paper_inputs.validate_paper_inputs",
+    "cursor": "terminan.causal_inputs.CausalInputCursor",
+    "numerical_owners": [
+      "market_math.exact_sum",
+      "market_math.wall_notional",
+      "market_math.book_tape_research_metrics"
+    ],
+    "execution_engine": "terminan.paper.PaperEngine"
+  },
+  "preserved": [
+    "bounded per-symbol completed-bucket history",
+    "past-only warmup and profile",
+    "breakout/trend/effort/volume votes delegated unchanged to canonical Math v2 policy",
+    "abstention and invalid/replayed refusal",
+    "bucket-close proxy limitations"
+  ],
+  "explicit_changes": [
+    "only canonical Data SDK packets; no raw legacy event API or SQL fallback",
+    "decimal feature text with Math v2 exact predicates; no binary64 parity claim",
+    "all packet observations available no earlier than caller-declared packet as_of_ms",
+    "connection change resets history; missing producer context clears history and is ineligible",
+    "entire batch strategy work is staged before cursor/history commit"
+  ],
+  "limits": {
+    "window_min": 8,
+    "window_max": 4096,
+    "min_history_min": 4,
+    "symbols": "one fixed canonical symbol per controller"
+  },
+  "qualifications": {
+    "source_authenticity": "NOT_EVALUATED",
+    "point_in_time_availability": "UNKNOWN",
+    "execution_authority": false,
+    "trading_authorized": false
+  },
+  "pending": [
+    "final packet-to-decision/quote/account orchestration",
+    "original 16 composed lab pipeline fixtures",
+    "operational Data read model/managed route",
+    "protected admission and native crash qualification"
+  ],
+  "retirement": "old lab_paper_pipeline remains retained until complete composed migration"
+}
