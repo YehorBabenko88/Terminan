@@ -192,14 +192,22 @@ class CausalPaperSession:
     now=self._now()
     if q['as_of_ms']>now:raise ValueError('future source packet cut')
     if now>=self.started_ms+self.duration:return self.advance()
-    batch=state['strategy'].observe_packet(checked,expected_request=expected_request);answers={r['row_id']:r for r in batch.observations};events=[];self._advance(now,events)
+    batch=state['strategy'].observe_packet(checked,expected_request=expected_request);answers={r['row_id']:r for r in batch.observations};events=[]
     tickers=[r for r in checked['rows'] if r['event_type']=='derivatives_ticker']
     if tickers:
-     values=self._funding_values(tickers[-1]['payload']);pending=self._pending.get(symbol)
+     payload=tickers[-1]['payload'];pending=self._pending.get(symbol);funding_fields=('funding_rate','funding_interval_hour','next_funding_time')
+     # A newly observed explicit unknown is not a numeric schedule change.
+     # Invalidate BEFORE hold/close advancement; omitted fields/no arrival
+     # remain distinct and cannot fabricate facts about the prior interval.
+     explicit_unknown=any(key in payload and payload[key] is None for key in funding_fields)
+     complete_unavailable=all(key in payload for key in funding_fields) and checked['funding_status']!='KNOWN_SOURCE_FIELDS'
+     if pending is not None and (explicit_unknown or complete_unavailable):self._uncertain(symbol,'SOURCE_GAP',now,events)
+     values=self._funding_values(payload)
      if values is not None and pending is not None and pending['candidate'].get('funding') is not None:
       prior=pending['candidate']['funding']
       if values!=(prior['interval_ms'],prior['next_ms']):self._uncertain(symbol,'FUNDING_CHANGED',now,events)
      state['funding']=(checked,tickers[-1]) if checked['funding_status']=='KNOWN_SOURCE_FIELDS' and checked['producer_context_status']=='CONSISTENT' else None
+    self._advance(now,events)
     financial=checked['producer_context_status']=='CONSISTENT'
     for row in checked['rows']:
      self._current();at=self._now();connection=self._context(symbol,row,at,events)
