@@ -1,0 +1,27 @@
+{
+  "schema": "terminan.frozen-research-import-map.v1",
+  "source_revision": "13998cf87139330dd0406fed00acd148e045e6c4",
+  "source_path": "strattester/persistence/frozen_results.py",
+  "destination": "terminan/migration/research_results.py",
+  "status": "MIGRATED_SEPARATELY_TERM_PR105",
+  "reused_owner": "terminan.research_archive.ResearchArchive",
+  "symbols": {
+    "_LEGACY": "historical exact six-column table descriptor",
+    "_PUBLISHED": "historical exact nine-column table descriptor",
+    "_STAGED": "historical ten-column staged table descriptor",
+    "_copy_verified": "bounded pinned frozen-copy reader, no original SQLite open",
+    "_columns": "strict real-table schema preflight",
+    "import_frozen_results": "import_frozen_research_results using existing archive; no new store",
+    "main": "explicit operator-only CLI after reviewed source test closure"
+  },
+  "constraints": [
+    "preserve original hash and metrics TEXT without interpreting performance",
+    "full source row/domain/schema/budget preflight before destination DDL",
+    "separate target; no source hardlink/symlink/WAL recovery",
+    "historical digest family remains byte-compatible read-only provenance, not active API alias",
+    "no SQLite connection to original; only read-only private frozen copy; no market or numeric computation"
+  ],
+  "pending_native": [],
+  "port_revision": "b3488e13640cd5cffce844accd982aa6f67e2288",
+  "note": "Root aggregate b999136 integrates this reader; this causal branch base d4bb does not itself include the separately ported module. Original source cleanup remains a separate owner handoff."
+}
