@@ -26,8 +26,9 @@ test('the MarketData panel clears stale state and never promotes unqualified dat
     };
     let reply = unavailable;
     let release;
-    let legacyMarked = true;
-    let gridCandleRequests = 0;
+    let sourceMarked = true;
+    let sourceStatus = 'SOURCE_UNQUALIFIED';
+    let marketDataCandleRequests = 0;
     let pauseCandle = null;
     await page.route('http://127.0.0.1:8765/**', async route => {
       const url = new URL(route.request().url());
@@ -38,7 +39,7 @@ test('the MarketData panel clears stale state and never promotes unqualified dat
         if (reply === null) await route.abort();
         else await route.fulfill({ json: reply });
       } else if (url.pathname === '/api/instruments' || url.pathname === '/api/candles') {
-        const headers = legacyMarked ? { 'X-Terminan-Data-Status': 'OFFLINE_LEGACY_UNVERIFIED' } : {};
+        const headers = sourceMarked ? { 'X-Terminan-Data-Status': sourceStatus } : {};
         const candle = { t: 0, o: 100, h: 110, l: 90, c: 105 };
         if (url.pathname === '/api/candles' && url.searchParams.get('timeframe') === '1m' && pauseCandle) {
           await pauseCandle;
@@ -47,7 +48,7 @@ test('the MarketData panel clears stale state and never promotes unqualified dat
           url.searchParams.get('timeframe') === '5m' ? [candle, { ...candle, t: 300000 }] : [candle];
         await route.fulfill({ headers, json: rows });
       } else {
-        if (url.pathname === '/api/market-data/candles') gridCandleRequests++;
+        if (url.pathname === '/api/market-data/candles') marketDataCandleRequests++;
         await route.fulfill({ json: url.pathname === '/api/status' ? {} : [] });
       }
     });
@@ -57,14 +58,24 @@ test('the MarketData panel clears stale state and never promotes unqualified dat
     });
     await goto();
     await waitForState('unavailable');
-    await page.locator('#chartmsg').filter({ hasText: 'OFFLINE_LEGACY_UNVERIFIED' }).waitFor({ timeout: 4000 });
-    assert.match(await page.locator('#source').innerText(), /OFFLINE_LEGACY_UNVERIFIED/);
-    legacyMarked = false;
+    await page.locator('#chartmsg').filter({ hasText: 'SOURCE_UNQUALIFIED' }).waitFor({ timeout: 4000 });
+    assert.match(await page.locator('#source').innerText(), /SOURCE_UNQUALIFIED/);
+    sourceMarked = false;
     await page.locator('#refresh').click();
     await page.locator('#error').filter({ hasText: 'Происхождение данных не указано' }).waitFor({ timeout: 4000 });
-    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /OFFLINE_LEGACY_UNVERIFIED/);
-    assert.equal(gridCandleRequests, 0);
-    legacyMarked = true;
+    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /SOURCE_UNQUALIFIED/);
+    assert.equal(marketDataCandleRequests, 0);
+    // A retired marker must not become an alias for the canonical source status.
+    sourceMarked = true;
+    sourceStatus = 'OFFLINE_LEGACY_UNVERIFIED';
+    const retiredResponse = page.waitForResponse(event => new URL(event.url()).pathname === '/api/candles');
+    await page.locator('#refresh').click();
+    await retiredResponse;
+    await page.locator('#error').filter({ hasText: 'Происхождение данных не указано' }).waitFor({ timeout: 4000 });
+    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /SOURCE_UNQUALIFIED/);
+    assert.equal(marketDataCandleRequests, 0);
+    sourceStatus = 'SOURCE_UNQUALIFIED';
+    sourceMarked = true;
     let resumeCandle;
     pauseCandle = new Promise(resolve => { resumeCandle = resolve; });
     const oldCandle = event => new URL(event.url()).searchParams.get('timeframe') === '1m';

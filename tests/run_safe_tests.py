@@ -1,4 +1,5 @@
 import os,sys,re
+from pathlib import Path
 PYTHON=os.path.normcase(os.path.realpath(sys.executable))
 def safe_launch(event,args):
     if event=='os.system':raise RuntimeError('NATIVE_SHELL_FORBIDDEN')
@@ -16,5 +17,7 @@ def safe_launch(event,args):
 sys.addaudithook(safe_launch)
 # Load only the explicitly reviewed plugin; entry-point autoload duplicates asyncio.
 os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD']='1'
+# Direct script execution starts in tests/, so explicitly expose the owned source.
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import pytest
 sys.exit(pytest.main(['-q','tests','-p','pytest_asyncio.plugin']))
