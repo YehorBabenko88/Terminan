@@ -4,6 +4,7 @@ This validates schedules, not market numerics, source authenticity or authority.
 PaperEngine must obtain Math financial validation before committing any result.
 No storage, account, execution simulator or transport is implemented here.
 """
+from dataclasses import dataclass
 from hashlib import sha256
 import re
 from .paper_ledger import canonical_json
@@ -90,3 +91,14 @@ def validate_causal_schedule(*,open_decision,close_decision,quotes,funding,laten
  _need(all(r['symbol']==a['symbol'] for r in receipts))
  identities=[r['receipt_id'] for r in receipts];_need(len(identities)==len(set(identities)))
  return tuple(selected)
+
+
+@dataclass(frozen=True)
+class QuoteExecution:
+ symbol: str
+ side: str
+ entry_ms: int
+ exit_ms: int
+ metrics: object
+ fill: object
+ model: str = "CALLER_DECLARED_CAUSAL_QUOTES_NOT_COMPLETE_MARKET_STREAM"
