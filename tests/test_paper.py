@@ -165,11 +165,11 @@ class PaperMigrationTests(unittest.TestCase):
 def offline_request():
     start_ms = int(T.timestamp() * 1000)
     return {
-        "schema": "terminan.paper.replay.v1",
+        "schema": "terminan.paper.replay.v2",
         "run_id": "offline-001",
         "source": {
             "snapshot_sha256": "a" * 64,
-            "as_of_ms": start_ms,
+            "as_of_ms": start_ms + 120000,
             "units": {"price": "quote/base", "volume": "base"},
         },
         "parameters": {},
@@ -207,15 +207,16 @@ class OfflinePaperApiTests(unittest.TestCase):
         from terminan.contracts import StrategyRegistry
         self.assertIsInstance(STRATEGIES, StrategyRegistry)
         registered = STRATEGIES.discover()
-        self.assertEqual(len(registered), 1)
+        self.assertEqual(len(registered), 2)
+        self.assertTrue(all(item.implementation is PaperEngine for item in registered))
         self.assertIs(registered[0].implementation, PaperEngine)
-        self.assertEqual(registered[0].id, "meta.poc.next_minute")
+        self.assertEqual(registered[0].id, "poc_next_minute")
         explicit = offline_request()
         explicit["strategy"] = {
             "id": registered[0].id, "version": registered[0].version
         }
         result = replay_paper(explicit, compute=mock_math)
-        self.assertEqual(result["strategy"]["version"], "1")
+        self.assertEqual(result["strategy"]["version"], "2")
         self.assertEqual(len(result["fills"]), 1)
 
     def test_replay_has_stable_digest_and_no_order_authority(self):
@@ -223,9 +224,9 @@ class OfflinePaperApiTests(unittest.TestCase):
         first = replay_paper(request, compute=mock_math)
         second = replay_paper(request, compute=mock_math)
         self.assertEqual(first, second)
-        self.assertEqual(first["schema"], "terminan.paper.result.v1")
-        self.assertEqual(first["strategy"]["id"], "meta.poc.next_minute")
-        self.assertEqual(first["strategy"]["version"], "1")
+        self.assertEqual(first["schema"], "terminan.paper.result.v2")
+        self.assertEqual(first["strategy"]["id"], "poc_next_minute")
+        self.assertEqual(first["strategy"]["version"], "2")
         self.assertEqual(len(first["strategy"]["fingerprint"]), 64)
 
         self.assertEqual(first["status"], "OFFLINE_UNATTESTED")
@@ -249,10 +250,10 @@ class OfflinePaperApiTests(unittest.TestCase):
             {**base, "events": [base["events"][0]] * 1025},
             {**base, "parameters": {"live_orders": "true"}},
             {**base, "strategy": {"id": "unapproved", "version": "1"}},
-            {**base, "strategy": {"id": "meta.poc.next_minute",
+            {**base, "strategy": {"id": "poc_next_minute",
                                   "version": "unreviewed"}},
-            {**base, "strategy": {"id": "meta.poc.next_minute",
-                                  "version": "1", "orders": True}},
+            {**base, "strategy": {"id": "poc_next_minute",
+                                  "version": "2", "orders": True}},
 
         ]
         for request in invalid:

@@ -52,7 +52,7 @@ class PaperReplayLedgerTests(unittest.TestCase):
         self.assertEqual(original, replay_paper(self.request, compute=mock_math))
 
     def test_committed_receipt_survives_disabled_strategy(self):
-        definition, = STRATEGIES.discover()
+        definition=next(item for item in STRATEGIES.discover() if item.id=='poc_next_minute')
         self.request["strategy"] = {"id": definition.id, "version": definition.version}
         original = replay_paper(self.request, compute=mock_math)
         registry = StrategyRegistry()
@@ -197,7 +197,7 @@ os._exit(42)
             "schema": "terminan.market_data.comparison.v1",
             "dataset_id": "73f663a0-3991-4ee5-9c01-0238a4e97270",
             "dataset_hash": "b" * 64,
-            "strategy_name": "meta.poc.next_minute",
+            "strategy_name": "poc_next_minute",
             "setup": "POC",
             "variant": "BASE",
             "fold": 2,
@@ -215,7 +215,7 @@ os._exit(42)
         self.assertEqual(receipt["comparison"]["fold"], 2)
         self.assertFalse(receipt["comparison"]["dataset_qualified"])
         self.assertEqual(receipt["comparison"]["strategy_executed"],
-                         "meta.poc.next_minute")
+                         "poc_next_minute")
         self.assertEqual(receipt["comparison"]["status"],
                          "CALLER_SUPPLIED_UNATTESTED")
         self.assertEqual(receipt["comparison"]["history_requirements"], [

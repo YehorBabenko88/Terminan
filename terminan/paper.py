@@ -1,4 +1,4 @@
-"""Offline-only Meta PaperEngine compatibility in the single Terminan strategy owner.
+"""Canonical offline paper execution in the single Terminan strategy owner.
 
 Ported from meta_analyse/src/meta_analyse/core.py at pinned source
 9d0fb5c79a5da13b23f8daa066035b09f676a6fc.
@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
 import os
+import json
 import re
 from .paper_ledger import PaperReplayLedger, canonical_json
 
@@ -202,8 +203,8 @@ class PaperEngine:
 # terminan.contracts. Registration is inert: no workers, collectors or orders.
 STRATEGIES = StrategyRegistry()
 STRATEGIES.register(StrategyDefinition(
-    id="meta.poc.next_minute",
-    version="1",
+    id="poc_next_minute",
+    version="2",
     requirements=(
         DataRequirement("public_trades"),
         DataRequirement("candles", ("1m",), required=False),
@@ -212,8 +213,10 @@ STRATEGIES.register(StrategyDefinition(
 ))
 
 
-REPLAY_SCHEMA = "terminan.paper.replay.v1"
-REPLAY_RESULT = "terminan.paper.result.v1"
+STRATEGIES.register(StrategyDefinition(id='ohlc_signal',version='1',requirements=(DataRequirement('candles'),),implementation=PaperEngine,feature_versions=('conservative_ohlc_v1','math_paper28_v1')))
+
+REPLAY_SCHEMA = "terminan.paper.replay.v2"
+REPLAY_RESULT = "terminan.paper.result.v2"
 _MAX_EVENTS = 1024
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _SYMBOL = re.compile(r"[A-Z0-9]{2,30}")
@@ -261,6 +264,7 @@ def replay_paper(request, *, compute=None):
     request_bytes = canonical_json(request)
     if len(request_bytes) > 262144:
         raise ValueError("paper replay body limit")
+    request=json.loads(request_bytes)  # Detach caller-owned mutable DTOs before hashing/execution.
     events = request["events"]
     params = request["parameters"]
     if (type(events) is not list or not 1 <= len(events) <= _MAX_EVENTS or
@@ -296,7 +300,7 @@ def replay_paper(request, *, compute=None):
                 or not _RUN_ID.fullmatch(comparison["dataset_id"])
                 or type(comparison["dataset_hash"]) is not str
                 or not re.fullmatch("[0-9a-f]{64}", comparison["dataset_hash"])
-                or comparison["strategy_name"] != "meta.poc.next_minute"
+                or comparison["strategy_name"] != "poc_next_minute"
                 or comparison["setup"] != "POC"
                 or comparison["variant"] != "BASE"
                 or type(comparison["fold"]) is not int
@@ -311,14 +315,12 @@ def replay_paper(request, *, compute=None):
             raise ValueError("unqualified MarketData comparison context")
     request_sha256 = sha256(request_bytes).hexdigest()
     ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
-    ledger = PaperReplayLedger(ledger_path) if ledger_path else None
-    if ledger is not None:
-        existing = ledger.read(request["run_id"], request_sha256)
+    if ledger_path:
+        existing=PaperReplayLedger.lookup_existing(ledger_path,request['run_id'],request_sha256)
         if existing is not None:
+            if existing.get('schema')!=REPLAY_RESULT or existing.get('strategy',{}).get('id')!='poc_next_minute' or existing['strategy'].get('version')!='2':raise RuntimeError('cached paper identity mismatch')
             return existing
-    # New replays use the same registry. V1 requests can omit the descriptor
-    # for backwards compatibility with the original offline replay request.
-    definition = STRATEGIES.discover()[0]
+    definition=next(item for item in STRATEGIES.discover() if item.id=='poc_next_minute')
     choice = request.get("strategy", {
         "id": definition.id, "version": definition.version,
     })
@@ -338,6 +340,7 @@ def replay_paper(request, *, compute=None):
         kind = event["kind"]
         stamp = event.get("event_ms")
         timestamp = _timestamp(stamp)
+        if stamp>source["as_of_ms"]:raise ValueError("event follows source as_of")
         if stamp < previous_ms:
             raise ValueError("out-of-order replay events")
         previous_ms = stamp
@@ -347,7 +350,7 @@ def replay_paper(request, *, compute=None):
         if kind == "closed_minute":
             if set(event) != {"kind", "event_ms", "symbol", "profile", "close"}:
                 raise ValueError("invalid closed-minute event")
-            if stamp % 60000:
+            if stamp<60000 or stamp % 60000:
                 raise ValueError("closed minute must be published at minute boundary")
             math_request = {
                 "schema": "math.market.compute.v1",
@@ -400,7 +403,7 @@ def replay_paper(request, *, compute=None):
             **comparison,
             "status": "CALLER_SUPPLIED_UNATTESTED",
             "dataset_qualified": False,
-            "strategy_executed": "meta.poc.next_minute",
+            "strategy_executed": "poc_next_minute",
             "history_requirements": [
                 {"dataset": requirement.dataset,
                  "timeframes": list(requirement.timeframes),
@@ -416,8 +419,8 @@ def replay_paper(request, *, compute=None):
             "request_sha256": request_sha256,
         }
     result["result_sha256"] = sha256(canonical_json(result)).hexdigest()
-    if ledger is not None:
-        return ledger.record(result)
+    if ledger_path:
+        return PaperReplayLedger(ledger_path).record(result)
     return result
 
 

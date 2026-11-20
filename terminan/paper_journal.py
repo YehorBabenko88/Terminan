@@ -2,7 +2,7 @@
 
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
-from decimal import Context, Decimal, InvalidOperation, localcontext
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 import json
 import re
@@ -12,9 +12,9 @@ from .paper import STRATEGIES, ClosedMinute, ExecutionTrade, PaperEngine, _seria
 from .paper_ledger import ReplayConflict, canonical_json
 
 
-_EVENT_SCHEMA = "terminan.paper.event.v1"
-_ACK_SCHEMA = "terminan.paper.event.ack.v1"
-_STRATEGY = "meta.poc.next_minute"
+_EVENT_SCHEMA = "terminan.paper.event.v2"
+_ACK_SCHEMA = "terminan.paper.event.ack.v2"
+_STRATEGY = "poc_next_minute"
 _FIELDS = {"schema", "sequence", "kind", "event_time"}
 _OPTIONS = {"enabled": {"enabled"}, "closed_minute": {"poc", "complete"},
             "trade": {"price"}, "gap": set()}
@@ -65,8 +65,20 @@ def _available_at(event):
     return stamp + timedelta(minutes=1) if event["kind"] == "closed_minute" else stamp
 
 
+def _apply_event(engine,symbol,event):
+    stamp=_utc(event['event_time']);kind=event['kind']
+    if kind=='enabled':engine.enabled=event['enabled']
+    elif kind=='closed_minute':engine.on_closed_minute(symbol,ClosedMinute(stamp,_price(event['poc']),event['complete']))
+    elif kind=='gap':engine.on_gap(symbol)
+    else:
+        fill=engine.on_trade(ExecutionTrade(symbol,stamp,_price(event['price'])))
+        if fill is not None:
+            engine.fills.clear();return _serialize(asdict(fill))
+    return None
+
+
 class PaperJournal:
-    """One source ID, run ID and instrument using strategy v1 default policy.
+    """One source ID, run ID and instrument using canonical strategy v2 default policy.
 
     Submit full ordered events starting at sequence 1 from a replayable caller.
     Every acknowledgement is returned after commit. A changed retry or skipped
@@ -84,52 +96,43 @@ class PaperJournal:
         self._key = (source_id, run_id)
         self._symbol = symbol
         self._lock = Lock()
-        with localcontext(Context(prec=28)):
-            self._engine = PaperEngine()
         self._sequence = 0
         self._watermark = None
         self._failed = False
+        # Old identities cannot silently start a new active protocol. No write
+        # transaction/DDL is opened until this read-only check completes.
+        with ledger._existing_database(ledger.path) as database:
+            if database is None:raise RuntimeError('paper ledger disappeared')
+            legacy=dict(database.execute("SELECT name,type FROM sqlite_schema WHERE name IN ('paper_streams_v1','paper_events_v1')"))
+            if legacy:
+                if legacy!={'paper_streams_v1':'table','paper_events_v1':'table'}:raise RuntimeError('unknown historical paper schema')
+                if database.execute('SELECT 1 FROM paper_streams_v1 WHERE source_id=? AND run_id=?',self._key).fetchone():raise RuntimeError('historical paper stream requires explicit isolated restore')
+        self._engine=PaperEngine()
         with ledger._paper_event_transaction(write=True) as database:
             database.execute(
-                "CREATE TABLE IF NOT EXISTS paper_streams_v1 ("
+                "CREATE TABLE IF NOT EXISTS paper_streams_v2 ("
                 "source_id TEXT NOT NULL, run_id TEXT NOT NULL, symbol TEXT NOT NULL, "
                 "checkpoint INTEGER NOT NULL, PRIMARY KEY (source_id, run_id))"
             )
             database.execute(
-                "CREATE TABLE IF NOT EXISTS paper_events_v1 ("
+                "CREATE TABLE IF NOT EXISTS paper_events_v2 ("
                 "source_id TEXT NOT NULL, run_id TEXT NOT NULL, sequence INTEGER NOT NULL, "
                 "event BLOB NOT NULL, ack BLOB NOT NULL, ack_sha256 TEXT NOT NULL, "
                 "PRIMARY KEY (source_id, run_id, sequence))"
             )
             database.execute(
-                "INSERT INTO paper_streams_v1 VALUES (?, ?, ?, 0) "
+                "INSERT INTO paper_streams_v2 VALUES (?, ?, ?, 0) "
                 "ON CONFLICT(source_id, run_id) DO NOTHING", (*self._key, self._symbol))
             self._checkpoint(database)
         for ack, self._watermark in self._recover(self._engine):
             self._sequence = ack["checkpoint"]
 
-    def _apply(self, engine, event):
-        stamp = _utc(event["event_time"])
-        kind = event["kind"]
-        with localcontext(Context(prec=28)):
-            if kind == "enabled":
-                engine.enabled = event["enabled"]
-            elif kind == "closed_minute":
-                engine.on_closed_minute(
-                    self._symbol, ClosedMinute(stamp, _price(event["poc"]), event["complete"]))
-            elif kind == "gap":
-                engine.on_gap(self._symbol)
-            else:
-                fill = engine.on_trade(ExecutionTrade(self._symbol, stamp, _price(event["price"])))
-                if fill is not None:
-                    engine.fills.clear()  # Durable journal owns fill history.
-                    return _serialize(asdict(fill))
-        return None
+    def _apply(self,engine,event):return _apply_event(engine,self._symbol,event)
 
     def _ack(self, sequence, event_raw, fill, ingested_at):
         return {
             "schema": _ACK_SCHEMA, "source_id": self._key[0], "run_id": self._key[1],
-            "symbol": self._symbol, "strategy_id": _STRATEGY, "strategy_version": "1",
+            "symbol": self._symbol, "strategy_id": _STRATEGY, "strategy_version": "2",
             "checkpoint": sequence, "event_sha256": sha256(event_raw).hexdigest(),
             "event_time": json.loads(event_raw)["event_time"],
             "ingested_at": ingested_at, "fill": fill,
@@ -152,7 +155,7 @@ class PaperJournal:
 
     def _checkpoint(self, database):
         row = database.execute(
-            "SELECT symbol, checkpoint FROM paper_streams_v1 WHERE source_id = ? AND run_id = ?",
+            "SELECT symbol, checkpoint FROM paper_streams_v2 WHERE source_id = ? AND run_id = ?",
             self._key).fetchone()
         if row is None:
             raise RuntimeError("paper journal checkpoint missing")
@@ -164,7 +167,7 @@ class PaperJournal:
         with self._ledger._paper_event_transaction(write=False) as database:
             checkpoint = self._checkpoint(database)
             rows = database.execute(
-                "SELECT sequence, event, ack, ack_sha256 FROM paper_events_v1 "
+                "SELECT sequence, event, ack, ack_sha256 FROM paper_events_v2 "
                 "WHERE source_id = ? AND run_id = ? ORDER BY sequence", self._key)
             recovered = 0
             watermark = None
@@ -187,15 +190,14 @@ class PaperJournal:
 
     def read_fills(self):
         """Yield ordered committed fill ACKs; exhaust or close the snapshot."""
-        with localcontext(Context(prec=28)):
-            engine = PaperEngine()
+        engine = PaperEngine()
         for ack, _ in self._recover(engine):
             if ack["fill"] is not None:
                 yield ack
 
     def _event_at(self, database, sequence):
         return database.execute(
-            "SELECT event, ack, ack_sha256 FROM paper_events_v1 "
+            "SELECT event, ack, ack_sha256 FROM paper_events_v2 "
             "WHERE source_id = ? AND run_id = ? AND sequence = ?",
             (*self._key, sequence)).fetchone()
 
@@ -239,7 +241,7 @@ class PaperJournal:
                     if self._watermark is not None and available < self._watermark:
                         raise ValueError("paper journal event time regressed")
                     if event.get("enabled", self._engine.enabled):
-                        if not any(item.id == _STRATEGY and item.version == "1"
+                        if not any(item.id == _STRATEGY and item.version == "2"
                                    and item.enabled and item.implementation is PaperEngine
                                    for item in STRATEGIES.discover()):
                             raise ValueError("paper strategy not registered or disabled")
@@ -247,11 +249,11 @@ class PaperJournal:
                     fill = self._apply(self._engine, event)
                     ack = self._ack(sequence, raw, fill, datetime.now(timezone.utc).isoformat())
                     encoded_ack = canonical_json(ack)
-                    database.execute("INSERT INTO paper_events_v1 VALUES (?, ?, ?, ?, ?, ?)",
+                    database.execute("INSERT INTO paper_events_v2 VALUES (?, ?, ?, ?, ?, ?)",
                                      (*self._key, sequence, raw, encoded_ack,
                                       sha256(encoded_ack).hexdigest()))
                     database.execute(
-                        "UPDATE paper_streams_v1 SET checkpoint = ? "
+                        "UPDATE paper_streams_v2 SET checkpoint = ? "
                         "WHERE source_id = ? AND run_id = ?", (sequence, *self._key))
                 self._sequence = sequence
                 self._watermark = available

@@ -7,6 +7,8 @@ from hashlib import sha256
 import json
 import re
 import sqlite3
+import stat
+from pathlib import Path
 
 
 _APPLICATION_ID = 0x54505231  # TPR1
@@ -89,6 +91,49 @@ class PaperReplayLedger:
                 "request_sha256 TEXT NOT NULL, receipt TEXT NOT NULL)"
             )
             database.execute(f"PRAGMA application_id = {_APPLICATION_ID}")
+
+    @classmethod
+    @contextmanager
+    def _existing_database(cls,path):
+        """Owned standalone DELETE-mode read; never creates/replays sidecars."""
+        location=Path(path).absolute()
+        def check():
+            for suffix in ('-wal','-shm','-journal'):
+                side=Path(str(location)+suffix)
+                if side.exists() or side.is_symlink():raise RuntimeError('paper lookup requires a standalone backup without sidecars')
+            for item in (*reversed(location.parents),location):
+                try:info=item.lstat()
+                except FileNotFoundError:continue
+                if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&1024:raise RuntimeError('paper lookup rejects linked paths')
+        check()
+        if not location.exists():
+            yield None;return
+        identity=location.stat()
+        if not stat.S_ISREG(identity.st_mode) or identity.st_nlink!=1:raise RuntimeError('paper lookup requires an ordinary dedicated database')
+        with location.open('rb') as stream:header=stream.read(100)
+        if (len(header)!=100 or header[:16]!=b'SQLite format 3\0' or header[18:20]!=b'\x01\x01'
+                or int.from_bytes(header[68:72],'big')!=_APPLICATION_ID):raise RuntimeError('paper lookup requires a dedicated standalone DELETE-mode database')
+        with closing(sqlite3.connect(location.as_uri()+'?mode=ro',uri=True,timeout=5)) as database:
+            database.execute('PRAGMA query_only=ON');database.execute('BEGIN')
+            if cls._application_id(database)!=_APPLICATION_ID:raise RuntimeError('paper replay database identity mismatch')
+            columns=tuple((row[1],row[2].upper(),row[3],row[5]) for row in database.execute('PRAGMA table_info(paper_replay_receipts)'))
+            if (database.execute("SELECT type FROM sqlite_schema WHERE name='paper_replay_receipts'").fetchone()!=('table',)
+                    or columns!=(('run_id','TEXT',1,1),('request_sha256','TEXT',1,0),('receipt','TEXT',1,0))):raise RuntimeError('paper replay receipt table identity mismatch')
+            yield database
+        check();current=location.stat()
+        if (current.st_dev,current.st_ino,current.st_nlink)!=(identity.st_dev,identity.st_ino,1):raise RuntimeError('paper replay database identity changed')
+
+    @classmethod
+    def lookup_existing(cls,path,run_id,request_sha256):
+        if (type(run_id) is not str or re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',run_id) is None
+                or type(request_sha256) is not str or re.fullmatch('[a-f0-9]{64}',request_sha256) is None):raise ValueError('invalid paper lookup identity')
+        try:
+            with cls._existing_database(path) as database:
+                if database is None:return None
+                row=database.execute('SELECT length(CAST(receipt AS BLOB)) FROM paper_replay_receipts WHERE run_id=?',(run_id,)).fetchone()
+                if row is not None and not 0<row[0]<=4*1024*1024:raise RuntimeError('paper replay receipt budget exceeded')
+                return cls._read(database,run_id,request_sha256)
+        except sqlite3.Error as exc:raise RuntimeError('paper replay read-only lookup rejected') from exc
 
     def _connect(self):
         return sqlite3.connect(self.path, timeout=5)

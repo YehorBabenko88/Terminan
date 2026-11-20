@@ -18,7 +18,7 @@ from terminan.paper_ledger import PaperReplayLedger, ReplayConflict
 
 def event(sequence, kind, time, **values):
     return {
-        "schema": "terminan.paper.event.v1", "sequence": sequence,
+        "schema": "terminan.paper.event.v2", "sequence": sequence,
         "kind": kind, "event_time": f"2026-11-19T{time}+00:00", **values,
     }
 
@@ -36,7 +36,7 @@ class PaperJournalTests(unittest.TestCase):
         self.path = Path(directory.name) / "receipts.db"
 
     def open(self):
-        return PaperJournal(PaperReplayLedger(self.path), "grid-fixture", "run1", "BTCUSDT")
+        return PaperJournal(PaperReplayLedger(self.path), "market_data_fixture", "run1", "BTCUSDT")
 
     def test_restart_recovers_position_and_exact_fill_ack(self):
         journal = self.open()
@@ -45,7 +45,7 @@ class PaperJournalTests(unittest.TestCase):
         journal = self.open()
         ack = journal.submit(EXIT)
         self.assertEqual(ack["checkpoint"], 4)
-        self.assertEqual(ack["fill_id"], ["grid-fixture", "run1", 4])
+        self.assertEqual(ack["fill_id"], ["market_data_fixture", "run1", 4])
         self.assertEqual(ack["event_time"], EXIT["event_time"])
         self.assertEqual(ack["fill"]["side"], "short")
         self.assertEqual(ack["fill"]["reason"], "target")
@@ -111,7 +111,7 @@ from terminan.paper_journal import PaperJournal
 from terminan.paper_ledger import PaperReplayLedger
 
 ledger = PaperReplayLedger(sys.argv[1])
-journal = PaperJournal(ledger, "grid-fixture", "run1", "BTCUSDT")
+journal = PaperJournal(ledger, "market_data_fixture", "run1", "BTCUSDT")
 original = ledger._paper_event_transaction
 @contextmanager
 def interrupted(*, write):
@@ -154,7 +154,7 @@ journal.submit(json.loads(sys.argv[2]))
         with closing(sqlite3.connect(self.path)) as source, \
                 closing(sqlite3.connect(backup_path)) as backup:
             source.backup(backup)
-        restored = PaperJournal(PaperReplayLedger(backup_path), "grid-fixture", "run1", "BTCUSDT")
+        restored = PaperJournal(PaperReplayLedger(backup_path), "market_data_fixture", "run1", "BTCUSDT")
         self.assertEqual(list(restored.read_fills()), [ack])
         self.assertEqual(restored.submit(EXIT), ack)
 
@@ -162,7 +162,7 @@ journal.submit(json.loads(sys.argv[2]))
         journal = self.open()
         journal.submit(ENABLE)
         with closing(sqlite3.connect(self.path)) as database, database:
-            database.execute("DELETE FROM paper_events_v1")
+            database.execute("DELETE FROM paper_events_v2")
         with self.assertRaisesRegex(RuntimeError, "checkpoint gap"):
             self.open()
 
@@ -208,7 +208,7 @@ journal.submit(json.loads(sys.argv[2]))
         restarted = self.open()
         saved = restarted.read_checkpoint()
         self.assertEqual(saved["checkpoint"], 4)
-        self.assertEqual(saved["fill_id"], ["grid-fixture", "run1", 4])
+        self.assertEqual(saved["fill_id"], ["market_data_fixture", "run1", 4])
         self.assertEqual(restarted.submit(EXIT), saved)
         self.assertEqual(list(restarted.read_fills()), [saved])
 
@@ -241,7 +241,7 @@ journal.submit(json.loads(sys.argv[2]))
         with self.assertRaises(ReplayConflict):
             journal.submit(dict(EXIT, price="100.0"))
         with closing(sqlite3.connect(self.path)) as database, database:
-            database.execute("UPDATE paper_events_v1 SET event = ? WHERE sequence = 4",
+            database.execute("UPDATE paper_events_v2 SET event = ? WHERE sequence = 4",
                              (json.dumps(dict(EXIT, price="90")).encode(),))
         with self.assertRaisesRegex(RuntimeError, "acknowledgement integrity"):
             journal.read_checkpoint()
