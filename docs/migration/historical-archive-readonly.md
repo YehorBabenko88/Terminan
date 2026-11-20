@@ -6,4 +6,4 @@ ResearchArchive.read_snapshot now reuses PaperReplayLedger._existing_database, w
 
 Five regression cases and the22 existing historical import/archive cases pass on Python3.11/3.12 with child/network/native effects denied and only owned temporary SQLite. Restore remains a fresh-destination operation through restore_frozen_research_results; retry means read the preserved archive, never overwrite/adopt an existing target.
 
-The aggregate also pins the actual causal numerical SDK Matha5868944bf1bae813403a32b22d329c1da6f8238 and Datae856e7e218abe93f8c0b71e252a8a3c7f761a0b8 in CI. Python source tests install both SDKs; the full test matrix and browser obligations remain enabled. The separately confirmed Term113 funding-gap defect still requires its owner fix before aggregate acceptance.
+This narrow branch is based on canonical Terminan106 b99913690ce29ce60e73414cc4d626ca989916ce. It exposes the existing restore_frozen_research_results plus read_existing for independent historical-data consumers. It does not include or qualify the separate causal-session candidates113/114. No math, Data service or existing archive receipt schema is changed.
