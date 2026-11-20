@@ -24,3 +24,9 @@ Data packet consumer now delegates exact Data5bb26e validation, preserves wire m
 Every supplied funding event, including events outside the selected holding interval, must pass public Math `paper_quote_funding_valid` before any PaperEngine state change. Pinned SDK: c7f891c2493b27d0a5badaf6ef9e34dff1b6ccc4; wheel SHA256 5160bc7cfac9f81ff6f1ff4452093d7fa4e32228c530ae7924bd2da3aa915892. This closes the reproduced unselected rate/mark acceptance defect; no domain arithmetic is copied into Terminan.
 
 Verification: 107 scoped pure tests passed on Python 3.11 and 3.12 with all child processes, sockets and system calls denied. Includes three invalid future funding cases, unchanged engine-state assertions, actual selected-funding literal, locked-book policy, and cross-packet cursor regressions. Reservation journal, settlement/reconciliation and full causal orchestration remain source work pending; operational data read model and native admission are not qualified.
+
+## Account foundation checkpoint
+
+`causal_replay` supplies canonical v2 request/result codecs by invoking the existing PaperEngine. `causal_account` composes the existing PaperReplayLedger for state and finalized results, exclusively creates a new namespace after policy/current preflight, and requires a separately retained local ownership receipt on reopen. Existing/truncated/foreign/linked/hot namespaces are never adopted or repaired. Reopen and snapshot perform read-only checks without invoking a database constructor. Ownership hashes and file identities do not authenticate market sources or confer production authority.
+
+This checkpoint exposes INITIALIZED_ONLY, with no reservation/settlement entrypoints. Exact financial/risk transitions, causal reservation journal progression, CLOSE_READY intent, cross-database reconciliation and original composed pipeline parity remain pending source work. No actual SQL provider/HTTP/native operation has been qualified.
