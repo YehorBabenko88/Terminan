@@ -1,0 +1,56 @@
+{
+  "historical_methods": [
+    {
+      "id": "ContractTests.test_legacy_poc_admission_rejects_nonfinite_observations",
+      "sha256": "b4d9464dfd61272c5fd06d7ba7e07d299dae53c78ff4fbbc442ac399721eeb0c"
+    },
+    {
+      "id": "ContractTests.test_poc_tie_and_close",
+      "sha256": "2cb46a1c08af8a4794fad56026e14cb5c846e0528a86233c448a016499aedc82"
+    },
+    {
+      "id": "ContractTests.test_no_negative_volume",
+      "sha256": "fd690718a17e5c438c453b85aaf08935b6b71bd1dc8afbfb34b22d75c7e232b6"
+    },
+    {
+      "id": "ContractTests.test_poc_math_sdk_preserves_duplicate_price_policy",
+      "sha256": "f71a58bf3ad75babfdf59410649001eeac68bb8f71559706a317c060699bbbc3"
+    },
+    {
+      "id": "ContractTests.test_poc_ranking_does_not_round_with_callers_decimal_context",
+      "sha256": "51a016d4a73b433042bc27eeb527232b7349bb007a67440b550ae91daa12afd4"
+    },
+    {
+      "id": "ContractTests.test_poc_retains_first_volume_encoding_on_equal_rows",
+      "sha256": "2e5fceffbae3cf17b32545f9b33ff54c6ef7e1d7bd0c0525caf42f21ff64be7d"
+    }
+  ],
+  "historical_scope": "NON_RUNTIME_SOURCE_DATA_NOT_EXECUTABLE_COMPATIBILITY",
+  "raw_snapshots": {
+    "contracts.py.source.txt": "c0580982c13d1b5442fabcf4862b5e021362c9b38d5a3fb6caba9e37046f0a0b",
+    "historical-six-methods.source.txt": "898791b2cac93373d411fc5c3901858812db5cb3ae8f8db67f6ba23b88adb305",
+    "test_contracts.py.source.txt": "3e718a7ed297540d56d97fc13e7950f36a9f9e5614e7e5e7ee3d1c7a38dfc50f"
+  },
+  "retained_declarations_sha256": {
+    "DataRequirement": "e5318fabdfacfc88c7704bc6c6095dddbd90b973695f8eb302f84e0cfc22ec83",
+    "HypothesisSpec": "f6ea24efec78ee8338a956957f9e635582d7e3b444bcfbf16961b33d569ab67f",
+    "Strategy": "0989b9e2207c89ff0c20ccec10184291f2a37bc902b83dbb681506e20052f519",
+    "StrategyDefinition": "0f58a2218624d8326ec9dd1550c8f4d733cbb5724572c450d700efc19ed90eb6",
+    "StrategyRegistry": "f1dae53c20ba69bba3645c8bd1606bc5fd899238e68d842ceb4780781752bd34",
+    "TradeEvent": "ca19007a36d4c37b48d93ac2fe7f478d6d40f9d33eebd417e94beb5ae60d9d73",
+    "_finite_trade_number": "7eb986879e8281dbf44ea9f1d4cf9bfadaa59f27cc0a9944309de10f634659f4",
+    "align_trades": "a32aae2012e29559a3bbafedb14e1f9b4e095a8ccf693e7406be23a9e2c2f7d3",
+    "executable_hypotheses": "ddd56b79712b8e64d5dfeebe3b0ab21607f22eaccbd2dfeecc637d527bd224a4",
+    "strategy_fingerprint": "af00e55853999488febb30c134efb6a8ff58ec33d868acb4e85f3988957faef2"
+  },
+  "runtime_removed": [
+    "aggregate_footprint",
+    "poc_close_events"
+  ],
+  "schema": "terminan.unused-contracts.provenance.v1",
+  "source_head": "d9929da9b6779b583116419f7616522ff193e9c5",
+  "source_blobs": {
+    "terminan/contracts.py": "a16bc013904f385a1593302a512b6b25bb324faa",
+    "tests/test_contracts.py": "181664d35c26cb0fe5ba7bd6010f5457515585e5"
+  }
+}

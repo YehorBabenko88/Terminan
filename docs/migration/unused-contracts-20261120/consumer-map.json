@@ -1,0 +1,82 @@
+{
+  "schema": "terminan.unused-footprint-removal-plan.v1",
+  "status": "IMPLEMENTED_SOURCE_REMOVAL_NOT_RUNTIME_ACCEPTANCE",
+  "term_source": "1dd9ed65dae3c5794572ca3adc0be32fad5ce6d1",
+  "source_blob": "a16bc013904f385a1593302a512b6b25bb324faa",
+  "scope": [
+    "terminan/contracts.py:aggregate_footprint",
+    "terminan/contracts.py:poc_close_events"
+  ],
+  "consumer_result": "NO_ACTIVE_RUNTIME_CALLER_FOUND_IN_PINNED_ROSTER",
+  "caveat": "Finite static inventory, not proof against arbitrary dynamically constructed external imports; dirty owner worktrees excluded from exact-commit conclusions.",
+  "known_consumers": [
+    {
+      "repo": "Term",
+      "path": "tests/test_contracts.py",
+      "kind": "six historical tests only"
+    },
+    {
+      "repo": "Math",
+      "path": "tests/test_terminan_math_parity.py:oracle",
+      "kind": "immutable reference-terminan d129840274f6a0faa1591a0ac3a5b92cc0bb5d88 contracts blob1cd11250594faa5d80d1c8ee5f9244afa9097bba, not current package import; keep unchanged"
+    }
+  ],
+  "proposed_changes": [
+    "Archive exact contracts.py and six original test method bodies as non-runtime provenance data with source SHA/blob/rawSHA; do not execute archived implementation as active compatibility API.",
+    "Record independent literal historical vectors: max-not-sum repeated price, lowest-price ties, finite/nonnegative admission, first signedzero encoding and binary64 close relation. Preserve immutable Math original oracle unchanged.",
+    "Remove exactly aggregate_footprint/poc_close_events from active contracts.py; remove now-unused decimal imports only after static usage check. Do not touch TradeEvent/align_trades or metadata/registry/spec APIs.",
+    "Replace six active function-dependent tests with absence/export and provenance byte/vector checks; keep unrelated TradeEvent/strategy registry tests. No unused Math compatibility helper, no forwarder or alias.",
+    "Add explicit current retirement appendix in Term migration map; do not rewrite original historical audit claims.",
+    "Run narrowly scoped pure contracts/PaperEngine/research registry and namespace/import closure checks; no browser/SQLite/native/provider execution required for removal."
+  ],
+  "historical_semantics": [
+    "float codec (not exact Decimal input contract)",
+    "duplicate levels retain maximum volume, not sum",
+    "lowest numeric price wins volume tie",
+    "first equal volume encoding retained including -0.0",
+    "poc_close_events diagnostic above/below/at only, not trading signals"
+  ],
+  "roster": [
+    {
+      "name": "Root",
+      "head": "f69334874c3d5a40c9fabed0a65925260ae3efa1",
+      "dirty_worktree": true
+    },
+    {
+      "name": "Data",
+      "head": "e856e7e218abe93f8c0b71e252a8a3c7f761a0b8",
+      "dirty_worktree": true
+    },
+    {
+      "name": "Math",
+      "head": "a5868944bf1bae813403a32b22d329c1da6f8238",
+      "dirty_worktree": false
+    },
+    {
+      "name": "Term",
+      "head": "1dd9ed65dae3c5794572ca3adc0be32fad5ce6d1",
+      "dirty_worktree": true
+    },
+    {
+      "name": "Grid-retired",
+      "head": "c9ffdaa2af52c4d55871a48655a77a0c669da80f",
+      "dirty_worktree": true
+    },
+    {
+      "name": "Meta-retired",
+      "head": "b1a4d6a41054f0040a88dc80b585380fb6b4f323",
+      "dirty_worktree": false
+    },
+    {
+      "name": "Stratt-retired",
+      "head": "13998cf87139330dd0406fed00acd148e045e6c4",
+      "dirty_worktree": false
+    },
+    {
+      "name": "Tester-compat",
+      "head": "0a6ce227d9463562bb18889dcc0ee747f3be9130",
+      "dirty_worktree": false
+    }
+  ],
+  "implementation_base": "d9929da9b6779b583116419f7616522ff193e9c5"
+}

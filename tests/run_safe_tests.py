@@ -14,5 +14,7 @@ def safe_launch(event,args):
         if os.path.normcase(os.path.realpath(executable))!=PYTHON:
             raise RuntimeError('ONLY_REVIEWED_PYTHON_CHILD_ALLOWED')
 sys.addaudithook(safe_launch)
+# Load only the explicitly reviewed plugin; entry-point autoload duplicates asyncio.
+os.environ['PYTEST_DISABLE_PLUGIN_AUTOLOAD']='1'
 import pytest
 sys.exit(pytest.main(['-q','tests','-p','pytest_asyncio.plugin']))

@@ -97,6 +97,8 @@ class PaperReplayLedger:
     def _existing_database(cls,path):
         """Owned standalone DELETE-mode read; never creates/replays sidecars."""
         location=Path(path).absolute()
+        if str(location).startswith(('//',chr(92)*2)) or '..' in location.parts or ':' in str(location)[len(location.drive):]:
+            raise RuntimeError('paper lookup requires an ordinary local path')
         def check():
             for suffix in ('-wal','-shm','-journal'):
                 side=Path(str(location)+suffix)
@@ -192,6 +194,7 @@ class PaperReplayLedger:
         run_id = receipt["run_id"]
         request_sha256 = receipt["request_sha256"]
         with closing(self._connect()) as database, database:
+            database.execute("PRAGMA synchronous = FULL")
             database.execute("BEGIN IMMEDIATE")
             if self._application_id(database) != _APPLICATION_ID:
                 raise RuntimeError("paper replay requires a dedicated database")

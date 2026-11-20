@@ -1,0 +1,11 @@
+# Explicit unknown funding and bounded JSON correction
+
+Frozen Term113 remains unchanged. Independent P1 review https://github.com/YehorBabenko88/Terminan/pull/113#issuecomment-7041134674 reproduced a new same-connection funding row whose fields explicitly became null while a paper reservation was DECIDED. Fresh books could still settle against the retained old interval.
+
+New packet processing invalidates pending DECIDED, ENTRY_SELECTED and EXIT_DECIDED intervals with SOURCE_GAP for explicit null fields or a fully present but unavailable funding row. This occurs before hold/closing advancement, retains collateral and original sources/hashes/clocks, and never fabricates a numeric FUNDING_CHANGED claim. Partial field omission/no arrival remains distinct under the existing freshness policy. Book epoch/sequence watermarks are unchanged. Three phase regressions plus the unchanged independent oracle use actual Data5bb exports and Math135 artifacts.
+
+The artifact reader also preflights raw JSON before hashing/JSON object allocation: <=4MiB; depth16; object32fields; arrays200items (funding events128); encoded strings1536bytes (covers256-character decimal text and escapes); numeric tokens64bytes. Scanner memory depends only on depth, not row count. There is no global node cap rejecting a structurally valid200-by128 graph. Closed schema/JSON grammar/duplicate keys, receipt replay and canonical bytes still validate afterwards.
+
+The public SessionDescriptor now validates on construction and every decode: exact immutable bytes<=64KiB, SHA, closed canonical session-event.v2 envelope and kind/detail shape, typed routing/clock fields and false evidence/authority flags. This is a representation/resource contract, not source authentication or a permission grant. Actual emitted descriptors remain valid.
+
+The unchanged2,100,013-byte/700001-row hostile input is rejected before json.loads with2,157bytes additional traced allocation on both Python3.11/3.12, compared with the independent frozen113 observation52,834,424bytes. The700008-byte descriptor, bytearray and wrong-family constructor probes now refuse. No SQL/network/native/process action is performed by these validators. Overall balances remain explicitly producer-claimed and non-reconstructable from receipts alone.
