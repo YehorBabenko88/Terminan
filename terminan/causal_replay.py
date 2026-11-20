@@ -6,7 +6,7 @@ from decimal import Decimal
 import json,re
 from .paper import PaperEngine,_serialize
 from .paper_ledger import canonical_json
-from .causal_quotes import validate_causal_schedule,_decimal_text,_clock
+from .causal_quotes import validate_causal_schedule,_decimal_text,_clock,_preflight,_decimal_value
 REQUEST_SCHEMA='terminan.paper.causal-quote.request.v2'
 RESULT_SCHEMA='terminan.paper.causal-quote.result.v2'
 SYMBOLS=frozenset(name+'USDT' for name in ('BTC','ETH','SOL','XRP','BNB','DOGE','ADA','AVAX','LINK','DOT'))
@@ -16,8 +16,8 @@ def label(value):
 def fields(value,keys):
  expected=set(keys)
  if type(value) is not dict or len(value)!=len(expected) or any(type(key) is not str for key in value) or set(value)!=expected:raise ValueError('closed causal descriptor required')
-def prepare_causal_request(request,*,now_ms):
- _clock(now_ms);fields(request,('schema','request_id','strategy','strategy_revision','evidence_class','symbol','units','policy','signal','close_signal','quotes','funding'))
+def bound_causal_request(request):
+ fields(request,('schema','request_id','strategy','strategy_revision','evidence_class','symbol','units','policy','signal','close_signal','quotes','funding'))
  if type(request['schema']) is not str or request['schema']!=REQUEST_SCHEMA or type(request['symbol']) is not str or request['symbol'] not in SYMBOLS:raise ValueError('canonical causal request required')
  for key in ('request_id','strategy'):label(request[key])
  if request['strategy'] not in ('causal_quote','book_tape_research'):raise ValueError('canonical causal strategy identity required')
@@ -27,12 +27,18 @@ def prepare_causal_request(request,*,now_ms):
  p=request['policy'];fields(p,('notional','fee_bps','slippage_bps','latency_ms','max_quote_age_ms','max_hold_ms'))
  for key in ('notional','fee_bps','slippage_bps'):
   if not _decimal_text(p[key]):raise ValueError('bounded decimal policy text required')
- args=dict(open_decision=request['signal'],close_decision=request['close_signal'],quotes=request['quotes'],funding=request['funding'],latency_ms=p['latency_ms'],max_quote_age_ms=p['max_quote_age_ms'],max_hold_ms=p['max_hold_ms'],now_ms=now_ms)
- validate_causal_schedule(**args)
+  _decimal_value(p[key])
+ for key in ('latency_ms','max_quote_age_ms','max_hold_ms'):
+  if not 1<=_clock(p[key])<=3600000:raise ValueError('bounded causal policy clock required')
+ _preflight(request['signal'],request['close_signal'],request['quotes'],request['funding'])
  if request['signal']['symbol']!=request['symbol']:raise ValueError('causal symbol mismatch')
  raw=canonical_json(request)
  if len(raw)>262144:raise ValueError('causal request byte limit')
  return json.loads(raw)
+def prepare_causal_request(request,*,now_ms):
+ _clock(now_ms);q=bound_causal_request(request);p=q['policy']
+ validate_causal_schedule(open_decision=q['signal'],close_decision=q['close_signal'],quotes=q['quotes'],funding=q['funding'],latency_ms=p['latency_ms'],max_quote_age_ms=p['max_quote_age_ms'],max_hold_ms=p['max_hold_ms'],now_ms=now_ms)
+ return q
 def calculate_causal_receipt(request,*,now_ms):
  """Pure replay through the shared engine; no storage or external actions."""
  q=prepare_causal_request(request,now_ms=now_ms);p=q['policy'];engine=PaperEngine(notional=p['notional'],slippage_bps=p['slippage_bps']);engine.enabled=True
