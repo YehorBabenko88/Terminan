@@ -171,7 +171,7 @@ jobs:
         run: |
           export TERMINAN_COHORT_PATH="$RUNNER_TEMP/terminan-check"
           python -I tests/check_installed_market_data_levels.py
-          python -I tests/check_installed_frozen_readers.py
+          python -I -S -B -X "pycache_prefix=$RUNNER_TEMP/terminan-frozen-reader-cache" tests/check_installed_frozen_readers.py
 
       - name: Preserve exact-source wheel proofs
         if: ${{ always() }}
