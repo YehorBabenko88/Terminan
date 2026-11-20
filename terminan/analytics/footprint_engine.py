@@ -16,21 +16,26 @@ class FootprintEngine:
         tick=self.tick_sizes.get(event.symbol)
         if tick is None:
             raise ValueError("unknown instrument")
+        if type(event.timestamp_ms) is not int or event.timestamp_ms<0:
+            raise ValueError("invalid execution timestamp")
         slot=(event.timestamp_ms//self.interval_ms)*self.interval_ms
         old=self.current.get(event.symbol)
-        if old and slot<old.start_ms:
+        if old is not None and slot==old.start_ms:
+            old.add(event,contiguous=contiguous)
+            return old
+        # Validate and aggregate into an unpublished candidate. A refused next
+        # or late event must not close, replace, or untrust the current bucket.
+        candidate=Footprint(event.symbol,slot,self.interval_ms,tick,trusted=bool(contiguous))
+        candidate.add(event,contiguous=contiguous)
+        if old is not None and slot<old.start_ms:
             old.trusted=False
             return None
-        if old and slot!=old.start_ms:
+        if old is not None:
             if slot-old.start_ms!=self.interval_ms:
                 old.trusted=False
             self.closed.append(old)
-            old=None
-        if old is None:
-            old=Footprint(event.symbol,slot,self.interval_ms,tick,trusted=bool(contiguous))
-            self.current[event.symbol]=old
-        old.add(event,contiguous=contiguous)
-        return old
+        self.current[event.symbol]=candidate
+        return candidate
 
     def gap(self,symbol):
         old=self.current.pop(symbol,None)
