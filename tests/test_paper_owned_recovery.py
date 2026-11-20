@@ -79,7 +79,7 @@ class PaperOwnedRecoveryTests(unittest.TestCase):
   with self.assertRaises(RuntimeError):self.recover()
   self.assertEqual(self.path.read_bytes(),before);self.assertEqual(j.read_bytes(),stored)
 
- def test_inert_precommit_and_postcommit_ack_recovery_never_executes_engine(self):
+ def test_inert_precommit_and_postcommit_ack_recovery_never_submits_or_publishes(self):
   from terminan.paper_journal import PaperJournal
   from test_paper_journal import ENABLE,MINUTE,ENTRY,EXIT
   for timing in ('before','after'):
@@ -96,8 +96,40 @@ class PaperOwnedRecoveryTests(unittest.TestCase):
      if write and timing=='before':copy_snapshot();raise OSError('INERT_PRECOMMIT_NO_ACK')
     if write and timing=='after':copy_snapshot();raise OSError('INERT_POSTCOMMIT_NO_ACK')
    with patch.object(ledger,'_paper_event_transaction',interrupted),self.assertRaises(OSError):journal.submit(EXIT)
-   with patch('terminan.paper_journal.PaperEngine',side_effect=AssertionError('RECOVERY_MUST_NOT_EXECUTE_ENGINE')):self.assertIsNone(self.recover(target))
+   with patch('terminan.paper_journal.PaperJournal.__init__',side_effect=AssertionError('NO_JOURNAL_CONSTRUCTOR')),patch('terminan.paper_journal.PaperJournal.submit',side_effect=AssertionError('NO_EVENT_SUBMIT')),patch('terminan.paper_ledger.PaperReplayLedger.record',side_effect=AssertionError('NO_RECEIPT_PUBLICATION')):self.assertIsNone(self.recover(target))
    restored=PaperJournal(PaperReplayLedger(target),'source','run','BTCUSDT');initial=list(restored.read_fills());self.assertEqual(len(initial),int(timing=='after'))
    ack=restored.submit(EXIT);self.assertEqual(ack['checkpoint'],4)
    if initial:self.assertEqual(initial,[ack])
    self.assertEqual(list(PaperJournal(PaperReplayLedger(target),'source','run','BTCUSDT').read_fills()),[ack])
+
+ def invalid_committed_state(self,kind):
+  from terminan.paper_journal import PaperJournal
+  from test_paper_journal import ENABLE
+  PaperJournal(PaperReplayLedger(self.path),'source','run','BTCUSDT').submit(ENABLE)
+  with closing(sqlite3.connect(self.path)) as c:
+   if kind=='checkpoint_gap':c.execute('UPDATE paper_streams_v2 SET checkpoint=2')
+   elif kind=='invalid_event':c.execute('UPDATE paper_events_v2 SET event=?',(b'not JSON',))
+   elif kind=='forged_ack_flags':
+    ack=json.loads(c.execute('SELECT ack FROM paper_events_v2').fetchone()[0]);ack['execution_authority']=True;raw=canonical_json(ack);c.execute('UPDATE paper_events_v2 SET ack=?,ack_sha256=?',(raw,sha256(raw).hexdigest()))
+   elif kind in ('numeric_execution_flag','numeric_trading_flag','boolean_checkpoint'):
+    ack=json.loads(c.execute('SELECT ack FROM paper_events_v2').fetchone()[0]);key={'numeric_execution_flag':'execution_authority','numeric_trading_flag':'trading_authorized','boolean_checkpoint':'checkpoint'}[kind];ack[key]=True if kind=='boolean_checkpoint' else 0;raw=canonical_json(ack);c.execute('UPDATE paper_events_v2 SET ack=?,ack_sha256=?',(raw,sha256(raw).hexdigest()))
+   elif kind=='duplicate_ack_key':
+    raw=c.execute('SELECT ack FROM paper_events_v2').fetchone()[0];raw=b'{"execution_authority":true,'+raw[1:];c.execute('UPDATE paper_events_v2 SET ack=?,ack_sha256=?',(raw,sha256(raw).hexdigest()))
+   elif kind=='duplicate_event_key':
+    event=c.execute('SELECT event FROM paper_events_v2').fetchone()[0];event=b'{"sequence":0,'+event[1:];ack=json.loads(c.execute('SELECT ack FROM paper_events_v2').fetchone()[0]);ack['event_sha256']=sha256(event).hexdigest();raw=canonical_json(ack);c.execute('UPDATE paper_events_v2 SET event=?,ack=?,ack_sha256=?',(event,raw,sha256(raw).hexdigest()))
+   elif kind=='orphan_event':c.execute('DELETE FROM paper_streams_v2')
+   c.commit()
+  self.snapshot_journal();side=pathlib.Path(str(self.path)+'-journal');before=self.path.read_bytes();journal=side.read_bytes()
+  with self.assertRaises(RuntimeError):self.recover()
+  self.assertEqual(self.path.read_bytes(),before);self.assertTrue(side.exists());self.assertEqual(side.read_bytes(),journal)
+ def test_checkpoint_gap_refuses_before_original_headerwrite(self):self.invalid_committed_state('checkpoint_gap')
+ def test_invalid_event_json_refuses_before_original_headerwrite(self):self.invalid_committed_state('invalid_event')
+ def test_forged_rehashed_ack_flags_refuse_before_original_headerwrite(self):self.invalid_committed_state('forged_ack_flags')
+ def test_orphan_event_refuses_before_original_headerwrite(self):self.invalid_committed_state('orphan_event')
+
+ def test_numeric_execution_flag_refuses_before_original_headerwrite(self):self.invalid_committed_state('numeric_execution_flag')
+ def test_numeric_trading_flag_refuses_before_original_headerwrite(self):self.invalid_committed_state('numeric_trading_flag')
+ def test_boolean_ack_checkpoint_refuses_before_original_headerwrite(self):self.invalid_committed_state('boolean_checkpoint')
+
+ def test_duplicate_ack_key_refuses_before_original_headerwrite(self):self.invalid_committed_state('duplicate_ack_key')
+ def test_duplicate_event_key_refuses_before_original_headerwrite(self):self.invalid_committed_state('duplicate_event_key')

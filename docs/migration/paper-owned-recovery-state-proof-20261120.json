@@ -1,0 +1,111 @@
+{
+  "schema": "terminan.paper-owned-recovery.state-proof.v1",
+  "base": "f0df714a07b05b9da08465a29ca49e96c91eb099",
+  "frozen_base_status": "KNOWN_STATE_PREFLIGHT_P2_NOT_ACCEPTED",
+  "superseded_proof": "paper-owned-recovery-proof-20261120.json is F0DF_ONLY; do not promote its engine_executed=false field",
+  "new_scope": "EXISTING_SOLE_PAPER_ENGINE_CANONICAL_HISTORICAL_VERIFICATION_ONLY",
+  "source_hashes": {
+    "terminan/paper_ledger.py": "255e6d3a0e69a79e96d8525d64adc932746f144b5992402520c9625845104c5c",
+    "terminan/paper_journal.py": "bb7a84811e4783cfd0a6935a09649fbea94955bd934f731175b3ea8422865822",
+    "tests/test_paper_owned_recovery.py": "64a69af5c9c261916b9347267d6efaae0a68875434999f4ea69f0f69c6b719ce"
+  },
+  "canonical_extraction": {
+    "canonical_recovery_core_AST_unchanged": true,
+    "decode_delta_only_canonical_raw_and_typed_value_checks": true,
+    "all_other_PaperJournal_AST_unchanged": true,
+    "parallel_simulator": false
+  },
+  "original_windows_probe": {
+    "python311": [
+      {
+        "case": "checkpoint_gap",
+        "accepted": false,
+        "error": "paper journal checkpoint gap",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "invalid_event",
+        "accepted": false,
+        "error": "paper journal acknowledgement integrity failure",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "forged_ack_flags",
+        "accepted": false,
+        "error": "paper journal acknowledgement integrity failure",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "orphan_event",
+        "accepted": false,
+        "error": "paper journal orphan event",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      }
+    ],
+    "python312": [
+      {
+        "case": "checkpoint_gap",
+        "accepted": false,
+        "error": "paper journal checkpoint gap",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "invalid_event",
+        "accepted": false,
+        "error": "paper journal acknowledgement integrity failure",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "forged_ack_flags",
+        "accepted": false,
+        "error": "paper journal acknowledgement integrity failure",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      },
+      {
+        "case": "orphan_event",
+        "accepted": false,
+        "error": "paper journal orphan event",
+        "database_changed": false,
+        "journal_retained": true,
+        "journal_bytes_unchanged": true
+      }
+    ]
+  },
+  "new_source_cases": {
+    "python": [
+      "3.11",
+      "3.12"
+    ],
+    "owned_recovery": 19,
+    "readonly": 5,
+    "existing_journal_nonprocess_nonthread": 10,
+    "existing_protocol": 4,
+    "total": 38,
+    "fresh_cli_cache": true,
+    "module_origins": "NEW_TERMINAN_SOURCE_PLUS_ACCEPTED_MATH135_ARTIFACT",
+    "cache_empty_post": true
+  },
+  "read_only_methods": "BYTE_IDENTICAL_TO_F0DF_AND_E150",
+  "writer_bytes": "CANONICAL_JSON_ENCODER_UNCHANGED",
+  "submit_or_publication_by_recovery": false,
+  "actual_process_crash": "HOSTED_MANDATORY_NOT_RUN_LOCALLY",
+  "native": "NOT_RUN",
+  "physical": "NOT_RUN",
+  "production": "NO_GO",
+  "execution_authority": false,
+  "trading_authorized": false
+}

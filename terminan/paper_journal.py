@@ -146,8 +146,11 @@ class PaperJournal:
             if sha256(ack_raw).hexdigest() != digest:
                 raise ValueError("unexpected acknowledgement digest")
             ack = json.loads(ack_raw)
+            event = json.loads(event_raw)
+            if canonical_json(ack) != ack_raw or canonical_json(event) != event_raw:
+                raise ValueError("noncanonical stored paper bytes")
             _utc(ack["ingested_at"])
-            if ack != self._ack(sequence, event_raw, ack["fill"], ack["ingested_at"]):
+            if canonical_json(ack) != canonical_json(self._ack(sequence, event_raw, ack["fill"], ack["ingested_at"])):
                 raise ValueError("unexpected acknowledgement identity")
         except (TypeError, ValueError, KeyError) as exc:
             raise RuntimeError("paper journal acknowledgement integrity failure") from exc
@@ -165,28 +168,49 @@ class PaperJournal:
 
     def _recover(self, engine):
         with self._ledger._paper_event_transaction(write=False) as database:
-            checkpoint = self._checkpoint(database)
-            rows = database.execute(
-                "SELECT sequence, event, ack, ack_sha256 FROM paper_events_v2 "
-                "WHERE source_id = ? AND run_id = ? ORDER BY sequence", self._key)
-            recovered = 0
-            watermark = None
-            for sequence, event_raw, ack_raw, digest in rows:
-                if sequence != recovered + 1 or sequence > checkpoint:
-                    raise RuntimeError("paper journal checkpoint gap")
-                ack = self._decode(sequence, event_raw, ack_raw, digest)
-                event = json.loads(event_raw)
-                _validate(event)
-                available = _available_at(event)
-                if watermark is not None and available < watermark:
-                    raise RuntimeError("paper journal event time regressed")
-                if event["sequence"] != sequence or self._apply(engine, event) != ack["fill"]:
-                    raise RuntimeError("paper journal execution parity failure")
-                recovered = sequence
-                watermark = available
-                yield ack, watermark
-            if recovered != checkpoint:
+            yield from self._recover_database(engine,database)
+
+    def _recover_database(self,engine,database):
+        checkpoint = self._checkpoint(database)
+        rows = database.execute(
+            "SELECT sequence, event, ack, ack_sha256 FROM paper_events_v2 "
+            "WHERE source_id = ? AND run_id = ? ORDER BY sequence", self._key)
+        recovered = 0
+        watermark = None
+        for sequence, event_raw, ack_raw, digest in rows:
+            if sequence != recovered + 1 or sequence > checkpoint:
                 raise RuntimeError("paper journal checkpoint gap")
+            ack = self._decode(sequence, event_raw, ack_raw, digest)
+            event = json.loads(event_raw)
+            _validate(event)
+            available = _available_at(event)
+            if watermark is not None and available < watermark:
+                raise RuntimeError("paper journal event time regressed")
+            if event["sequence"] != sequence or self._apply(engine, event) != ack["fill"]:
+                raise RuntimeError("paper journal execution parity failure")
+            recovered = sequence
+            watermark = available
+            yield ack, watermark
+        if recovered != checkpoint:
+            raise RuntimeError("paper journal checkpoint gap")
+
+    @classmethod
+    def _validate_existing_state(cls,database):
+        """Verify an existing snapshot without constructor, submit or writes.
+
+        Reuse the same canonical recovery body and sole PaperEngine for historical
+        verification only. This publishes no acknowledgement or execution grant.
+        """
+        orphan=database.execute('SELECT 1 FROM paper_events_v2 AS e LEFT JOIN paper_streams_v2 AS s ON e.source_id=s.source_id AND e.run_id=s.run_id WHERE s.source_id IS NULL LIMIT 1').fetchone()
+        if orphan is not None:raise RuntimeError('paper journal orphan event')
+        try:
+            for source_id,run_id,symbol,checkpoint in database.execute('SELECT source_id,run_id,symbol,checkpoint FROM paper_streams_v2 ORDER BY source_id,run_id'):
+                if any(type(value) is not str or re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',value) is None for value in (source_id,run_id)) or type(symbol) is not str or re.fullmatch(r'[A-Z0-9]{2,30}',symbol) is None or type(checkpoint) is not int or not 0<=checkpoint<2**63:
+                    raise RuntimeError('paper journal existing identity invalid')
+                verifier=object.__new__(cls);verifier._key=(source_id,run_id);verifier._symbol=symbol
+                for _ in verifier._recover_database(PaperEngine(),database):pass
+        except (ValueError,TypeError,KeyError,OverflowError,UnicodeError) as exc:
+            raise RuntimeError('paper journal existing state invalid') from exc
 
     def read_fills(self):
         """Yield ordered committed fill ACKs; exhaust or close the snapshot."""
