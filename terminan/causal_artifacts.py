@@ -2,7 +2,8 @@
 Receipt numerics are replay-verified. Account balances remain producer claims:
 this artifact does not contain the policy/state journal needed to derive them.
 """
-import json,re
+import re
+from .bounded_json import preflight_json,load_bounded_json
 from hashlib import sha256
 from .paper_ledger import canonical_json
 from .causal_replay import fields,bound_causal_request,calculate_causal_receipt
@@ -13,15 +14,6 @@ CONSISTENCY='VERIFIED_LOCAL_READS_NOT_CROSS_DATABASE_ATOMIC'
 ARTIFACT_FIELDS=('schema','account_id','policy_sha256','sequence','row_count','rows','balances','balances_basis','consistency','source_authenticity','point_in_time_availability','execution_authority','trading_authorized')
 RESULT_FIELDS=('schema','run_id','request_sha256','request','admitted_ms','symbol','strategy','strategy_revision','evidence_class','units','entry_ts_ms','exit_ts_ms','metrics','status','provenance','source_authenticity','point_in_time_availability','model','execution_authority','trading_authorized','training_authorized','paper_eligible','result_sha256')
 METRIC_FIELDS=('entry_price','exit_price','qty','signed_qty','gross_raw','gross_fill','slippage','fees','funding','net')
-def _refuse(*args):raise ValueError('noncanonical causal artifact scalar')
-def _pairs(items):
- if len(items)>32:raise ValueError('causal artifact object cardinality')
- out={}
- for key,value in items:
-  if type(key) is not str or not 1<=len(key)<=64 or key in out:raise ValueError('duplicate or oversized causal artifact key')
-  out[key]=value
- return out
-
 def validate_causal_ledger_artifact(raw:bytes,*,expected_sha256:str)->dict:
  """Return fresh decoded data only after byte/hash/shape/receipt replay checks.
 
@@ -30,9 +22,9 @@ def validate_causal_ledger_artifact(raw:bytes,*,expected_sha256:str)->dict:
  """
  if type(raw) is not bytes or not 0<len(raw)<=4*1024*1024:raise ValueError('bounded causal artifact bytes required')
  if type(expected_sha256) is not str or len(expected_sha256)!=64 or re.fullmatch('[a-f0-9]{64}',expected_sha256) is None:raise ValueError('explicit causal artifact digest required')
+ preflight_json(raw,max_bytes=4*1024*1024)
  if sha256(raw).hexdigest()!=expected_sha256:raise ValueError('causal artifact digest mismatch')
- try:value=json.loads(raw,object_pairs_hook=_pairs,parse_float=_refuse,parse_constant=_refuse)
- except (UnicodeError,ValueError,RecursionError) as exc:raise ValueError('closed canonical artifact JSON required') from exc
+ value=load_bounded_json(raw,max_bytes=4*1024*1024)
  fields(value,ARTIFACT_FIELDS)
  if value['schema']!=ARTIFACT_SCHEMA or type(value['schema']) is not str or type(value['account_id']) is not str or re.fullmatch('[a-f0-9]{32}',value['account_id']) is None or type(value['policy_sha256']) is not str or re.fullmatch('[a-f0-9]{64}',value['policy_sha256']) is None:raise ValueError('canonical paper artifact identity required')
  if type(value['sequence']) is not int or not 0<=value['sequence']<=4096 or type(value['row_count']) is not int or not 0<=value['row_count']<=200 or type(value['rows']) is not list or len(value['rows'])!=value['row_count']:raise ValueError('bounded paper artifact rows required')
