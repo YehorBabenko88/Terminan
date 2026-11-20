@@ -5,7 +5,7 @@ import json
 from math import isinf, isnan
 import re
 
-from .paper_ledger import ReplayConflict, canonical_json
+from .paper_ledger import PaperReplayLedger, ReplayConflict, canonical_json
 
 
 _SCHEMA = "terminan.strattester.result_archive.v1"
@@ -195,10 +195,19 @@ class ResearchArchive:
         except (KeyError, TypeError, ValueError) as exc:
             raise RuntimeError("Strattester archive integrity failure") from exc
 
+    @classmethod
+    def read_existing(cls, path, source_id):
+        """Read a dedicated existing archive without invoking a database factory."""
+        ledger = object.__new__(PaperReplayLedger)
+        ledger.path = path
+        return cls(ledger).read_snapshot(source_id)
+
     def read_snapshot(self, source_id):
         """Yield (table, disposition, original row) after verifying the snapshot."""
         _source_id(source_id)
-        with self._ledger._paper_event_transaction(write=False) as database:
+        with PaperReplayLedger._existing_database(self._ledger.path) as database:
+            if database is None:
+                raise KeyError(source_id)
             archived = self._stored_receipt(database, source_id)
             if archived is None:
                 raise KeyError(source_id)
