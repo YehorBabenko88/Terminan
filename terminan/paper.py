@@ -159,6 +159,58 @@ class PaperEngine:
         """Invalidate possible new entries; retain existing positions."""
         self.reference.pop(symbol, None)
 
+    def _candidate_fill(self,position,raw_exit,reason,when):
+        owner=_paper_math();exit_price=owner.adverse_execution_price(raw_exit,position.side,self.slippage_bps,False)
+        gross,fees,net=owner.paper_fill_metrics(position.side,position.entry,exit_price,position.size,position.entry_fee,self.fee_rate)
+        return PaperFill(position.symbol,position.side,position.entry,exit_price,reason,gross,fees,net,when)
+
+    def execute_signal(self,signal,bars,*,bar_ms,as_of_ms,ambiguity_policy='SL_FIRST'):
+        """Bounded offline OHLC model, staged completely before engine commit.
+
+        Continuous OHLC is an explicit model assumption, not observed tick order.
+        Intrabar-fill targets need post-entry close proof under SL_FIRST; the
+        caller must explicitly select and retain the optimistic TP_FIRST model.
+        """
+        from .research_signals import validate_signal_batch,SignalExecution
+        if self.enabled is not True:raise ValueError('paper engine disabled')
+        rows=validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=as_of_ms,ambiguity_policy=ambiguity_policy)
+        if signal.symbol in self.positions:raise ValueError('paper instrument already has a position')
+        prior=self.last_trade_time.get(signal.symbol)
+        if prior is not None and _timestamp(signal.decision_ms)<prior:raise ValueError('out-of-order signal decision')
+        first=signal.decision_ms if signal.entry_kind=='market' else signal.decision_ms+bar_ms
+        entry_index=None;raw_entry=None;entry_at_open=True
+        for index,bar in enumerate(rows):
+            if bar.start_ms<first:continue
+            if signal.entry_kind=='market':entry_index=index;raw_entry=bar.open;break
+            favorable=bar.open<=signal.entry_price if signal.side=='long' else bar.open>=signal.entry_price
+            if favorable:entry_index=index;raw_entry=bar.open;break
+            if bar.low<=signal.entry_price<=bar.high:entry_index=index;raw_entry=signal.entry_price;entry_at_open=False;break
+        if entry_index is None:raise ValueError('signal entry not filled')
+        owner=_paper_math();entry=owner.adverse_execution_price(raw_entry,signal.side,self.slippage_bps,True)
+        size=owner.paper_position_size(self.notional,entry);entry_fee=owner.paper_entry_fee(self.notional,self.fee_rate)
+        position=Position(signal.symbol,signal.side,entry,signal.target,signal.stop,size,_timestamp(rows[entry_index].start_ms),entry_fee)
+        raw_exit=None;reason=None;exit_ms=None
+        for index in range(entry_index,len(rows)):
+            bar=rows[index];at_open=index>entry_index or entry_at_open
+            stop_gap=bar.open<=signal.stop if signal.side=='long' else bar.open>=signal.stop
+            target_gap=bar.open>=signal.target if signal.side=='long' else bar.open<=signal.target
+            if at_open and stop_gap:raw_exit=bar.open;reason='stop_gap'
+            elif at_open and target_gap:raw_exit=signal.target;reason='target_gap'
+            else:
+                stop_hit=bar.low<=signal.stop if signal.side=='long' else bar.high>=signal.stop
+                target_hit=bar.high>=signal.target if signal.side=='long' else bar.low<=signal.target
+                if index==entry_index and not entry_at_open and ambiguity_policy=='SL_FIRST':
+                    target_hit=target_hit and (bar.close>=signal.target if signal.side=='long' else bar.close<=signal.target)
+                if stop_hit and (not target_hit or ambiguity_policy=='SL_FIRST'):raw_exit=signal.stop;reason='stop'
+                elif target_hit:raw_exit=signal.target;reason='target'
+            if reason is not None:exit_ms=bar.start_ms;break
+        if reason is None:raw_exit=rows[-1].close;exit_ms=rows[-1].start_ms;reason='end_of_data'
+        fill=self._candidate_fill(position,raw_exit,reason,_timestamp(exit_ms))
+        model='OHLC_CONSERVATIVE_NO_TICK_ORDER' if ambiguity_policy=='SL_FIRST' else 'OHLC_OPTIMISTIC_NO_TICK_ORDER'
+        result=SignalExecution(rows[entry_index].start_ms,exit_ms,size,fill,model)
+        self.last_trade_time[signal.symbol]=fill.exit_time;self.reference.pop(signal.symbol,None);self.fills.append(fill)
+        return result
+
     def on_trade(self, trade: ExecutionTrade) -> PaperFill | None:
         if not self.enabled:return None
         if not isinstance(trade.symbol,str) or not trade.symbol:raise ValueError('invalid symbol')
@@ -177,9 +229,7 @@ class PaperEngine:
                 raw=max(price,position.stop) if triggered=='stop' else position.target
             if not triggered:
                 self.last_trade_time[symbol]=trade.time;return None
-            exit_price=owner.adverse_execution_price(raw,position.side,self.slippage_bps,False)
-            gross,fees,net=owner.paper_fill_metrics(position.side,position.entry,exit_price,position.size,position.entry_fee,self.fee_rate)
-            fill=PaperFill(symbol,position.side,position.entry,exit_price,triggered,gross,fees,net,trade.time)
+            fill=self._candidate_fill(position,raw,triggered,trade.time)
             self.last_trade_time[symbol]=trade.time;self.fills.append(fill);del self.positions[symbol]
             return fill
         reference=self.reference.get(symbol)
