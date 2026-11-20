@@ -5,3 +5,6 @@ include requirements-test.lock
 include docs/canonical-analytics-migration.md
 include tests/run_safe_tests.py
 include tests/check_installed_market_data_levels.py
+recursive-include tests/fixtures *.json
+include docs/canonical-signal-replay.md
+include docs/strattester-execution-owner-map.json

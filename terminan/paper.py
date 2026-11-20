@@ -183,7 +183,7 @@ class PaperEngine:
         if signal.symbol in self.positions:raise ValueError('paper instrument already has a position')
         prior=self.last_trade_time.get(signal.symbol)
         if prior is not None and _timestamp(signal.decision_ms)<prior:raise ValueError('out-of-order signal decision')
-        first=signal.decision_ms if signal.entry_kind=='market' else signal.decision_ms+bar_ms
+        first=signal.decision_ms if signal.entry_kind=='market' else (signal.decision_ms//bar_ms+1)*bar_ms
         entry_index=None;raw_entry=None;entry_at_open=True
         for index,bar in enumerate(rows):
             if bar.start_ms<first:continue
