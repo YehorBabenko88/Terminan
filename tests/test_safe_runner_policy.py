@@ -12,12 +12,25 @@ class SafeRunnerPolicyTests(unittest.TestCase):
             seen.append(args)
             return 0
         fake.main = main
-        with patch.dict(sys.modules, {'pytest': fake}), patch.dict(os.environ):
+        with patch.dict(sys.modules, {'pytest': fake}), patch.dict(os.environ), patch.object(sys, 'path', list(sys.path)):
             os.environ.pop('PYTEST_DISABLE_PLUGIN_AUTOLOAD', None)
             with self.assertRaises(SystemExit) as stopped:
                 runpy.run_path(str(Path(__file__).with_name('run_safe_tests.py')), run_name='__main__')
         self.assertEqual(stopped.exception.code, 0)
         self.assertEqual(seen, [['-q', 'tests', '-p', 'pytest_asyncio.plugin']])
+
+    def test_source_root_visible_when_runner_starts_outside_repository(self):
+        fake=types.ModuleType('pytest')
+        source=Path(__file__).resolve().parents[1]
+        def main(args):
+            if str(source) not in sys.path:
+                raise ModuleNotFoundError('terminan source root missing from standalone runner')
+            return 0
+        fake.main=main
+        with patch.dict(sys.modules, {'pytest':fake}), patch.dict(os.environ), patch.object(sys,'path',[item for item in sys.path if item!=str(source)]):
+            with self.assertRaises(SystemExit) as stopped:
+                runpy.run_path(str(Path(__file__).with_name('run_safe_tests.py')),run_name='__main__')
+        self.assertEqual(stopped.exception.code,0)
 
 if __name__ == '__main__':
     unittest.main()
