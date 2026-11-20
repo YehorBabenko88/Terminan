@@ -1,11 +1,21 @@
 """Loopback-only static UI and bounded JSON endpoints."""
 import json
 import os
+import argparse
+import hmac
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from urllib.parse import parse_qs, urlsplit
 from . import data
 from .monitor import fleet_snapshot
+
+def capability_snapshot():
+    """Module API admission is distinct from process liveness."""
+    return dict(api_version=dict(major=1,minor=0),producer='terminan',
+        read_only=True,status='UNAVAILABLE',reason='SOURCE_PROVENANCE_UNAVAILABLE',
+        capabilities=dict(offline_analytics=True,offline_paper=True,live_trading=False),
+        execution_authority=False,trading_authorized=False)
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -28,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(int(length))
             if len(raw) != int(length):
                 raise ValueError("incomplete offline request")
-            if urlsplit(self.path).path != "/api/paper/replay" or urlsplit(self.path).query:
+            if urlsplit(self.path).path not in ("/api/paper/replay", "/api/analytics/orderflow", "/api/analytics/historical") or urlsplit(self.path).query:
                 return self.send_error(404)
             host = self.headers.get("Host", "")
             if (not (host.startswith("127.0.0.1:") or
@@ -52,7 +62,14 @@ class Handler(BaseHTTPRequestHandler):
                 raw.decode("utf-8"), object_pairs_hook=unique_pairs,
                 parse_constant=lambda _: (_ for _ in ()).throw(
                     ValueError("non-finite JSON number")))
-            result = replay_paper(request)
+            if urlsplit(self.path).path == "/api/analytics/orderflow":
+                from .analytics.api import analyze_orderflow
+                result=analyze_orderflow(request)
+            elif urlsplit(self.path).path == "/api/analytics/historical":
+                from .analytics.api import analyze_historical
+                result=analyze_historical(request)
+            else:
+                result = replay_paper(request)
             status = 200
         except ImportError:
             status, result = 503, {"error": "MATH_SDK_UNAVAILABLE"}
@@ -72,7 +89,34 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url = urlsplit(self.path)
-        if url.path in ("/", "/monitor"):
+        if url.path in ('/internal/v1/health','/internal/v1/capabilities'):
+            body=json.dumps(capability_snapshot(),allow_nan=False).encode()
+            self.send_response(503 if url.path.endswith('/health') else 200)
+            self.send_header('Content-Type','application/json; charset=utf-8')
+        elif url.path == "/health":
+            expected=os.environ.get("UNIFIED_INSTANCE_TOKEN","")
+            qualified=(re.fullmatch(r"[a-f0-9]{64}",expected) is not None
+                and os.environ.get("UNIFIED_MODULE_ID")=="terminan"
+                and re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",os.environ.get("UNIFIED_MODULE_VERSION","")) is not None
+                and 0<len(os.environ.get("UNIFIED_RELEASE_ID",""))<=128)
+            supplied=self.headers.get("Authorization","")
+            admission=getattr(self.server,"startup_admission",None)
+            current=False
+            if qualified and admission is not None:
+                try:current=admission.require_current() is True
+                except Exception:current=False
+            authorized=current and hmac.compare_digest(supplied,"Bearer "+expected)
+            if authorized:
+                result=dict(module_id="terminan",version=os.environ["UNIFIED_MODULE_VERSION"],
+                    release_id=os.environ["UNIFIED_RELEASE_ID"],instance_token=expected,
+                    ready=True,mode="READ_ONLY",execution_authority=False,trading_authorized=False)
+            else:
+                result=dict(module_id="terminan",ready=False,error="RUNTIME_IDENTITY_NOT_AUTHORIZED",
+                    execution_authority=False,trading_authorized=False)
+            body=json.dumps(result,allow_nan=False).encode()
+            self.send_response(200 if authorized else 503)
+            self.send_header("Content-Type","application/json; charset=utf-8")
+        elif url.path in ("/", "/monitor"):
             body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
@@ -86,19 +130,19 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/research": result = data.research(symbol)
                 elif url.path == "/api/levels":
                     data.validate(symbol)
-                    raise RuntimeError("qualified Grid timeframe series unavailable")
+                    raise RuntimeError("qualified MarketData timeframe series unavailable")
                 elif url.path == "/api/logs":
                     data.validate(symbol)
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
-                elif url.path == "/api/grid/candles": result = data.grid_candles(symbol)
-                elif url.path == "/api/grid/footprint": result = data.footprint(symbol)
-                elif url.path == "/api/grid/source": result = data.grid_source_status()
-                elif url.path == "/api/status": result = {"mode":"READ_ONLY","strattester":bool(os.environ.get("TERMINAN_STRATTESTER_DB")),"grid":bool(os.environ.get("TERMINAN_GRID_DSN") or os.environ.get("TERMINAN_GRID_API_PORT")),"grid_source":data.grid_source_status(),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
+                elif url.path == "/api/market-data/candles": result = data.market_data_candles(symbol)
+                elif url.path == "/api/market-data/footprint": result = data.footprint(symbol)
+                elif url.path == "/api/market-data/source": result = data.market_data_source_status()
+                elif url.path == "/api/status": result = {"mode":"READ_ONLY","market_data":bool(os.environ.get("MARKET_DATA_DSN") or os.environ.get("MARKET_DATA_API_PORT")),"market_data_source":data.market_data_source_status(),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
                 else: return self.send_error(404)
                 body = json.dumps(result,allow_nan=False,default=str).encode()
                 self.send_response(200); self.send_header("Content-Type","application/json; charset=utf-8")
                 if url.path in ("/api/instruments", "/api/candles"):
-                    self.send_header("X-Terminan-Data-Status", "OFFLINE_LEGACY_UNVERIFIED")
+                    self.send_header("X-Terminan-Data-Status", "SOURCE_UNQUALIFIED")
             except ValueError as exc:
                 body = json.dumps({"error":str(exc)}).encode(); self.send_response(400); self.send_header("Content-Type","application/json")
             except Exception:
@@ -108,10 +152,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control","no-store"); self.send_header("X-Content-Type-Options","nosniff"); self.send_header("Content-Security-Policy","default-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'")
         self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
 
-def run():
-    host=os.environ.get("TERMINAN_HOST","127.0.0.1")
-    if host not in ("127.0.0.1","localhost","::1"):
-        raise SystemExit("Remote binding disabled until authentication is implemented")
-    server=ThreadingHTTPServer((host,8765),Handler)
-    print("Terminan read-only: http://127.0.0.1:8765")
-    server.serve_forever()
+def main(argv=None, *, startup_admission=None):
+    parser=argparse.ArgumentParser(description="Canonical read-only terminal and offline paper UI")
+    parser.add_argument("--host",default=os.environ.get("TERMINAN_HOST","127.0.0.1"))
+    parser.add_argument("--port",type=int,default=int(os.environ.get("TERMINAN_PORT","8765")))
+    args=parser.parse_args(argv)
+    if args.host not in ("127.0.0.1","localhost") or not 0<=args.port<=65535:
+        raise SystemExit("Only bounded IPv4 loopback terminal binding is supported")
+    if os.environ.get("UNIFIED_MODULE_ID"):
+        if startup_admission is None or startup_admission.require_current() is not True:
+            raise ValueError("STARTUP_SOURCE_ADMISSION_REQUIRED")
+    with ThreadingHTTPServer((args.host,args.port),Handler) as server:
+        server.startup_admission=startup_admission
+        server.serve_forever()

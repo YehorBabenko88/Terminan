@@ -1,6 +1,6 @@
 """MetaScalp level ownership and publication gates migrated from Meta Analyse.
 
-This module is a pure compatibility boundary within the existing Terminan
+This module is a pure terminal boundary within the existing Terminan
 application, not another service/client. No Metasc alp API requests, broker
 orders, PostgreSQL writes or numerical level computation.
 Original source: meta_analyse@b49505da42a274f7232fabe5d847c91f7218a0ce
@@ -13,11 +13,11 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 
-PREFIX = "meta_analyse:"  # Retain old signatures to preserve managed levels.
+PREFIX = "terminan:"  # Historical annotations require explicit reviewed migration.
 
 
 def signature(symbol, level):
-    """Stable old owner signature; do not rename existing user-owned annotations."""
+    """Stable canonical owner signature; do not rename existing user-owned annotations."""
     raw = (
         f"{symbol}|{level.timeframe}|{level.kind}|"
         f"{level.source_start.isoformat()}|{level.price}"
@@ -26,7 +26,7 @@ def signature(symbol, level):
 
 
 def owned_id(row):
-    """Only Meta-created, clearly marked terminal levels are eligible."""
+    """Only Terminan-created, clearly marked terminal levels are eligible."""
     if not isinstance(row, dict):
         return None
     note = str(row.get("note") or row.get("Note") or "")

@@ -1,12 +1,12 @@
 // Requires playwright-core and CHROME_PATH pointing to an installed Chromium.
-// Run from the repository root with node --test tests/browser/test_grid_source.cjs.
+// Run from the repository root with node --test tests/browser/test_market_data_source.cjs.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { chromium } = require('playwright-core');
 
-test('the Grid panel clears stale state and never promotes unqualified data', async () => {
+test('the MarketData panel clears stale state and never promotes unqualified data', async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
   try {
     const page = await browser.newPage();
@@ -15,7 +15,7 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     const html = fs.readFileSync(path.join(__dirname, '../../terminan/index.html'), 'utf8');
     const unavailable = {
       api_version: { major: 1, minor: 0 },
-      producer: 'bybit-cluster-grid',
+      producer: 'market_data',
       connection: 'UNAVAILABLE',
       market_data: 'UNAVAILABLE',
       database: 'UNAVAILABLE',
@@ -33,7 +33,7 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
       const url = new URL(route.request().url());
       if (url.pathname === '/') {
         await route.fulfill({ contentType: 'text/html', body: html });
-      } else if (url.pathname === '/api/grid/source') {
+      } else if (url.pathname === '/api/market-data/source') {
         if (reply instanceof Promise) await reply;
         if (reply === null) await route.abort();
         else await route.fulfill({ json: reply });
@@ -47,12 +47,12 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
           url.searchParams.get('timeframe') === '5m' ? [candle, { ...candle, t: 300000 }] : [candle];
         await route.fulfill({ headers, json: rows });
       } else {
-        if (url.pathname === '/api/grid/candles') gridCandleRequests++;
+        if (url.pathname === '/api/market-data/candles') gridCandleRequests++;
         await route.fulfill({ json: url.pathname === '/api/status' ? {} : [] });
       }
     });
     const goto = () => page.goto('http://127.0.0.1:8765/');
-    const waitForState = state => page.locator(`#grid-quality[data-state="${state}"]`).waitFor({
+    const waitForState = state => page.locator(`#market-data-quality[data-state="${state}"]`).waitFor({
       timeout: 4000,
     });
     await goto();
@@ -80,18 +80,18 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     await staleResponse;
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     assert.equal(await currentChart.count(), 1);
-    const button = page.getByRole('button', { name: 'Проверить Grid' });
+    const button = page.getByRole('button', { name: 'Проверить MarketData' });
     reply = { ...unavailable, connection: 'CONNECTED_UNQUALIFIED', database: 'READ_ONLY' };
     await button.focus();
     await page.keyboard.press('Enter');
     await waitForState('unqualified');
-    assert.match(await page.locator('#grid-quality').innerText(), /Происхождение не подтверждено/);
+    assert.match(await page.locator('#market-data-quality').innerText(), /Происхождение не подтверждено/);
 
     reply = new Promise(resolve => { release = resolve; });
     await button.click();
     await waitForState('checking');
     assert.equal(await button.isDisabled(), true);
-    assert.doesNotMatch(await page.locator('#grid-quality').innerText(), /База доступна/);
+    assert.doesNotMatch(await page.locator('#market-data-quality').innerText(), /База доступна/);
     reply = { ...unavailable, connection: 'CONNECTED_UNQUALIFIED', live_l2: true };
     release();
     await waitForState('unavailable');
@@ -103,7 +103,7 @@ test('the Grid panel clears stale state and never promotes unqualified data', as
     reply = { ...unavailable, connection: 'CONNECTED_UNQUALIFIED' };
     await goto();
     await waitForState('unqualified');
-    assert.equal(await page.locator('#grid-quality').count(), 1);
+    assert.equal(await page.locator('#market-data-quality').count(), 1);
     assert.deepEqual(pageErrors, []);
   } finally {
     await browser.close();

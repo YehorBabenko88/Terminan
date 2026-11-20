@@ -294,12 +294,12 @@ class FourModuleBoundaryTests(unittest.TestCase):
                                 else "")
                     self.assertNotIn(function, forbidden_calls, str(path))
 
-    def test_pg_legacy_adapter_is_explicitly_read_only(self):
+    def test_active_market_data_never_falls_back_to_sql(self):
+        from unittest.mock import patch
         from terminan import data
-        source = inspect.getsource(data.grid_query)
-        self.assertIn("default_transaction_read_only=on", source)
-        self.assertIn("statement_timeout=3000", source)
-        self.assertNotIn("autocommit=True", source)
+        with patch.dict('os.environ',{},clear=True), patch('sqlite3.connect',side_effect=AssertionError('SQL fallback forbidden')):
+            self.assertEqual(data.market_data_candles('BTCUSDT'),[])
+            self.assertEqual(data.footprint('BTCUSDT'),[])
 
     def test_math_sdk_is_optional_and_no_strategy_code_lives_in_math(self):
         from terminan.paper import PaperEngine

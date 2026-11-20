@@ -34,7 +34,7 @@ def source_receipt(rows):
     }
 
 
-class MetaFillMigrationTests(unittest.TestCase):
+class HistoricalFillMigrationTests(unittest.TestCase):
     def setUp(self):
         case = tempfile.TemporaryDirectory()
         self.addCleanup(case.cleanup)
@@ -46,30 +46,30 @@ class MetaFillMigrationTests(unittest.TestCase):
         # Pinned Meta #81 c25fd2c persisted_state_receipt on the same SQL rows.
         self.assertEqual(receipt["sha256"],
                          "5ecbdef3159f295330f024b6cbc7982acdb07aea61522d67c393104ca6d62770")
-        self.assertEqual(self.ledger.import_meta_fills("legacy-a", iter(ROWS), receipt),
+        self.assertEqual(self.ledger.import_historical_fills("legacy-a", iter(ROWS), receipt),
                          receipt)
         reopened = PaperReplayLedger(self.path)
-        self.assertEqual(list(reopened.restore_meta_fills("legacy-a")), ROWS)
-        self.assertEqual(reopened.import_meta_fills("legacy-a", iter(ROWS), receipt),
+        self.assertEqual(list(reopened.restore_historical_fills("legacy-a")), ROWS)
+        self.assertEqual(reopened.import_historical_fills("legacy-a", iter(ROWS), receipt),
                          receipt)
         changed = [ROWS[0], [8, *ROWS[1][1:]]]
         with self.assertRaises(ReplayConflict):
-            self.ledger.import_meta_fills("legacy-a", changed, source_receipt(changed))
-        self.assertEqual(list(reopened.restore_meta_fills("legacy-a")), ROWS)
+            self.ledger.import_historical_fills("legacy-a", changed, source_receipt(changed))
+        self.assertEqual(list(reopened.restore_historical_fills("legacy-a")), ROWS)
 
     def test_missing_or_invalid_row_rolls_back_whole_import(self):
         for incomplete in (ROWS[:1], [ROWS[0], [*ROWS[1][:-1], "2026-11-19"]]):
             with self.subTest(rows=incomplete):
                 with self.assertRaises(ValueError):
-                    self.ledger.import_meta_fills("legacy-a", incomplete, source_receipt(ROWS))
+                    self.ledger.import_historical_fills("legacy-a", incomplete, source_receipt(ROWS))
                 with self.assertRaises(KeyError):
-                    list(self.ledger.restore_meta_fills("legacy-a"))
-        self.ledger.import_meta_fills("legacy-a", ROWS, source_receipt(ROWS))
-        self.assertEqual(list(self.ledger.restore_meta_fills("legacy-a")), ROWS)
+                    list(self.ledger.restore_historical_fills("legacy-a"))
+        self.ledger.import_historical_fills("legacy-a", ROWS, source_receipt(ROWS))
+        self.assertEqual(list(self.ledger.restore_historical_fills("legacy-a")), ROWS)
 
     def test_corrupt_archive_emits_no_rows(self):
-        self.ledger.import_meta_fills("legacy-a", ROWS, source_receipt(ROWS))
+        self.ledger.import_historical_fills("legacy-a", ROWS, source_receipt(ROWS))
         with closing(sqlite3.connect(self.path)) as database, database:
-            database.execute("DELETE FROM meta_fill_rows WHERE fill_id = 7")
+            database.execute("DELETE FROM historical_fill_rows WHERE fill_id = 7")
         with self.assertRaisesRegex(RuntimeError, "integrity"):
-            next(self.ledger.restore_meta_fills("legacy-a"))
+            next(self.ledger.restore_historical_fills("legacy-a"))

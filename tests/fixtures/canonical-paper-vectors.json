@@ -1,0 +1,527 @@
+{
+  "schema": "terminan.historical.parity-vectors.v1",
+  "source_core_sha": "9d0fb5c79a5da13b23f8daa066035b09f676a6fc",
+  "source_sizing_sha": "98d6783522aac7155cbb4635e5b29239746d88e0",
+  "cases": [
+    {
+      "name": "short_target",
+      "complete": true,
+      "events": [
+        [
+          61,
+          "102"
+        ],
+        [
+          62,
+          "100"
+        ]
+      ],
+      "states": [
+        {
+          "reference": {},
+          "positions": {
+            "BTCUSDT": {
+              "symbol": "BTCUSDT",
+              "side": "short",
+              "entry": "101.9796",
+              "target": "100",
+              "stop": "102.4894980",
+              "size": "0.9805882745176486277647686400",
+              "entry_time": "2026-10-15T12:01:01+00:00",
+              "entry_fee": "0.0600"
+            }
+          },
+          "fills": []
+        },
+        {
+          "reference": {},
+          "positions": {},
+          "fills": [
+            {
+              "symbol": "BTCUSDT",
+              "side": "short",
+              "entry": "101.9796",
+              "exit": "100.0200",
+              "reason": "target",
+              "gross": "1.921560782744784250967840627",
+              "fees": "0.1188470635303531294494192956",
+              "net": "1.802713719214431121518421331",
+              "exit_time": "2026-10-15T12:01:02+00:00"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "long_stop",
+      "complete": true,
+      "events": [
+        [
+          60,
+          "98"
+        ],
+        [
+          62,
+          "95"
+        ]
+      ],
+      "states": [
+        {
+          "reference": {},
+          "positions": {
+            "BTCUSDT": {
+              "symbol": "BTCUSDT",
+              "side": "long",
+              "entry": "98.0196",
+              "target": "100",
+              "stop": "97.5295020",
+              "size": "1.020204122440817958857208150",
+              "entry_time": "2026-10-15T12:01:00+00:00",
+              "entry_fee": "0.0600"
+            }
+          },
+          "fills": []
+        },
+        {
+          "reference": {},
+          "positions": {},
+          "fills": [
+            {
+              "symbol": "BTCUSDT",
+              "side": "long",
+              "entry": "98.0196",
+              "exit": "94.9810",
+              "reason": "stop",
+              "gross": "-3.099992246448669449783512685",
+              "fees": "0.1181400046521307983301298924",
+              "net": "-3.218132251100800248113642577",
+              "exit_time": "2026-10-15T12:01:02+00:00"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "not_next_minute",
+      "complete": true,
+      "events": [
+        [
+          121,
+          "103"
+        ]
+      ],
+      "states": [
+        {
+          "reference": {
+            "BTCUSDT": [
+              "2026-10-15T12:00:00+00:00",
+              "100"
+            ]
+          },
+          "positions": {},
+          "fills": []
+        }
+      ]
+    },
+    {
+      "name": "unclosed",
+      "complete": false,
+      "events": [
+        [
+          61,
+          "103"
+        ]
+      ],
+      "states": [
+        {
+          "reference": {},
+          "positions": {},
+          "fills": []
+        }
+      ]
+    }
+  ],
+  "sizing_rows": [
+    {
+      "signal_id": "a",
+      "pnl": -3.2,
+      "fees": 0.13,
+      "slippage": 0.07,
+      "mfe": 6.0,
+      "mae": -5.0
+    },
+    {
+      "signal_id": "b",
+      "pnl": -1.0,
+      "fees": 0.1,
+      "slippage": 0.0,
+      "mfe": 1.0,
+      "mae": -2.0
+    },
+    {
+      "signal_id": "c",
+      "pnl": 4.0,
+      "fees": 0.2,
+      "slippage": 0.1,
+      "mfe": 10.0,
+      "mae": -3.0
+    },
+    {
+      "signal_id": "d",
+      "pnl": 2.5,
+      "fees": 0.0,
+      "slippage": 0.0,
+      "mfe": 7.0,
+      "mae": -1.0
+    }
+  ],
+  "sizing": [
+    {
+      "options": {
+        "mode": "FIXED",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 1.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -1.0,
+          "fees": 0.1,
+          "slippage": 0.0,
+          "mfe": 1.0,
+          "mae": -2.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 4.0,
+          "fees": 0.2,
+          "slippage": 0.1,
+          "mfe": 10.0,
+          "mae": -3.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 2.5,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 7.0,
+          "mae": -1.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        }
+      ]
+    },
+    {
+      "options": {
+        "mode": "FIXED",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 4.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -1.0,
+          "fees": 0.1,
+          "slippage": 0.0,
+          "mfe": 1.0,
+          "mae": -2.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 4.0,
+          "fees": 0.2,
+          "slippage": 0.1,
+          "mfe": 10.0,
+          "mae": -3.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 2.5,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 7.0,
+          "mae": -1.0,
+          "sizing_mode": "FIXED",
+          "size_multiplier": 1.0
+        }
+      ]
+    },
+    {
+      "options": {
+        "mode": "MARTINGALE",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 1.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -1.0,
+          "fees": 0.1,
+          "slippage": 0.0,
+          "mfe": 1.0,
+          "mae": -2.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 4.0,
+          "fees": 0.2,
+          "slippage": 0.1,
+          "mfe": 10.0,
+          "mae": -3.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 2.5,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 7.0,
+          "mae": -1.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        }
+      ]
+    },
+    {
+      "options": {
+        "mode": "MARTINGALE",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 4.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -2.0,
+          "fees": 0.2,
+          "slippage": 0.0,
+          "mfe": 2.0,
+          "mae": -4.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 2.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 16.0,
+          "fees": 0.8,
+          "slippage": 0.4,
+          "mfe": 40.0,
+          "mae": -12.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 4.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 2.5,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 7.0,
+          "mae": -1.0,
+          "sizing_mode": "MARTINGALE",
+          "size_multiplier": 1.0
+        }
+      ]
+    },
+    {
+      "options": {
+        "mode": "ANTI_MARTINGALE",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 1.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -1.0,
+          "fees": 0.1,
+          "slippage": 0.0,
+          "mfe": 1.0,
+          "mae": -2.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 4.0,
+          "fees": 0.2,
+          "slippage": 0.1,
+          "mfe": 10.0,
+          "mae": -3.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 2.5,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 7.0,
+          "mae": -1.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        }
+      ]
+    },
+    {
+      "options": {
+        "mode": "ANTI_MARTINGALE",
+        "base_size": 1.0,
+        "multiplier": 2.0,
+        "max_steps": 3,
+        "max_size": 4.0
+      },
+      "result": [
+        {
+          "signal_id": "a",
+          "pnl": -3.2,
+          "fees": 0.13,
+          "slippage": 0.07,
+          "mfe": 6.0,
+          "mae": -5.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "b",
+          "pnl": -1.0,
+          "fees": 0.1,
+          "slippage": 0.0,
+          "mfe": 1.0,
+          "mae": -2.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "c",
+          "pnl": 4.0,
+          "fees": 0.2,
+          "slippage": 0.1,
+          "mfe": 10.0,
+          "mae": -3.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 1.0
+        },
+        {
+          "signal_id": "d",
+          "pnl": 5.0,
+          "fees": 0.0,
+          "slippage": 0.0,
+          "mfe": 14.0,
+          "mae": -2.0,
+          "sizing_mode": "ANTI_MARTINGALE",
+          "size_multiplier": 2.0
+        }
+      ]
+    }
+  ],
+  "ruin": [
+    {
+      "options": {
+        "starting_equity": 10.0,
+        "ruin_fraction": 0.5
+      },
+      "result": {
+        "ending_equity": 11.7,
+        "min_equity": 5.5,
+        "max_drawdown": 4.5,
+        "ruin_threshold": 5.0,
+        "ruined": false
+      }
+    },
+    {
+      "options": {
+        "starting_equity": 100.0,
+        "ruin_fraction": 0.5
+      },
+      "result": {
+        "ending_equity": 101.7,
+        "min_equity": 95.5,
+        "max_drawdown": 4.5,
+        "ruin_threshold": 50.0,
+        "ruined": false
+      }
+    },
+    {
+      "options": {
+        "starting_equity": 1000.0,
+        "ruin_fraction": 0.5
+      },
+      "result": {
+        "ending_equity": 1001.7,
+        "min_equity": 995.5,
+        "max_drawdown": 4.5,
+        "ruin_threshold": 500.0,
+        "ruined": false
+      }
+    }
+  ]
+}
