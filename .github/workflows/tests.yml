@@ -1,5 +1,11 @@
 name: tests
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+concurrency:
+  group: terminan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 env:
@@ -13,7 +19,13 @@ jobs:
         python: ['3.11', '3.12']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
@@ -23,30 +35,57 @@ jobs:
           actual=$(git rev-parse HEAD)
           echo "Terminan source: $actual"
           test "$actual" = "$TERMINAN_TEST_SHA"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/math
-          ref: 8b6887f8d7f7993bb05e8a3ab6514b53c0dff1c3
+          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
           path: upstream/math-sdk
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --no-deps ./upstream/math-sdk
-      - run: python -m pip install --only-binary=:all: --require-hashes -r requirements-test.lock
+      - name: Install pinned test dependencies
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r requirements-test.lock
       - run: python tests/run_safe_tests.py
       - run: python -m compileall -q terminan
 
   historical-parity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
+        with:
+          repository: YehorBabenko88/math
+          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
+          path: upstream/math-sdk
+          persist-credentials: false
+      - run: python -m pip install --no-deps ./upstream/math-sdk
       - run: python -m unittest discover -s tests -p test_historical_paper_vectors.py -v
 
   wheel-install:
@@ -57,7 +96,13 @@ jobs:
         python: ['3.11', '3.12']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
@@ -67,41 +112,73 @@ jobs:
           actual=$(git rev-parse HEAD)
           echo "Terminan source: $actual"
           test "$actual" = "$TERMINAN_TEST_SHA"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/strattester
-          ref: 82dac3c7122d0588c89f94e026e529cda51b428b
+          ref: ecc2c5d95997bfb68dd2242bca4146184e0485f3
           path: upstream/market-data-sdk
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/math
-          ref: 8b6887f8d7f7993bb05e8a3ab6514b53c0dff1c3
+          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
           path: upstream/math-sdk
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python }}
       - name: Build independent Terminan wheel
         shell: bash
-        run: python -m pip wheel --no-deps --wheel-dir dist .
+        run: |
+          python -m pip wheel --no-deps --wheel-dir dist/terminan .
+          python -m pip wheel --no-deps --wheel-dir dist/math ./upstream/math-sdk
+          python -m pip wheel --no-deps --wheel-dir dist/market_data ./upstream/market-data-sdk
+          python tests/check_wheel_git_bytes.py --repo . --sha "$TERMINAN_TEST_SHA" --wheel-dir dist/terminan --out dist/terminan-proof.json
+          python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha de8194f71311a6d7dddb69be9de812030ed1f13f --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
+          python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha ecc2c5d95997bfb68dd2242bca4146184e0485f3 --wheel-dir dist/market_data --out dist/market-data-proof.json
       - name: Install wheel outside source checkout
         shell: bash
         run: |
-          python -m pip install --no-deps --target "$RUNNER_TEMP/terminan-check" dist/*.whl
+          python -m pip install --no-deps --target "$RUNNER_TEMP/terminan-check" dist/terminan/*.whl dist/math/*.whl dist/market_data/*.whl
           python -c "import os,subprocess,sys,tempfile; env=os.environ.copy(); env['PYTHONPATH']=os.path.join(os.environ['RUNNER_TEMP'],'terminan-check'); code='from importlib.resources import files; import terminan; from terminan.paper import PaperEngine; from terminan.server import Handler; assert terminan.__version__==\"0.1.0\"; assert files(\"terminan\").joinpath(\"index.html\").is_file(); assert files(\"terminan\").joinpath(\"monitor.html\").is_file(); assert PaperEngine().enabled is False; print(\"INSTALLED_TERMINAN=PASS\")'; subprocess.run([sys.executable,'-c',code],env=env,cwd=tempfile.mkdtemp(),check=True)"
 
       - name: Check installed MarketData and Math compatibility
         shell: bash
         run: |
           export TERMINAN_COHORT_PATH="$RUNNER_TEMP/terminan-check"
-          python -m pip install --no-deps --target "$TERMINAN_COHORT_PATH" ./upstream/market-data-sdk ./upstream/math-sdk
           python -I tests/check_installed_market_data_levels.py
+
+      - name: Preserve exact-source wheel proofs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cohort-wheel-proofs-${{ matrix.os }}-${{ matrix.python }}-${{ env.TERMINAN_TEST_SHA }}
+          path: dist/*-proof.json
+          if-no-files-found: error
+          retention-days: 14
 
   market-data-browser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
         with:
           ref: ${{ env.TERMINAN_TEST_SHA }}
           persist-credentials: false
