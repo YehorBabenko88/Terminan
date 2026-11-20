@@ -229,9 +229,10 @@ class PaperEngine:
         # Validate bounded closed shapes before making the detached snapshot.
         validate_causal_schedule(**args);args=json.loads(canonical_json(args))
         selected=validate_causal_schedule(**args);a=args['open_decision'];symbol=a['symbol'];side=a['side'];x,y=args['quotes']
-        owner=_paper_math();book=getattr(owner,'paper_quote_book_valid',None);calculate=getattr(owner,'paper_quote_metrics',None)
-        if not callable(book) or not callable(calculate):raise ValueError('CAUSAL_MATH_CAPABILITY_UNAVAILABLE')
+        owner=_paper_math();book=getattr(owner,'paper_quote_book_valid',None);funding_valid=getattr(owner,'paper_quote_funding_valid',None);calculate=getattr(owner,'paper_quote_metrics',None)
+        if not callable(book) or not callable(funding_valid) or not callable(calculate):raise ValueError('CAUSAL_MATH_CAPABILITY_UNAVAILABLE')
         if any(book(D(row['bid']),D(row['ask'])) is not True for row in (x,y)):raise ValueError('invalid causal quote book')
+        if any(funding_valid(D(row['mark_price']),D(row['rate'])) is not True for row in args['funding']['events']):raise ValueError('invalid causal funding event')
         if symbol in self.positions:raise ValueError('paper instrument already has a position')
         decision=_timestamp(a['decision_ms']);prior=self.last_trade_time.get(symbol)
         if prior is not None and decision<prior:raise ValueError('out-of-order quote decision')

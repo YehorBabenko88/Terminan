@@ -18,3 +18,9 @@ Base d4bb93436e4184fb3bd031116ae0acd00a2bdeac. Root approved this isolated sourc
 Pending owner dependencies are sourcework, not native blockers. No public/runtime authority is granted by this plan or callback fakes.
 
 Data packet consumer now delegates exact Data5bb26e validation, preserves wire microseconds/UNKNOWN qualifiers/hashes, and stages across-packet clocks/epoch/cursor changes atomically (5 actualSDK tests both runtimes). No SQL reader/managed route/provider is assumed.
+
+## Funding domain checkpoint
+
+Every supplied funding event, including events outside the selected holding interval, must pass public Math `paper_quote_funding_valid` before any PaperEngine state change. Pinned SDK: c7f891c2493b27d0a5badaf6ef9e34dff1b6ccc4; wheel SHA256 5160bc7cfac9f81ff6f1ff4452093d7fa4e32228c530ae7924bd2da3aa915892. This closes the reproduced unselected rate/mark acceptance defect; no domain arithmetic is copied into Terminan.
+
+Verification: 107 scoped pure tests passed on Python 3.11 and 3.12 with all child processes, sockets and system calls denied. Includes three invalid future funding cases, unchanged engine-state assertions, actual selected-funding literal, locked-book policy, and cross-packet cursor regressions. Reservation journal, settlement/reconciliation and full causal orchestration remain source work pending; operational data read model and native admission are not qualified.

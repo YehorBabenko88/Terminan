@@ -46,3 +46,10 @@ class CausalEngineTests(unittest.TestCase):
   from test_causal_quote_schedule import receipt
   value=self.profitable();f=dict(value['funding']);f.pop('sha256');f.update(kind='COMPLETE_EVENTS',previous_ms=0,next_ms=600,interval_ms=200,observed_ms=400,events=[receipt('f200',event_ms=200,observed_ms=200,rate='0.001',mark_price='100'),receipt('f400',event_ms=400,observed_ms=400,rate='0.001',mark_price='100')]);value['funding']=seal(f);value['now_ms']=451;value['max_quote_age_ms']=200
   result=self.execute(self.engine(),value);self.assertEqual(result.metrics.funding,D('.1'));self.assertEqual(result.fill.net,D('9.48001'))
+
+ def test_unselected_funding_event_domain_is_validated_before_any_fill(self):
+  from test_causal_quote_schedule import receipt
+  for field,value in (('rate','2'),('mark_price','-1'),('mark_price','1e13')):
+   data=self.profitable();events=[receipt('f200',event_ms=200,observed_ms=200,rate='0.001',mark_price='100'),receipt('f400',event_ms=400,observed_ms=400,rate='0.001',mark_price='100')];changed=dict(events[-1]);changed.pop('sha256');changed[field]=value;events[-1]=seal(changed);f=dict(data['funding']);f.pop('sha256');f.update(kind='COMPLETE_EVENTS',previous_ms=0,next_ms=600,interval_ms=200,observed_ms=400,events=events);data['funding']=seal(f);data['now_ms']=451;data['max_quote_age_ms']=200;engine=self.engine();before=copy.deepcopy(engine.__dict__)
+   with self.subTest(field=field,value=value),self.assertRaises(ValueError):self.execute(engine,data)
+   self.assertEqual(engine.__dict__,before)
