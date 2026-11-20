@@ -1,4 +1,4 @@
-"""Installed wheel regression with fresh external cache; no admission authority."""
+"""Installed frozen-reader and volatility regressions; no admission authority."""
 import os,pathlib,runpy,sys,unittest,hashlib,importlib.util,stat
 if not(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode):raise RuntimeError('ISOLATED_NO_SITE_NO_WRITE_REQUIRED')
 site=pathlib.Path(os.environ['TERMINAN_COHORT_PATH']).resolve(strict=True)
@@ -27,7 +27,10 @@ before=bytes_snapshot();unchanged_cache();sys.path.insert(0,str(site))
 import terminan.data,terminan.migration.candle_snapshot,terminan.migration.research_results
 case=runpy.run_path(str(pathlib.Path(__file__).with_name('test_frozen_readers.py')))['FrozenReaderTests']
 suite=unittest.defaultTestLoader.loadTestsFromTestCase(case)
-if suite.countTestCases()!=8:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+volatility=runpy.run_path(str(pathlib.Path(__file__).with_name('test_volatility.py')))
+for name in ('VolatilityTransferTests','CanonicalVolatilityBoundaryTests'):
+ suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(volatility[name]))
+if suite.countTestCases()!=17:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -37,4 +40,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==8 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==17 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
