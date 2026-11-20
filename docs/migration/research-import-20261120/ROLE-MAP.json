@@ -1,0 +1,54 @@
+{
+  "source": "8042142bedc19718249f6de7519e382de3a1ed78",
+  "roles": [
+    {
+      "source": "test_research_handoff_requires_trust_and_never_trades",
+      "replacement": [
+        "ResearchImportTests.test_external_four_tuple_is_required_and_never_self_attested",
+        "ResearchImportTests.test_frozen_export_byte_identity_and_canonical_producer_without_grants",
+        "ResearchImportTests.test_literal_false_authority_and_version_fields"
+      ],
+      "preserved": "empty/wrongexternalpin denies; currentproducer accepts metadata only; execution/trading nevergranted"
+    },
+    {
+      "source": "test_handoff_adversarial",
+      "replacement": [
+        "ResearchImportTests.test_original_adversarial_variants_refuse",
+        "ResearchImportTests.test_incomplete_dataset_or_time_order_refuses"
+      ],
+      "preserved": "receipt/version/booleancompletion/missingdataset variants refuse"
+    },
+    {
+      "source": "test_canonical_handoff_preserves_frozen_source_and_rejects_forgery",
+      "replacement": [
+        "ResearchImportTests.test_frozen_export_byte_identity_and_canonical_producer_without_grants",
+        "ResearchImportTests.test_rehashed_forgery_cannot_reuse_original_trust"
+      ],
+      "preserved": "canonicalproducer accepted onlywith exactexternal4tuple; untrusted/rehashedforgery refuse"
+    },
+    {
+      "source": "test_canonical_producer_acceptance_and_old_identity_refusal_preserve_source",
+      "replacement": [
+        "ResearchImportTests.test_frozen_export_byte_identity_and_canonical_producer_without_grants"
+      ],
+      "preserved": "rawoldproducer refused; canonicalclone resealed; originalfixture rawbytes/SHA unchanged"
+    }
+  ],
+  "not_transferred": [
+    "DataPOSTtransport/slowbodyroles remainDataowner; noTermHTTProute isneededbyactualRootSDKcaller",
+    "No market/sourceauthenticity/researchnumericrecomputation or permissionis inferred"
+  ],
+  "new_explicit_representation_profile": {
+    "max_encoded_bytes": 8388608,
+    "max_json_value_nodes": 262144,
+    "max_depth": 16,
+    "max_object_fields": 4096,
+    "max_array_items": 65536,
+    "max_text_characters": 65536,
+    "max_integer_bits": 4096,
+    "max_trust_tuples": 4096,
+    "top_fields": "15required+optionalinput_snapshot",
+    "financial_cost_domain": "Math finite_nonnegative_number_valid only; genericlegacyJSONint/floatshape"
+  },
+  "budget_authority": "INPUT_RESOURCE_BUDGET_NOT_PROVIDER_OR_COVERAGE_POLICY"
+}

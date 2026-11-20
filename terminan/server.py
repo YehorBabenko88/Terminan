@@ -14,7 +14,7 @@ def capability_snapshot():
     """Module API admission is distinct from process liveness."""
     return dict(api_version=dict(major=1,minor=0),producer='terminan',
         read_only=True,status='UNAVAILABLE',reason='SOURCE_PROVENANCE_UNAVAILABLE',
-        capabilities=dict(offline_analytics=True,offline_paper=True,live_trading=False),
+        capabilities=dict(offline_analytics=True,offline_paper=True,research_import_validation=True,live_trading=False),
         execution_authority=False,trading_authorized=False)
 
 class Handler(BaseHTTPRequestHandler):

@@ -1,1 +1,5 @@
 docs/migration/unused-contracts-20261120/*.source.txt -text
+
+# Immutable research transfer inputs preserve original raw Git bytes.
+docs/migration/research-import-20261120/raw/*.txt -text
+tests/fixtures/research-import/original-export.synthetic.json -text

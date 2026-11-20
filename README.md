@@ -19,7 +19,7 @@ The initial UI supports instrument selection, candle chart, footprint rows and r
 Terminan can query the **existing MarketData** v1 capability/health endpoints on the
 same Windows host without connecting to Bybit or creating a PostgreSQL cluster.
 Set `MARKET_DATA_API_PORT` to the decimal port already used by
-`market_data.terminan_gateway` (for example `18766` only when that service is
+the canonical `market_data.cli serve` service (for example `18766` only when it is
 actually running). Only `127.0.0.1` is contacted; URLs, arbitrary hosts,
 redirects, inherited proxies and credentials are not accepted.
 
