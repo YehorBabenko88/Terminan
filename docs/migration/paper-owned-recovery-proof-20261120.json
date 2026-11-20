@@ -1,0 +1,34 @@
+{
+  "schema": "terminan.paper-owned-recovery.source-proof.v1",
+  "base": "e1503da224171a6756043cdfe6abf6424c95644e",
+  "local_scope": "PRIVATE_SQLITE_INERT_CRASH_COPIES_ONLY",
+  "python": [
+    "3.11",
+    "3.12"
+  ],
+  "cases": {
+    "new": 10,
+    "unchanged_readonly": 5,
+    "unchanged_nonprocess_nonthread_journal": 10,
+    "total": 25
+  },
+  "preservation": {
+    "readonly_methods_byte_identical": {
+      "_existing_database": "6bd4f4145ded14b876fb235a31c9d6e128003a132caad8a33fda586e3ae1d7e3",
+      "lookup_existing": "77b9afd2e0147364b866496d019bfa299400bbc84750c3b446e3c5a66c6e5f27"
+    },
+    "all_other_ledger_methods_AST_unchanged": true,
+    "hosted_crash_assertions_and_child_programs_unchanged": [
+      "test_abrupt_writer_exit_rolls_back_partial_publication",
+      "test_process_exit_before_commit_or_after_commit_before_ack"
+    ]
+  },
+  "actual_process_crash_methods": "HOSTED_MANDATORY_NOT_RUN_LOCALLY",
+  "source_sidecars_manually_deleted": false,
+  "engine_executed_by_recovery": false,
+  "native": "NOT_RUN",
+  "physical": "NOT_RUN",
+  "production": "NO_GO",
+  "execution_authority": false,
+  "trading_authorized": false
+}

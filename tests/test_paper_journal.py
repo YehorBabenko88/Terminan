@@ -133,6 +133,8 @@ journal.submit(json.loads(sys.argv[2]))
                     [sys.executable, "-c", child, str(self.path), json.dumps(EXIT), timing],
                     timeout=15, check=False)
                 self.assertEqual(proc.returncode, 42)
+                # The writer owner, not an archive reader, recovers rollback state.
+                PaperReplayLedger.recover_owned(self.path)
                 restored = self.open()
                 initial = list(restored.read_fills())
                 self.assertEqual(len(initial), int(timing == "after"))

@@ -100,6 +100,8 @@ os._exit(42)
         child = subprocess.run([sys.executable, "-c", crash, str(self.path)],
                                timeout=10, check=False)
         self.assertEqual(child.returncode, 42)
+        # Explicit offline owner recovery; read-only lookup never replays sidecars.
+        PaperReplayLedger.recover_owned(self.path)
         self.assertEqual(original, replay_paper(self.request, compute=mock_math))
         result = replay_paper(dict(self.request, run_id="interrupted"), compute=mock_math)
         self.assertEqual(result["run_id"], "interrupted")
