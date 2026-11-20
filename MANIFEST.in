@@ -8,3 +8,5 @@ include tests/check_installed_market_data_levels.py
 recursive-include tests/fixtures *.json
 include docs/canonical-signal-replay.md
 include docs/strattester-execution-owner-map.json
+recursive-include tests/fixtures *.sql
+include docs/frozen-research-restore.md
