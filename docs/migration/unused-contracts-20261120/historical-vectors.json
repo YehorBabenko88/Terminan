@@ -1,0 +1,94 @@
+{
+  "schema": "terminan.retired-footprint.historical-vectors.v1",
+  "status": "NON_RUNTIME_HISTORICAL_DATA_NOT_NEW_API",
+  "source_head": "d9929da9b6779b583116419f7616522ff193e9c5",
+  "semantics": [
+    {
+      "name": "lowest_price_volume_tie",
+      "rows": [
+        {
+          "t": 100,
+          "price": 11,
+          "volume": 5
+        },
+        {
+          "t": 100,
+          "price": 10,
+          "volume": 5
+        }
+      ],
+      "poc": 10,
+      "poc_volume": 5
+    },
+    {
+      "name": "duplicate_price_max_not_sum",
+      "rows": [
+        {
+          "t": 100,
+          "price": 10,
+          "volume": 4
+        },
+        {
+          "t": 100,
+          "price": 10,
+          "volume": 4
+        },
+        {
+          "t": 100,
+          "price": 11,
+          "volume": 6
+        }
+      ],
+      "poc": 11,
+      "poc_volume": 6
+    },
+    {
+      "name": "caller_precision_two_does_not_change_rank",
+      "rows": [
+        {
+          "t": 100,
+          "price": 10,
+          "volume": 1001
+        },
+        {
+          "t": 100,
+          "price": 20,
+          "volume": 1002
+        }
+      ],
+      "poc": 20
+    },
+    {
+      "name": "first_equal_volume_signed_zero_encoding",
+      "rows": [
+        {
+          "t": 100,
+          "price": 10,
+          "volume_encoding": "-0.0"
+        },
+        {
+          "t": 100,
+          "price": 10,
+          "volume_encoding": "0"
+        }
+      ],
+      "poc_volume_encoding": "-0.0"
+    },
+    {
+      "name": "diagnostic_relation",
+      "poc": 10,
+      "close": 11,
+      "relation": "above"
+    },
+    {
+      "name": "admission",
+      "refuse": [
+        "NaN",
+        "Infinity",
+        "negative volume",
+        "nonpositive price"
+      ],
+      "scope": "historical binary64 diagnostics, not trading signals"
+    }
+  ]
+}

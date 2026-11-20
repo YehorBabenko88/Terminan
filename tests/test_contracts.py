@@ -4,19 +4,17 @@ Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
 """
 import ast
 from dataclasses import asdict
-from decimal import localcontext
 import hashlib
 import inspect
 import json
-from math import copysign
 from pathlib import Path
 import unittest
 from enum import Enum
 
 from terminan.contracts import (
     DataRequirement, HypothesisSpec, StrategyDefinition, StrategyRegistry,
-    TradeEvent, aggregate_footprint, align_trades, executable_hypotheses,
-    poc_close_events, strategy_fingerprint,
+    TradeEvent, align_trades, executable_hypotheses,
+    strategy_fingerprint,
 )
 
 class ContractTests(unittest.TestCase):
@@ -46,41 +44,9 @@ class ContractTests(unittest.TestCase):
                     TradeEvent(**dict(row, **{field: invalid}))
         self.assertIsNone(TradeEvent.parse(dict(row, exit_ms=None, exit_price=None)).exit_ms)
 
-    def test_legacy_poc_admission_rejects_nonfinite_observations(self):
-        for invalid in (float('nan'), float('inf'), float('-inf'), 'NaN', 'Infinity'):
-            with self.subTest(invalid=invalid):
-                with self.assertRaises(ValueError):
-                    aggregate_footprint([dict(t=1, price=invalid, volume=1)])
-                with self.assertRaises(ValueError):
-                    aggregate_footprint([dict(t=1, price=1, volume=invalid)])
-                with self.assertRaises(ValueError):
-                    poc_close_events([dict(t=1, poc=1)], [dict(t=1, c=invalid)])
-                with self.assertRaises(ValueError):
-                    poc_close_events([dict(t=1, poc=invalid)], [dict(t=1, c=1)])
-    def test_poc_tie_and_close(self):
-        rows=[dict(t=100,price=11,volume=5),dict(t=100,price=10,volume=5),dict(t=200,price=9,volume=8)]
-        buckets=aggregate_footprint(rows)
-        self.assertEqual(buckets[0]['poc'],10)
-        events=poc_close_events(buckets,[dict(t=100,c=11),dict(t=200,c=9)])
-        self.assertEqual([e['relation'] for e in events],['above','at'])
-    def test_no_negative_volume(self):
-        with self.assertRaises(ValueError):aggregate_footprint([dict(t=1,price=2,volume=-1)])
 
-    def test_poc_math_sdk_preserves_duplicate_price_policy(self):
-        rows = [dict(t=100, price=10, volume=4), dict(t=100, price=10, volume=4),
-                dict(t=100, price=11, volume=6)]
-        self.assertEqual(aggregate_footprint(rows),
-                         [dict(t=100, levels=rows, poc=11.0, poc_volume=6.0)])
 
-    def test_poc_ranking_does_not_round_with_callers_decimal_context(self):
-        rows = [dict(t=100, price=10, volume=1001), dict(t=100, price=20, volume=1002)]
-        with localcontext() as context:
-            context.prec = 2
-            self.assertEqual(aggregate_footprint(rows)[0]['poc'], 20.0)
 
-    def test_poc_retains_first_volume_encoding_on_equal_rows(self):
-        rows = [dict(t=100, price=10, volume=-0.0), dict(t=100, price=10, volume=0)]
-        self.assertEqual(copysign(1, aggregate_footprint(rows)[0]['poc_volume']), -1.0)
 
 class StrategyMigrationTests(unittest.TestCase):
     """Preserve Strattester registry/spec behavior without starting a worker."""
@@ -310,3 +276,28 @@ class FourModuleBoundaryTests(unittest.TestCase):
         self.assertIn("from market_compute_api import compute_batch", source)
         self.assertNotIn("def volume_profile_poc(", source)
         self.assertNotIn("class Bybit", source)
+
+class RemovedFootprintRuntimeTests(unittest.TestCase):
+    def test_unused_numerical_contracts_are_absent_without_aliases(self):
+        import terminan.contracts as api
+        for name in ('aggregate_footprint','poc_close_events'):
+            self.assertFalse(hasattr(api,name),name)
+        for name in ('TradeEvent','align_trades','StrategyRegistry','strategy_fingerprint','HypothesisSpec','executable_hypotheses'):
+            self.assertTrue(hasattr(api,name),name)
+
+    def test_historical_bytes_and_remaining_declarations_are_preserved(self):
+        import terminan.contracts as api
+        root=Path(__file__).resolve().parents[1]
+        folder=root/'docs/migration/unused-contracts-20261120'
+        proof=json.loads((folder/'provenance.json').read_bytes())
+        self.assertEqual(proof['source_head'],'d9929da9b6779b583116419f7616522ff193e9c5')
+        self.assertEqual(proof['raw_snapshots'],{"contracts.py.source.txt":"c0580982c13d1b5442fabcf4862b5e021362c9b38d5a3fb6caba9e37046f0a0b","historical-six-methods.source.txt":"898791b2cac93373d411fc5c3901858812db5cb3ae8f8db67f6ba23b88adb305","test_contracts.py.source.txt":"3e718a7ed297540d56d97fc13e7950f36a9f9e5614e7e5e7ee3d1c7a38dfc50f"})
+        for name,digest in proof['raw_snapshots'].items():
+            self.assertEqual(hashlib.sha256((folder/name).read_bytes()).hexdigest(),digest)
+        current=Path(api.__file__).read_text(encoding='utf8');tree=ast.parse(current)
+        declarations={node.name:hashlib.sha256(ast.get_source_segment(current,node).encode()).hexdigest() for node in tree.body if isinstance(node,(ast.FunctionDef,ast.ClassDef))}
+        self.assertEqual(declarations,proof['retained_declarations_sha256'])
+        self.assertEqual(len(proof['historical_methods']),6)
+        original=ast.parse((folder/'contracts.py.source.txt').read_bytes())
+        original.body=[node for node in original.body if not (isinstance(node,ast.FunctionDef) and node.name in ('aggregate_footprint','poc_close_events')) and not (isinstance(node,ast.ImportFrom) and node.module=='decimal')]
+        self.assertEqual(ast.dump(tree,include_attributes=False),ast.dump(original,include_attributes=False))
