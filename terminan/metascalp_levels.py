@@ -43,9 +43,9 @@ def parse_rows(response):
     if isinstance(response, list):
         return response
     if isinstance(response, dict):
-        for key in ("items", "list", "levels", "data"):
-            if isinstance(response.get(key), list):
-                return response[key]
+        keys = [key for key in ("items", "list", "levels", "data") if key in response]
+        if len(keys) == 1 and isinstance(response[keys[0]], list):
+            return response[keys[0]]
     raise ValueError("Unknown MetaScalp levels response; refusing destructive synchronization")
 
 
@@ -61,15 +61,18 @@ def publication_decision(
     instrument_verified: bool, max_levels: int = 500,
 ):
     """Source-compatible gate: never publish unverified levels."""
-    if not connection_verified:
+    if connection_verified is not True:
         return LevelPublication(False, "terminal connection not verified", 0)
-    if not instrument_verified:
+    if instrument_verified is not True:
         return LevelPublication(False, "instrument mapping not verified", 0)
-    if not report.verified:
+    if getattr(report, "verified", None) is not True:
         return LevelPublication(False, report.reason, 0)
+    if type(max_levels) is not int or not 0 <= max_levels <= 500 or not isinstance(report.levels, (tuple, list)):
+        return LevelPublication(False, "invalid publication limits", 0)
     if len(report.levels) > max_levels:
         return LevelPublication(False, "too many levels; explicit filtering required", 0)
-    if any(level.price <= Decimal(0) for level in report.levels):
+    if any(not isinstance(getattr(level, "price", None), Decimal)
+           or not level.price.is_finite() or level.price <= 0 for level in report.levels):
         return LevelPublication(False, "invalid level price", 0)
     return LevelPublication(
         True, "verified; publication may proceed with ownership checks",

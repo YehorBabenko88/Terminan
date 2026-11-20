@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
-from market_profile_math import (price_bucket, volume_profile_poc, untouched_decimal_levels,
+from market_math import (price_bucket, volume_profile_poc, untouched_decimal_levels,
     flow_window_metrics, wall_turnover_ratios, minute_volume_update, wall_notional)
 from datetime import datetime, timezone, timedelta
 from collections import deque

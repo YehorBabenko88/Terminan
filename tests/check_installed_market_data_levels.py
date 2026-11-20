@@ -15,7 +15,7 @@ WHEEL_ROOT = Path(os.environ["TERMINAN_COHORT_PATH"]).resolve(strict=True)
 sys.path.insert(0, str(WHEEL_ROOT))
 
 import market_compute_api
-import market_profile_math
+import market_math
 from market_data import history_snapshot
 from market_data.provenance import digest
 from terminan import levels
@@ -81,7 +81,7 @@ def rehash(snapshot):
 
 class InstalledMarketDataLevelsTests(unittest.TestCase):
     def test_packages_resolve_from_installed_wheel_root(self):
-        for module in (levels, history_snapshot, market_compute_api, market_profile_math):
+        for module in (levels, history_snapshot, market_compute_api, market_math):
             self.assertTrue(Path(module.__file__).resolve().is_relative_to(WHEEL_ROOT))
 
     def test_exact_sequences_produce_levels_with_independent_fixture_pins(self):
@@ -122,7 +122,7 @@ class InstalledMarketDataLevelsTests(unittest.TestCase):
             with self.subTest(precision=precision), localcontext() as context:
                 context.prec = precision
                 for price, expected in (("100.005", "100.01"), ("12345.675", "12345.68")):
-                    self.assertEqual(market_profile_math.price_bucket(
+                    self.assertEqual(market_math.price_bucket(
                         Decimal(price), Decimal("0.01")), Decimal(expected))
 
 

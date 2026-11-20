@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from threading import Lock
 from .market_health import MarketHealthMonitor
 from decimal import Decimal
-from market_profile_math import orderflow_volume_metrics
+from market_math import orderflow_volume_metrics
 
 @dataclass(frozen=True)
 class FlowRow:

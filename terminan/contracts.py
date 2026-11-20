@@ -77,7 +77,7 @@ def aggregate_footprint(rows):
         profile[price_key] = max(profile.get(price_key, volume_value), volume_value)
     if not minutes:
         return []
-    from market_profile_math import volume_profile_poc
+    from market_math import volume_profile_poc
 
     with localcontext(Context(prec=28)):
         for t, bucket in minutes.items():

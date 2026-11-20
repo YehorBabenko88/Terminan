@@ -1,4 +1,4 @@
-"""Offline-only Meta PaperEngine compatibility in the single Terminan strategy owner.
+"""Canonical offline paper execution in the single Terminan strategy owner.
 
 Ported from meta_analyse/src/meta_analyse/core.py at pinned source
 9d0fb5c79a5da13b23f8daa066035b09f676a6fc.
@@ -16,8 +16,8 @@ from .contracts import (DataRequirement, StrategyDefinition,
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
-from math import isfinite
 import os
+import json
 import re
 from .paper_ledger import PaperReplayLedger, canonical_json
 
@@ -65,22 +65,35 @@ class ExecutionTrade:
     price: Decimal
 
 
+def _paper_math():
+    import market_math
+    return market_math
+
+
+def _policy_decimal(value):
+    if type(value) not in (str,int,Decimal):raise ValueError('Decimal policy value required')
+    return D(value)
+
+
+def _paper_price(value):
+    # Validate without applying execution rounding to a raw observed price/POC.
+    if _paper_math().candle_ohlcv_valid(value,value,value,value,D(0)) is not True:raise ValueError('bounded Decimal paper price required')
+    return value
+
+
 class PaperEngine:
     """Deterministic paper-only next-minute POC strategy; starts disabled."""
 
     def __init__(self, *, notional=D("100"), threshold=D("0.015"),
                  stop_pct=D("0.005"), fee_rate=D("0.0006"),
                  slippage_bps=D("2")):
-        self.notional = D(notional)
-        self.threshold = D(threshold)
-        self.stop_pct = D(stop_pct)
-        self.fee_rate = D(fee_rate)
-        self.slippage = D(slippage_bps) / D(10000)
-        if (not self.notional.is_finite() or self.notional <= 0
-                or any(not value.is_finite() or value < 0 for value in
-                       (self.threshold, self.stop_pct, self.fee_rate, self.slippage))
-                or self.fee_rate >= 1 or self.slippage >= 1):
-            raise ValueError("invalid paper execution parameters")
+        owner=_paper_math()
+        values=tuple(_policy_decimal(value) for value in (notional,threshold,stop_pct,fee_rate,slippage_bps))
+        amount,threshold_value,stop_value,rate,bps=values
+        owner.paper_position_size(amount,D(1));owner.paper_entry_side(D(1),D(1),threshold_value)
+        owner.paper_stop_price(D(1),'short',stop_value);owner.paper_entry_fee(amount,rate)
+        owner.adverse_execution_price(D(1),'long',bps,True)
+        self.notional,self.threshold,self.stop_pct,self.fee_rate,self.slippage_bps=values
         self.reference: dict[str, tuple[datetime, Decimal]] = {}
         self.positions: dict[str, Position] = {}
         self.fills: list[PaperFill] = []
@@ -96,15 +109,15 @@ class PaperEngine:
     def on_closed_minute(self, symbol: str, minute: ClosedMinute) -> None:
         if not isinstance(symbol, str) or not symbol:
             raise ValueError("invalid symbol")
-        if minute.complete is not True:
+        if type(minute.complete) is not bool:raise ValueError('literal minute completeness required')
+        if not minute.complete:
             self.reference.pop(symbol, None)
             return
         start = self._minute_start(minute.start)
         if start != minute.start.astimezone(timezone.utc):
             raise ValueError("minute start not aligned")
-        poc = D(minute.poc)
-        if not poc.is_finite() or poc <= 0:
-            raise ValueError("invalid math POC")
+        if not isinstance(minute.poc,Decimal):raise ValueError('Decimal POC required')
+        poc=_paper_price(minute.poc)
         previous = self.reference.get(symbol)
         if previous is not None and start < previous[0]:
             raise ValueError("out-of-order closed minute")
@@ -152,71 +165,93 @@ class PaperEngine:
         """Invalidate possible new entries; retain existing positions."""
         self.reference.pop(symbol, None)
 
-    def on_trade(self, trade: ExecutionTrade) -> PaperFill | None:
-        if not self.enabled:
-            return None
-        if not isinstance(trade.symbol, str) or not trade.symbol:
-            raise ValueError("invalid symbol")
-        timestamp = self._minute_start(trade.time)
-        price = D(trade.price)
-        if not price.is_finite() or price <= 0:
-            raise ValueError("invalid execution price")
-        symbol = trade.symbol
-        prior = self.last_trade_time.get(symbol)
-        if prior is not None and trade.time < prior:
-            raise ValueError("out-of-order paper execution")
-        self.last_trade_time[symbol] = trade.time
-        position = self.positions.get(symbol)
-        if position:
-            if position.side == "long":
-                triggered = ("stop" if price <= position.stop else
-                             "target" if price >= position.target else "")
-                if not triggered:
-                    return None
-                exit_price = (min(price, position.stop) if triggered == "stop"
-                              else position.target)
-                exit_price *= D(1) - self.slippage
-                gross = (exit_price - position.entry) * position.size
+    def _candidate_fill(self,position,raw_exit,reason,when):
+        owner=_paper_math();exit_price=owner.adverse_execution_price(raw_exit,position.side,self.slippage_bps,False)
+        gross,fees,net=owner.paper_fill_metrics(position.side,position.entry,exit_price,position.size,position.entry_fee,self.fee_rate)
+        return PaperFill(position.symbol,position.side,position.entry,exit_price,reason,gross,fees,net,when)
+
+    def execute_signal(self,signal,bars,*,bar_ms,as_of_ms,available_from_ms=0,ambiguity_policy='SL_FIRST'):
+        """Bounded offline OHLC model, staged completely before engine commit.
+
+        Continuous OHLC is an explicit model assumption, not observed tick order.
+        Intrabar-fill targets need post-entry close proof under SL_FIRST; the
+        caller must explicitly select and retain the optimistic TP_FIRST model.
+        """
+        from .research_signals import validate_signal_batch,SignalExecution
+        if self.enabled is not True:raise ValueError('paper engine disabled')
+        rows=validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=as_of_ms,available_from_ms=available_from_ms,ambiguity_policy=ambiguity_policy)
+        if signal.symbol in self.positions:raise ValueError('paper instrument already has a position')
+        prior=self.last_trade_time.get(signal.symbol)
+        if prior is not None and _timestamp(signal.decision_ms)<prior:raise ValueError('out-of-order signal decision')
+        first=signal.decision_ms if signal.entry_kind=='market' else signal.decision_ms+bar_ms
+        entry_index=None;raw_entry=None;entry_at_open=True
+        for index,bar in enumerate(rows):
+            if bar.start_ms<first:continue
+            if signal.entry_kind=='market':entry_index=index;raw_entry=bar.open;break
+            favorable=bar.open<=signal.entry_price if signal.side=='long' else bar.open>=signal.entry_price
+            if favorable:entry_index=index;raw_entry=bar.open;break
+            if bar.low<=signal.entry_price<=bar.high:entry_index=index;raw_entry=signal.entry_price;entry_at_open=False;break
+        if entry_index is None:raise ValueError('signal entry not filled')
+        owner=_paper_math();entry=owner.adverse_execution_price(raw_entry,signal.side,self.slippage_bps,True)
+        size=owner.paper_position_size(self.notional,entry);entry_fee=owner.paper_entry_fee(self.notional,self.fee_rate)
+        position=Position(signal.symbol,signal.side,entry,signal.target,signal.stop,size,_timestamp(rows[entry_index].start_ms),entry_fee)
+        raw_exit=None;reason=None;exit_ms=None
+        for index in range(entry_index,len(rows)):
+            bar=rows[index];at_open=index>entry_index or entry_at_open
+            stop_gap=bar.open<=signal.stop if signal.side=='long' else bar.open>=signal.stop
+            target_gap=bar.open>=signal.target if signal.side=='long' else bar.open<=signal.target
+            if at_open and stop_gap:raw_exit=bar.open;reason='stop_gap'
+            elif at_open and target_gap:raw_exit=signal.target;reason='target_gap'
             else:
-                triggered = ("stop" if price >= position.stop else
-                             "target" if price <= position.target else "")
-                if not triggered:
-                    return None
-                exit_price = (max(price, position.stop) if triggered == "stop"
-                              else position.target)
-                exit_price *= D(1) + self.slippage
-                gross = (position.entry - exit_price) * position.size
-            exit_fee = position.size * exit_price * self.fee_rate
-            fill = PaperFill(
-                symbol, position.side, position.entry, exit_price,
-                triggered, gross, position.entry_fee + exit_fee,
-                gross - position.entry_fee - exit_fee, trade.time,
-            )
-            self.fills.append(fill)
-            del self.positions[symbol]
+                stop_hit=bar.low<=signal.stop if signal.side=='long' else bar.high>=signal.stop
+                target_hit=bar.high>=signal.target if signal.side=='long' else bar.low<=signal.target
+                if index==entry_index and not entry_at_open and ambiguity_policy=='SL_FIRST':
+                    target_hit=target_hit and (bar.close>=signal.target if signal.side=='long' else bar.close<=signal.target)
+                if stop_hit and (not target_hit or ambiguity_policy=='SL_FIRST'):raw_exit=signal.stop;reason='stop'
+                elif target_hit:raw_exit=signal.target;reason='target'
+            if reason is not None:exit_ms=bar.start_ms;break
+        if reason is None:raw_exit=rows[-1].close;exit_ms=rows[-1].start_ms;reason='end_of_data'
+        fill=self._candidate_fill(position,raw_exit,reason,_timestamp(exit_ms))
+        model='OHLC_CONSERVATIVE_NO_TICK_ORDER' if ambiguity_policy=='SL_FIRST' else 'OHLC_OPTIMISTIC_NO_TICK_ORDER'
+        result=SignalExecution(rows[entry_index].start_ms,exit_ms,size,fill,model)
+        self.last_trade_time[signal.symbol]=fill.exit_time;self.reference.pop(signal.symbol,None);self.fills.append(fill)
+        return result
+
+    def on_trade(self, trade: ExecutionTrade) -> PaperFill | None:
+        if not self.enabled:return None
+        if not isinstance(trade.symbol,str) or not trade.symbol:raise ValueError('invalid symbol')
+        timestamp=self._minute_start(trade.time)
+        if not isinstance(trade.price,Decimal):raise ValueError('Decimal execution price required')
+        owner=_paper_math();price=_paper_price(trade.price)
+        symbol=trade.symbol;prior=self.last_trade_time.get(symbol)
+        if prior is not None and trade.time<prior:raise ValueError('out-of-order paper execution')
+        position=self.positions.get(symbol)
+        if position is not None:
+            if position.side=='long':
+                triggered='stop' if price<=position.stop else 'target' if price>=position.target else ''
+                raw=min(price,position.stop) if triggered=='stop' else position.target
+            else:
+                triggered='stop' if price>=position.stop else 'target' if price<=position.target else ''
+                raw=max(price,position.stop) if triggered=='stop' else position.target
+            if not triggered:
+                self.last_trade_time[symbol]=trade.time;return None
+            fill=self._candidate_fill(position,raw,triggered,trade.time)
+            self.last_trade_time[symbol]=trade.time;self.fills.append(fill);del self.positions[symbol]
             return fill
-        ref = self.reference.get(symbol)
-        if not ref or timestamp != ref[0] + timedelta(minutes=1):
-            return None
-        poc = ref[1]
-        if price >= poc * (D(1) + self.threshold):
-            side = "short"
-            entry = price * (D(1) - self.slippage)
-            stop = entry * (D(1) + self.stop_pct)
-        elif price <= poc * (D(1) - self.threshold):
-            side = "long"
-            entry = price * (D(1) + self.slippage)
-            stop = entry * (D(1) - self.stop_pct)
-        else:
-            return None
-        if entry == poc:
-            return None
-        size = self.notional / entry
-        self.positions[symbol] = Position(
-            symbol, side, entry, poc, stop, size, trade.time,
-            self.notional * self.fee_rate,
-        )
-        self.reference.pop(symbol, None)
+        reference=self.reference.get(symbol)
+        if not reference or timestamp!=reference[0]+timedelta(minutes=1):
+            self.last_trade_time[symbol]=trade.time;return None
+        poc=reference[1];side=owner.paper_entry_side(price,poc,self.threshold)
+        if side is None:
+            self.last_trade_time[symbol]=trade.time;return None
+        entry=owner.adverse_execution_price(price,side,self.slippage_bps,True)
+        stop=owner.paper_stop_price(entry,side,self.stop_pct)
+        if stop<=0:raise ValueError('positive paper stop required')
+        if entry==poc:
+            self.last_trade_time[symbol]=trade.time;return None
+        size=owner.paper_position_size(self.notional,entry);fee=owner.paper_entry_fee(self.notional,self.fee_rate)
+        candidate=Position(symbol,side,entry,poc,stop,size,trade.time,fee)
+        self.last_trade_time[symbol]=trade.time;self.positions[symbol]=candidate;self.reference.pop(symbol,None)
         return None
 
 
@@ -224,8 +259,8 @@ class PaperEngine:
 # terminan.contracts. Registration is inert: no workers, collectors or orders.
 STRATEGIES = StrategyRegistry()
 STRATEGIES.register(StrategyDefinition(
-    id="meta.poc.next_minute",
-    version="1",
+    id="poc_next_minute",
+    version="2",
     requirements=(
         DataRequirement("public_trades"),
         DataRequirement("candles", ("1m",), required=False),
@@ -234,8 +269,10 @@ STRATEGIES.register(StrategyDefinition(
 ))
 
 
-REPLAY_SCHEMA = "terminan.paper.replay.v1"
-REPLAY_RESULT = "terminan.paper.result.v1"
+STRATEGIES.register(StrategyDefinition(id='ohlc_signal',version='1',requirements=(DataRequirement('candles'),),implementation=PaperEngine,feature_versions=('conservative_ohlc_v1','math_paper28_v1')))
+
+REPLAY_SCHEMA = "terminan.paper.replay.v2"
+REPLAY_RESULT = "terminan.paper.result.v2"
 _MAX_EVENTS = 1024
 _EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _SYMBOL = re.compile(r"[A-Z0-9]{2,30}")
@@ -283,6 +320,7 @@ def replay_paper(request, *, compute=None):
     request_bytes = canonical_json(request)
     if len(request_bytes) > 262144:
         raise ValueError("paper replay body limit")
+    request=json.loads(request_bytes)  # Detach caller-owned mutable DTOs before hashing/execution.
     events = request["events"]
     params = request["parameters"]
     if (type(events) is not list or not 1 <= len(events) <= _MAX_EVENTS or
@@ -318,7 +356,7 @@ def replay_paper(request, *, compute=None):
                 or not _RUN_ID.fullmatch(comparison["dataset_id"])
                 or type(comparison["dataset_hash"]) is not str
                 or not re.fullmatch("[0-9a-f]{64}", comparison["dataset_hash"])
-                or comparison["strategy_name"] != "meta.poc.next_minute"
+                or comparison["strategy_name"] != "poc_next_minute"
                 or comparison["setup"] != "POC"
                 or comparison["variant"] != "BASE"
                 or type(comparison["fold"]) is not int
@@ -333,14 +371,12 @@ def replay_paper(request, *, compute=None):
             raise ValueError("unqualified MarketData comparison context")
     request_sha256 = sha256(request_bytes).hexdigest()
     ledger_path = os.environ.get("TERMINAN_PAPER_LEDGER")
-    ledger = PaperReplayLedger(ledger_path) if ledger_path else None
-    if ledger is not None:
-        existing = ledger.read(request["run_id"], request_sha256)
+    if ledger_path:
+        existing=PaperReplayLedger.lookup_existing(ledger_path,request['run_id'],request_sha256)
         if existing is not None:
+            if existing.get('schema')!=REPLAY_RESULT or existing.get('strategy',{}).get('id')!='poc_next_minute' or existing['strategy'].get('version')!='2':raise RuntimeError('cached paper identity mismatch')
             return existing
-    # New replays use the same registry. V1 requests can omit the descriptor
-    # for backwards compatibility with the original offline replay request.
-    definition = STRATEGIES.discover()[0]
+    definition=next(item for item in STRATEGIES.discover() if item.id=='poc_next_minute')
     choice = request.get("strategy", {
         "id": definition.id, "version": definition.version,
     })
@@ -360,6 +396,7 @@ def replay_paper(request, *, compute=None):
         kind = event["kind"]
         stamp = event.get("event_ms")
         timestamp = _timestamp(stamp)
+        if stamp>source["as_of_ms"]:raise ValueError("event follows source as_of")
         if stamp < previous_ms:
             raise ValueError("out-of-order replay events")
         previous_ms = stamp
@@ -369,7 +406,7 @@ def replay_paper(request, *, compute=None):
         if kind == "closed_minute":
             if set(event) != {"kind", "event_ms", "symbol", "profile", "close"}:
                 raise ValueError("invalid closed-minute event")
-            if stamp % 60000:
+            if stamp<60000 or stamp % 60000:
                 raise ValueError("closed minute must be published at minute boundary")
             math_request = {
                 "schema": "math.market.compute.v1",
@@ -422,7 +459,7 @@ def replay_paper(request, *, compute=None):
             **comparison,
             "status": "CALLER_SUPPLIED_UNATTESTED",
             "dataset_qualified": False,
-            "strategy_executed": "meta.poc.next_minute",
+            "strategy_executed": "poc_next_minute",
             "history_requirements": [
                 {"dataset": requirement.dataset,
                  "timeframes": list(requirement.timeframes),
@@ -438,93 +475,35 @@ def replay_paper(request, *, compute=None):
             "request_sha256": request_sha256,
         }
     result["result_sha256"] = sha256(canonical_json(result)).hexdigest()
-    if ledger is not None:
-        return ledger.record(result)
+    if ledger_path:
+        return PaperReplayLedger(ledger_path).record(result)
     return result
 
 
-# Historical trade sizing/equity policy transferred from the old Math research
-# helpers (math PR #121 / python/history_sizing.py). These are trading
-# execution/portfolio accounting decisions and belong exclusively to Terminan.
-# Legacy float behavior and return fields are preserved for existing receipts;
-# they are NOT mathematical statistics or live order quantities.
-
-
-def _finite_accounting_value(value, field):
-    try:
-        numeric = float(value)
-    except (ValueError, TypeError, OverflowError) as exc:
-        raise ValueError(f"invalid paper accounting field: {field}") from exc
-    if not isfinite(numeric):
-        raise ValueError(f"nonfinite paper accounting field: {field}")
-    return numeric
-
-
-def apply_sizing(trades, mode="FIXED", base_size=1.0, multiplier=2.0,
-                 max_steps=3, max_size=4.0):
-    """Apply legacy FIXED/MARTINGALE/ANTI_MARTINGALE paper sizing policy."""
-    out = []
-    step = 0
+# Execution/sizing state policy stays in Terminan; all arithmetic is Math-owned.
+def apply_sizing(trades,mode='FIXED',base_size=1.0,multiplier=2.0,max_steps=3,max_size=4.0):
+    if mode not in ('FIXED','MARTINGALE','ANTI_MARTINGALE'):raise ValueError('unknown sizing mode')
+    if type(max_steps) is not int or not 0<=max_steps<=1_000_000:raise ValueError('invalid sizing step limit')
+    owner=_paper_math();out=[];step=0
     for row in trades:
-        x = dict(row)
-        if mode == "FIXED":
-            size = _finite_accounting_value(base_size, "base size")
-        elif mode in ("MARTINGALE", "ANTI_MARTINGALE"):
-            cap = _finite_accounting_value(max_size, "max size")
-            base = _finite_accounting_value(base_size, "base size")
-            factor = _finite_accounting_value(multiplier, "multiplier")
-            try:
-                step_limit = int(max_steps)
-            except (TypeError, ValueError, OverflowError) as exc:
-                raise ValueError("invalid paper sizing step limit") from exc
-            try:
-                size = _finite_accounting_value(min(cap, base * factor ** step), "size multiplier")
-            except OverflowError as exc:
-                raise ValueError("paper sizing exponent overflow") from exc
-        else:
-            raise ValueError("unknown sizing mode")
-        x["sizing_mode"] = mode
-        x["size_multiplier"] = size
-        for k in ("pnl", "fees", "slippage", "mfe", "mae"):
-            if k in x and x[k] is not None:
-                x[k] = _finite_accounting_value(_finite_accounting_value(x[k], k) * size, k)
-        net = trade_net_pnl(x)
-        out.append(x)
-        if mode == "MARTINGALE":
-            step = min(step_limit, step + 1) if net < 0 else 0
-        elif mode == "ANTI_MARTINGALE":
-            step = min(step_limit, step + 1) if net > 0 else 0
+        candidate=dict(row)
+        size=owner.paper_scale_value(base_size,1.0) if mode=='FIXED' else owner.paper_size_multiplier(base_size,multiplier,step,max_size)
+        candidate['sizing_mode']=mode;candidate['size_multiplier']=size
+        for field in ('pnl','fees','slippage','mfe','mae'):
+            if field in candidate and candidate[field] is not None:candidate[field]=owner.paper_scale_value(candidate[field],size)
+        net=owner.paper_net_pnl(candidate.get('pnl',0),candidate.get('fees',0),candidate.get('slippage',0))
+        out.append(candidate)
+        if mode=='MARTINGALE':step=min(max_steps,step+1) if net<0 else 0
+        elif mode=='ANTI_MARTINGALE':step=min(max_steps,step+1) if net>0 else 0
     return out
 
 
-def ruin_stats(trades, starting_equity=100.0, ruin_fraction=.5):
-    """Legacy simulated trading account equity/ruin ledger, NOT Math research."""
-    equity = peak = _finite_accounting_value(starting_equity, "starting equity")
-    min_eq = equity
-    max_dd = 0.0
-    ruined = False
-    threshold = _finite_accounting_value(
-        equity * _finite_accounting_value(ruin_fraction, "ruin fraction"), "ruin threshold",
-    )
-    for x in trades:
-        equity = _finite_accounting_value(equity + trade_net_pnl(x), "account equity")
-        peak = max(peak, equity)
-        min_eq = min(min_eq, equity)
-        max_dd = max(max_dd, _finite_accounting_value(peak - equity, "drawdown"))
-        if equity <= threshold:
-            ruined = True
-    return {
-        "ending_equity": equity,
-        "min_equity": min_eq,
-        "max_drawdown": max_dd,
-        "ruin_threshold": threshold,
-        "ruined": ruined,
-    }
-
-
-def trade_net_pnl(row):
-    """Old Math history_statistics._net: virtual execution PnL accounting only."""
-    pnl = _finite_accounting_value(row.get("pnl", 0), "pnl")
-    fees = _finite_accounting_value(row.get("fees", 0), "fees")
-    slippage = _finite_accounting_value(row.get("slippage", 0), "slippage")
-    return _finite_accounting_value(pnl - fees - slippage, "net pnl")
+def ruin_stats(trades,starting_equity=100.0,ruin_fraction=.5):
+    owner=_paper_math();equity=peak=owner.paper_scale_value(starting_equity,1.0)
+    minimum=equity;drawdown=0.0;ruined=False
+    threshold=owner.paper_scale_value(equity,ruin_fraction)
+    for row in trades:
+        net=owner.paper_net_pnl(row.get('pnl',0),row.get('fees',0),row.get('slippage',0))
+        equity,peak,minimum,drawdown=owner.paper_equity_update(equity,peak,minimum,drawdown,net)
+        if equity<=threshold:ruined=True
+    return dict(ending_equity=equity,min_equity=minimum,max_drawdown=drawdown,ruin_threshold=threshold,ruined=ruined)
