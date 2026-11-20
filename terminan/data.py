@@ -3,8 +3,7 @@ import http.client
 import json
 import os
 import re
-import sqlite3
-from pathlib import Path
+from contextlib import contextmanager
 
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
 TIMEFRAMES = {"1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"}
@@ -68,11 +67,15 @@ def validate(symbol, timeframe="1m"):
     if not SYMBOL.fullmatch(symbol) or timeframe not in TIMEFRAMES:
         raise ValueError("invalid symbol or timeframe")
 
+@contextmanager
 def sqlite_ro(env):
+    from .migration.research_results import open_frozen_sqlite_snapshot
     path = os.environ.get(env)
-    if not path or not Path(path).is_file():
-        return None
-    return sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
+    if not path:
+        yield None
+        return
+    with open_frozen_sqlite_snapshot(path) as con:
+        yield con
 
 def candles(symbol, timeframe="1m", limit=300):
     validate(symbol,timeframe)
@@ -85,14 +88,11 @@ def instruments():
 
 def research(symbol, limit=50):
     validate(symbol)
-    con = sqlite_ro("TERMINAN_RESULTS_DB")
-    if con is None:
-        return []
-    try:
+    with sqlite_ro("TERMINAN_RESULTS_DB") as con:
+        if con is None:
+            return []
         rows = con.execute("SELECT run_id,strategy_id,strategy_version,created_at,metrics FROM research_results WHERE symbol=? ORDER BY created_at DESC LIMIT ?", (symbol,max(1,min(int(limit),100)))).fetchall()
         return [dict(run_id=r[0], strategy=r[1], version=r[2], created_at=r[3], metrics=json.loads(r[4])) for r in rows]
-    finally:
-        con.close()
 
 def _market_data_market_rows(dataset, symbol, limit):
     """Consume the existing MarketData v1 loopback market endpoint, never SQL directly.

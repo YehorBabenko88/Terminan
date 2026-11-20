@@ -5,7 +5,7 @@ The original is opened only as bytes; SQLite reads a private immutable copy.
 A destination must be separately fresh. No existing database is adopted, and
 historical metrics/strategy IDs are preserved without performance authority.
 """
-from contextlib import closing
+from contextlib import closing,contextmanager
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -60,6 +60,23 @@ def _no_sidecars(path):
   raise ValueError('standalone frozen database without sidecars required')
 
 def _facts(info):return info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,info.st_nlink
+
+@contextmanager
+def open_frozen_sqlite_snapshot(raw):
+ """Read a standalone snapshot, without provenance or concurrent-writer authority."""
+ source=_ordinary_path(raw,source=True);_no_sidecars(source)
+ with source.open('rb') as origin:
+  before=os.fstat(origin.fileno());header=origin.read(100)
+  if _facts(before)!=_facts(source.lstat()):raise ValueError('snapshot identity changed')
+  if len(header)!=100 or header[:16]!=b'SQLite format 3\0' or header[18:20]!=b'\1\1':raise ValueError('standalone DELETE-mode SQLite snapshot required')
+ _no_sidecars(source)
+ try:
+  with closing(sqlite3.connect(source.as_uri()+'?mode=ro&immutable=1',uri=True,timeout=2)) as db:
+   db.execute('PRAGMA query_only=ON');db.execute('PRAGMA trusted_schema=OFF');db.execute('BEGIN')
+   yield db
+ finally:
+  _ordinary_path(source,source=True);_no_sidecars(source)
+  if _facts(before)!=_facts(source.lstat()):raise ValueError('snapshot changed during read')
 
 def _copy_verified(source,destination,expected):
  _no_sidecars(source);digest=sha256();count=0
