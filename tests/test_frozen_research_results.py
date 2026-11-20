@@ -102,3 +102,46 @@ class FrozenResearchReaderTests(unittest.TestCase):
   self.fixture()
   with patch.dict(sys.modules,{'market_math':None,'market_profile_math':None,'strattester':None,'grid':None,'meta_analyse':None}):result=self.restore()
   self.assertEqual(result['source_status'],'CALLER_SUPPLIED_UNATTESTED');self.assertFalse(result['execution_authority'])
+
+ def test_original_empty_and_signed_zero_infinity_fixture_rows_preserved(self):
+  for stamps in ((),(float('inf'),-0.0,float('-inf'))):
+   if self.source.exists():self.source.unlink()
+   if self.target.exists():self.target.unlink()
+   self.fixture()
+   with closing(sqlite3.connect(self.source)) as db,db:
+    db.execute('DELETE FROM research_results')
+    db.executemany('INSERT INTO research_results VALUES(?,?,?,?,?,?)',[(f'run-{i}','BTCUSDT','legacy','1',stamp,'{"value": Infinity}') for i,stamp in reversed(list(enumerate(stamps)))])
+    expected=db.execute('SELECT * FROM research_results ORDER BY run_id').fetchall()
+   before=self.source.read_bytes();result=self.restore();actual=[row for _,_,row in ResearchArchive(PaperReplayLedger(self.target)).read_snapshot('frozen-source')]
+   self.assertEqual(result['tables']['research_results']['row_count'],len(expected));self.assertEqual(actual,expected);self.assertEqual([r[4].hex() for r in actual],[r[4].hex() for r in expected]);self.assertEqual(self.source.read_bytes(),before)
+ def test_original_six_noncanonical_ddl_variants_refuse_before_any_destination(self):
+  fields='run_id TEXT NOT NULL,symbol TEXT NOT NULL,strategy_id TEXT NOT NULL,strategy_version TEXT NOT NULL,created_at REAL NOT NULL,metrics TEXT NOT NULL'
+  key=',PRIMARY KEY(run_id,symbol,strategy_id,strategy_version)'
+  variants=[fields,fields+',PRIMARY KEY(symbol,run_id,strategy_id,strategy_version)',fields.replace('created_at REAL','created_at NUMERIC')+key,fields.replace('run_id TEXT NOT NULL','run_id TEXT')+key,fields.replace('metrics TEXT NOT NULL','metrics TEXT')+key,fields+',hidden_copy TEXT GENERATED ALWAYS AS(metrics) VIRTUAL'+key]
+  for definition in variants:
+   if self.source.exists():self.source.unlink()
+   with closing(sqlite3.connect(self.source)) as db,db:db.execute('CREATE TABLE research_results('+definition+')')
+   before=self.source.read_bytes()
+   with self.subTest(definition=definition),self.assertRaises(ValueError):self.restore()
+   self.assertFalse(self.target.exists());self.assertEqual(self.source.read_bytes(),before);self.assertEqual(list(self.root.iterdir()),[self.source])
+ def test_present_empty_stage_with_legacy_schema_is_not_absence(self):
+  self.fixture()
+  stage=(FIXTURES/'historical-research-nine.sql').read_text().split(';')[1]+';'
+  with closing(sqlite3.connect(self.source)) as db,db:db.executescript(stage)
+  before=self.source.read_bytes()
+  with self.assertRaises(ValueError):self.restore()
+  self.assertFalse(self.target.exists());self.assertEqual(self.source.read_bytes(),before)
+ def test_active_wal_writer_and_all_sidecar_bytes_remain_untouched(self):
+  self.fixture()
+  with closing(sqlite3.connect(self.source)) as writer:
+   writer.execute('PRAGMA journal_mode=WAL');writer.execute('UPDATE research_results SET created_at=999');writer.commit()
+   paths=sorted(self.root.iterdir());before={p.name:p.read_bytes() for p in paths}
+   with self.assertRaises(ValueError):self.restore()
+   self.assertEqual(sorted(self.root.iterdir()),paths);self.assertEqual({p.name:p.read_bytes() for p in paths},before);self.assertFalse(self.target.exists())
+ def test_original_special_source_path_and_sidecar_alias_boundary(self):
+  self.source=self.root/'archive #1.sqlite';self.fixture();self.target=Path(str(self.source)+'-wal')
+  with self.assertRaises(ValueError):self.restore()
+  self.assertFalse(self.target.exists());self.target=self.root/'restored.sqlite';self.restore()
+  backup=self.root/'backup.sqlite'
+  with closing(sqlite3.connect(self.target)) as db,closing(sqlite3.connect(backup)) as copy:db.backup(copy)
+  a=list(ResearchArchive(PaperReplayLedger(self.target)).read_snapshot('frozen-source'));b=list(ResearchArchive(PaperReplayLedger(backup)).read_snapshot('frozen-source'));self.assertEqual(a,b)
