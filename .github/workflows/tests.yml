@@ -44,13 +44,25 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/math
-          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
+          ref: a5868944bf1bae813403a32b22d329c1da6f8238
           path: upstream/math-sdk
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        env:
+          GIT_CONFIG_COUNT: '2'
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: 'false'
+          GIT_CONFIG_KEY_1: core.eol
+          GIT_CONFIG_VALUE_1: lf
+        with:
+          repository: YehorBabenko88/strattester
+          ref: e856e7e218abe93f8c0b71e252a8a3c7f761a0b8
+          path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install --no-deps ./upstream/math-sdk
+      - run: python -m pip install --no-deps ./upstream/math-sdk ./upstream/market-data-sdk
       - name: Install pinned test dependencies
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r requirements-test.lock
@@ -82,7 +94,7 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/math
-          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
+          ref: a5868944bf1bae813403a32b22d329c1da6f8238
           path: upstream/math-sdk
           persist-credentials: false
       - run: python -m pip install --no-deps ./upstream/math-sdk
@@ -121,7 +133,7 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/strattester
-          ref: ecc2c5d95997bfb68dd2242bca4146184e0485f3
+          ref: e856e7e218abe93f8c0b71e252a8a3c7f761a0b8
           path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -133,7 +145,7 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/math
-          ref: de8194f71311a6d7dddb69be9de812030ed1f13f
+          ref: a5868944bf1bae813403a32b22d329c1da6f8238
           path: upstream/math-sdk
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -146,8 +158,8 @@ jobs:
           python -m pip wheel --no-deps --wheel-dir dist/math ./upstream/math-sdk
           python -m pip wheel --no-deps --wheel-dir dist/market_data ./upstream/market-data-sdk
           python tests/check_wheel_git_bytes.py --repo . --sha "$TERMINAN_TEST_SHA" --wheel-dir dist/terminan --out dist/terminan-proof.json
-          python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha de8194f71311a6d7dddb69be9de812030ed1f13f --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
-          python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha ecc2c5d95997bfb68dd2242bca4146184e0485f3 --wheel-dir dist/market_data --out dist/market-data-proof.json
+          python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha a5868944bf1bae813403a32b22d329c1da6f8238 --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
+          python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha e856e7e218abe93f8c0b71e252a8a3c7f761a0b8 --wheel-dir dist/market_data --out dist/market-data-proof.json
       - name: Install wheel outside source checkout
         shell: bash
         run: |
