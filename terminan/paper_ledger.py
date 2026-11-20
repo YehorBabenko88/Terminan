@@ -8,6 +8,8 @@ import json
 import re
 import sqlite3
 import stat
+import tempfile
+import os
 from pathlib import Path
 
 
@@ -136,6 +138,156 @@ class PaperReplayLedger:
                 if row is not None and not 0<row[0]<=4*1024*1024:raise RuntimeError('paper replay receipt budget exceeded')
                 return cls._read(database,run_id,request_sha256)
         except sqlite3.Error as exc:raise RuntimeError('paper replay read-only lookup rejected') from exc
+
+    @classmethod
+    def recover_owned(cls,path):
+        """Explicit LOCAL owner recovery, never a read/HTTP/archive fallback.
+
+        Existing dedicated DELETE-mode replay/v2-journal databases only. SQLite
+        performs hot rollback and retires stale journals; no source sidecar is
+        manually removed. A private copied snapshot is schema/data checked before
+        the original is opened for recovery. This is not filesystem/source auth.
+        """
+        location=Path(path).absolute();limit=64*1024*1024
+        if str(location).startswith(('//',chr(92)*2)) or '..' in location.parts or ':' in str(location)[len(location.drive):]:raise RuntimeError('owned recovery requires an ordinary local path')
+        def snapshot():
+            for item in (*reversed(location.parents),location):
+                try:info=item.lstat()
+                except FileNotFoundError:raise RuntimeError('owned recovery requires an existing dedicated database') from None
+                if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&1024:raise RuntimeError('owned recovery rejects linked paths')
+            for suffix in ('-wal','-shm'):
+                side=Path(str(location)+suffix)
+                if side.exists() or side.is_symlink():raise RuntimeError('owned recovery refuses WAL/SHM')
+            def read(file):
+                info=file.lstat()
+                if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1 or info.st_size>limit or getattr(info,'st_file_attributes',0)&1024:raise RuntimeError('owned recovery requires ordinary bounded files')
+                with file.open('rb') as stream:
+                    opened=os.fstat(stream.fileno())
+                    if (opened.st_dev,opened.st_ino,opened.st_nlink)!=(info.st_dev,info.st_ino,1):raise RuntimeError('owned recovery file identity changed')
+                    raw=stream.read(limit+1)
+                    final_fd=os.fstat(stream.fileno())
+                    if (final_fd.st_dev,final_fd.st_ino,final_fd.st_nlink,final_fd.st_size,final_fd.st_mtime_ns)!=(opened.st_dev,opened.st_ino,opened.st_nlink,opened.st_size,opened.st_mtime_ns):raise RuntimeError('owned recovery source changed during read')
+                if len(raw)>limit:raise RuntimeError('owned recovery file budget exceeded')
+                after=file.lstat()
+                identity=lambda value:(value.st_dev,value.st_ino,value.st_nlink,value.st_size,value.st_mtime_ns)
+                if identity(info)!=identity(after):raise RuntimeError('owned recovery source changed')
+                return identity(info),raw
+            identity,data=read(location)
+            if len(data)<100 or data[:16]!=b'SQLite format 3\0' or data[18:20]!=b'\x01\x01' or int.from_bytes(data[68:72],'big')!=_APPLICATION_ID:raise RuntimeError('owned recovery requires dedicated DELETE-mode identity')
+            journal=Path(str(location)+'-journal');state=None
+            if journal.exists() or journal.is_symlink():
+                state=read(journal);raw=state[1];page=int.from_bytes(data[16:18],'big');page=65536 if page==1 else page
+                sector=int.from_bytes(raw[20:24],'big');size=int.from_bytes(raw[24:28],'big')
+                if (len(raw)<28 or raw[:8] not in (b'\0'*8,bytes.fromhex('d9d505f920a163d7')) or not 512<=sector<=65536 or sector&(sector-1) or len(raw)<sector or size!=page or not 512<=page<=65536 or page&(page-1)):
+                    raise RuntimeError('owned recovery refuses foreign or malformed journal')
+                cls._validate_recovery_journal(data,raw)
+            return identity,data,state
+        before=snapshot()
+        try:
+            with tempfile.TemporaryDirectory(prefix='.paper-owner-recovery-',dir=location.parent) as temporary:
+                copy=Path(temporary)/'snapshot.db';copy.write_bytes(before[1])
+                if before[2] is not None:Path(str(copy)+'-journal').write_bytes(before[2][1])
+                with closing(sqlite3.connect(copy.as_uri()+'?mode=rw',uri=True,timeout=0,isolation_level=None)) as database:
+                    database.execute('BEGIN EXCLUSIVE')
+                    expected=cls._owned_recovery_contents(database)
+                    database.execute('ROLLBACK')
+            if snapshot()!=before:raise RuntimeError('owned recovery source changed after staging')
+            if before[2] is None:return None
+            with closing(sqlite3.connect(location.as_uri()+'?mode=rw',uri=True,timeout=0,isolation_level=None)) as database:
+                database.execute('PRAGMA synchronous=FULL')
+                database.execute('BEGIN EXCLUSIVE')
+                if database.execute('PRAGMA journal_mode').fetchone()!=('delete',):raise RuntimeError('owned recovery journal mode changed')
+                if (location.stat().st_dev,location.stat().st_ino,location.stat().st_nlink)!=(before[0][0],before[0][1],1):raise RuntimeError('owned recovery identity changed')
+                if cls._owned_recovery_contents(database)!=expected:raise RuntimeError('owned recovery data changed')
+                # A zero-header journal is not hot, so read-only opens leave it.
+                # A same-value SQLite header write commits/cleans it via SQLite.
+                if Path(str(location)+'-journal').exists():database.execute('PRAGMA user_version='+str(expected[1]))
+                database.execute('COMMIT')
+            for suffix in ('-journal','-wal','-shm'):
+                side=Path(str(location)+suffix)
+                if side.exists() or side.is_symlink():raise RuntimeError('owned recovery sidecar outcome unknown')
+            current=location.stat()
+            if (current.st_dev,current.st_ino,current.st_nlink)!=(before[0][0],before[0][1],1):raise RuntimeError('owned recovery identity changed')
+            with cls._existing_database(location) as database:
+                if cls._owned_recovery_contents(database)!=expected:raise RuntimeError('owned recovery committed data changed')
+        except sqlite3.Error as exc:raise RuntimeError('owned paper recovery refused or outcome unknown') from exc
+        return None
+
+    @staticmethod
+    def _validate_recovery_journal(data,raw):
+        """Bounded rollback-page checksum preflight; SQLite alone rolls back.
+
+        Canonical single-database journals only; master/attached/torn/unknown
+        forms refuse. Zero-header final records are checked too, not repaired.
+        Format: sqlite.org/fileformat2.html section4 (rollback journal).
+        """
+        page=int.from_bytes(data[16:18],'big');page=65536 if page==1 else page
+        sector=int.from_bytes(raw[20:24],'big');initial=int.from_bytes(raw[16:20],'big')
+        offset=0;seen=set();magic=bytes.fromhex('d9d505f920a163d7')
+        while offset<len(raw):
+            header=raw[offset:offset+sector]
+            if (len(header)!=sector or header[:8] not in (b'\0'*8,magic) or any(header[28:]) or int.from_bytes(header[16:20],'big')!=initial or int.from_bytes(header[20:24],'big')!=sector or int.from_bytes(header[24:28],'big')!=page or not 0<initial<=len(data)//page):raise RuntimeError('owned recovery malformed journal segment')
+            count=int.from_bytes(header[8:12],'big');nonce=int.from_bytes(header[12:16],'big');position=offset+sector
+            if header[:8]==b'\0'*8 and count!=0:raise RuntimeError('owned recovery malformed nonhot journal')
+            terminal=count in (0,2**32-1)
+            if terminal:
+                if (len(raw)-position)%(page+8):raise RuntimeError('owned recovery torn journal record')
+                count=(len(raw)-position)//(page+8)
+            if count>(len(raw)-position)//(page+8):raise RuntimeError('owned recovery truncated journal')
+            for _ in range(count):
+                number=int.from_bytes(raw[position:position+4],'big');image=raw[position+4:position+4+page];checksum=int.from_bytes(raw[position+4+page:position+8+page],'big')
+                expected=(nonce+sum(image[index] for index in range(page-200,-1,-200)))%(2**32)
+                if not 1<=number<=initial or number in seen or checksum!=expected:raise RuntimeError('owned recovery journal page integrity failure')
+                seen.add(number);position+=page+8
+            if position==len(raw):return
+            if terminal:raise RuntimeError('owned recovery unknown journal tail')
+            next_header=((position+sector-1)//sector)*sector
+            if next_header>len(raw) or any(raw[position:next_header]):raise RuntimeError('owned recovery malformed journal padding')
+            offset=next_header
+        return
+
+    @classmethod
+    def _owned_recovery_contents(cls,database):
+        schemas={
+            'paper_replay_receipts':(('run_id','TEXT',1,1),('request_sha256','TEXT',1,0),('receipt','TEXT',1,0)),
+            'paper_streams_v2':(('source_id','TEXT',1,1),('run_id','TEXT',1,2),('symbol','TEXT',1,0),('checkpoint','INTEGER',1,0)),
+            'paper_events_v2':(('source_id','TEXT',1,1),('run_id','TEXT',1,2),('sequence','INTEGER',1,3),('event','BLOB',1,0),('ack','BLOB',1,0),('ack_sha256','TEXT',1,0)),
+        }
+        expected_sql={
+            'paper_replay_receipts':'CREATE TABLE paper_replay_receipts (run_id TEXT PRIMARY KEY NOT NULL, request_sha256 TEXT NOT NULL, receipt TEXT NOT NULL)',
+            'paper_streams_v2':'CREATE TABLE paper_streams_v2 (source_id TEXT NOT NULL, run_id TEXT NOT NULL, symbol TEXT NOT NULL, checkpoint INTEGER NOT NULL, PRIMARY KEY (source_id, run_id))',
+            'paper_events_v2':'CREATE TABLE paper_events_v2 (source_id TEXT NOT NULL, run_id TEXT NOT NULL, sequence INTEGER NOT NULL, event BLOB NOT NULL, ack BLOB NOT NULL, ack_sha256 TEXT NOT NULL, PRIMARY KEY (source_id, run_id, sequence))',
+        }
+        if cls._application_id(database)!=_APPLICATION_ID:raise RuntimeError('owned recovery application identity mismatch')
+        tables={name for kind,name,table,sql in database.execute('SELECT type,name,tbl_name,sql FROM sqlite_schema') if kind=='table'}
+        if (not {'paper_replay_receipts'}<=tables or not tables<=set(schemas) or ('paper_streams_v2' in tables)!=('paper_events_v2' in tables)):
+            raise RuntimeError('owned recovery requires the complete canonical paper schema')
+        for kind,name,table,sql in database.execute('SELECT type,name,tbl_name,sql FROM sqlite_schema'):
+            if kind=='table':
+                if re.sub(r'\s+','',sql).casefold()!=re.sub(r'\s+','',expected_sql[name]).casefold():raise RuntimeError('owned recovery canonical DDL mismatch')
+                columns=tuple((row[1],row[2].upper(),row[3],row[5]) for row in database.execute('PRAGMA table_info('+name+')'))
+                if columns!=schemas[name]:raise RuntimeError('owned recovery table identity mismatch')
+            elif kind!='index' or sql is not None or table not in tables or name!='sqlite_autoindex_'+table+'_1':raise RuntimeError('owned recovery refuses unknown schema objects')
+        if database.execute('PRAGMA quick_check(1)').fetchall()!=[('ok',)]:raise RuntimeError('owned recovery SQLite integrity failure')
+        digest=sha256();total=0
+        for name in sorted(tables):
+            columns=schemas[name];order=','.join(item[0] for item in sorted(columns,key=lambda x:x[3]) if item[3])
+            for row in database.execute('SELECT * FROM '+name+' ORDER BY '+order):
+                for value,column in zip(row,columns):
+                    if type(value) is not {'TEXT':str,'INTEGER':int,'BLOB':bytes}[column[1]]:raise RuntimeError('owned recovery stored type mismatch')
+                    if type(value) in (str,bytes) and len(value)>4*1024*1024:raise RuntimeError('owned recovery cell budget exceeded')
+                raw=canonical_json([name,[{'bytes':v.hex()} if type(v) is bytes else v for v in row]])
+                total+=len(raw)
+                if total>64*1024*1024:raise RuntimeError('owned recovery logical data budget exceeded')
+                digest.update(len(raw).to_bytes(8,'big'));digest.update(raw)
+                if name=='paper_replay_receipts':
+                    if re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',row[0]) is None or re.fullmatch('[a-f0-9]{64}',row[1]) is None:raise RuntimeError('owned recovery receipt identity mismatch')
+                    if len(row[2].encode('utf8'))>4*1024*1024:raise RuntimeError('owned recovery receipt budget exceeded')
+                    cls._read(database,row[0],row[1])
+                elif name=='paper_events_v2' and sha256(row[4]).hexdigest()!=row[5]:raise RuntimeError('owned recovery ACK integrity failure')
+        version=database.execute('PRAGMA user_version').fetchone()[0]
+        if type(version) is not int or not -(2**31)<=version<2**31:raise RuntimeError('owned recovery version identity mismatch')
+        return digest.hexdigest(),version
 
     def _connect(self):
         return sqlite3.connect(self.path, timeout=5)
