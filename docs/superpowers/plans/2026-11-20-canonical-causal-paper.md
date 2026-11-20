@@ -30,3 +30,11 @@ Verification: 107 scoped pure tests passed on Python 3.11 and 3.12 with all chil
 `causal_replay` supplies canonical v2 request/result codecs by invoking the existing PaperEngine. `causal_account` composes the existing PaperReplayLedger for state and finalized results, exclusively creates a new namespace after policy/current preflight, and requires a separately retained local ownership receipt on reopen. Existing/truncated/foreign/linked/hot namespaces are never adopted or repaired. Reopen and snapshot perform read-only checks without invoking a database constructor. Ownership hashes and file identities do not authenticate market sources or confer production authority.
 
 This checkpoint exposes INITIALIZED_ONLY, with no reservation/settlement entrypoints. Exact financial/risk transitions, causal reservation journal progression, CLOSE_READY intent, cross-database reconciliation and original composed pipeline parity remain pending source work. No actual SQL provider/HTTP/native operation has been qualified.
+
+## Reservation checkpoint
+
+The next isolated descendant implements durable RESERVED/DENIED/UNCERTAIN transitions only. Hash-chained event receipts reuse the existing state PaperReplayLedger table; replay re-evaluates each risk decision with public Math paper_reservation_metrics and paper_account_balances. All collateral/spread/cash/drawdown arithmetic remains in Math. Retrying an exact candidate is idempotent; conflicting candidates are rejected. SOURCE_GAP and other bounded uncertainty reasons retain collateral across reopen. Revocation after INSERT but before commit rolls back exact database bytes. A hash-valid result without a close intent blocks the account without adoption.
+
+Conservative policy relationships from the original controller are mandatory: notional <= maximum reserve <= initial cash; strict nonzero drawdown below one, bounded nonzero spread, latency before both decision windows and bounded hold-plus-exit window. These are input/control admission rules, not duplicated financial formulas.
+
+Scope remains RESERVATIONS_ONLY. Durable opening/closing decisions, entry selection, CLOSE_READY intent, completed result publication and cross-database SETTLED reconciliation are still pending. No original lab pipeline retirement or full behavior-parity claim is made.
