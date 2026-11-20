@@ -85,7 +85,7 @@ class ResearchService:
             if set(rules)-allowed or self.engine.positions:raise ValueError('PAPER_RULE_UPDATE_REFUSED')
             values={name:getattr(self.engine,name) for name in allowed}
             values.update({name:Decimal(str(value)) for name,value in rules.items()})
-            candidate=PaperEngine(notional=self.engine.notional,slippage_bps=self.engine.slippage*Decimal(10000),**values)
+            candidate=PaperEngine(notional=self.engine.notional,slippage_bps=self.engine.slippage_bps,**values)
             for name in allowed:setattr(self.engine,name,getattr(candidate,name))
     def set_readiness(self,symbol,progress):self.readiness[symbol]=progress
     def snapshot(self):
