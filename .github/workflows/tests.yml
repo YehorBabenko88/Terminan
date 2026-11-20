@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/strattester
-          ref: c76bc33b48571a32dc8e2e63216ec9fd92a69499
+          ref: fa09e6883fe2af073237cb0e105900c7b2e2c2fa
           path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/checkout@v4

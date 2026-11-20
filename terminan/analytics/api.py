@@ -22,3 +22,16 @@ def analyze_orderflow(request):
     return dict(schema='terminan.analytics.result.v1',mode=mode,
         rows=[asdict(row) for row in make_rows(buckets)],
         source_status='CALLER_SUPPLIED_UNVERIFIED',execution_authority=False,trading_authorized=False)
+
+
+def analyze_historical(request):
+    """Canonical bounded read-only history/research request; no caller clock override."""
+    if type(request) is not dict or set(request)!={'schema','mode','payload','decision_ms'} or request['schema']!='terminan.analytics.historical.v1':
+        raise ValueError('INVALID_HISTORICAL_ANALYTICS_REQUEST')
+    if request['mode']=='ohlcv':
+        from .ohlcv_research import analyze_ohlcv_research
+        return analyze_ohlcv_research(request['payload'],decision_ms=request['decision_ms'])
+    if request['mode']=='market_history':
+        from .market_history import analyze_market_history
+        return analyze_market_history(request['payload'],decision_ms=request['decision_ms'])
+    raise ValueError('INVALID_HISTORICAL_ANALYTICS_MODE')

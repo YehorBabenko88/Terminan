@@ -38,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(int(length))
             if len(raw) != int(length):
                 raise ValueError("incomplete offline request")
-            if urlsplit(self.path).path not in ("/api/paper/replay", "/api/analytics/orderflow") or urlsplit(self.path).query:
+            if urlsplit(self.path).path not in ("/api/paper/replay", "/api/analytics/orderflow", "/api/analytics/historical") or urlsplit(self.path).query:
                 return self.send_error(404)
             host = self.headers.get("Host", "")
             if (not (host.startswith("127.0.0.1:") or
@@ -65,6 +65,9 @@ class Handler(BaseHTTPRequestHandler):
             if urlsplit(self.path).path == "/api/analytics/orderflow":
                 from .analytics.api import analyze_orderflow
                 result=analyze_orderflow(request)
+            elif urlsplit(self.path).path == "/api/analytics/historical":
+                from .analytics.api import analyze_historical
+                result=analyze_historical(request)
             else:
                 result = replay_paper(request)
             status = 200

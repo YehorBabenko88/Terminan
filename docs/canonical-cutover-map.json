@@ -317,8 +317,8 @@
     },
     {
       "old": "src/meta_analyse/grid_history_adapter.py",
-      "new": null,
-      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "new": "terminan/analytics/market_history.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
       "symbols": [
         "_clock",
         "_hash",
@@ -538,8 +538,8 @@
     },
     {
       "old": "src/meta_analyse/ohlcv_research_adapter.py",
-      "new": null,
-      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "new": "terminan/analytics/ohlcv_research.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
       "symbols": [
         "_need",
         "_fields",
@@ -840,14 +840,18 @@
     "restore_meta_fills": "PaperReplayLedger.restore_historical_fills",
     "grid_level_candles": "market_data_level_candles",
     "levels_from_grid_series": "levels_from_market_data_series",
-    "terminan.server:run": "terminan.server:main"
+    "terminan.server:run": "terminan.server:main",
+    "analyze_grid_history": "terminan.analytics.market_history.analyze_market_history",
+    "analyze_ohlcv_research": "terminan.analytics.ohlcv_research.analyze_ohlcv_research"
   },
   "schema_map": {
     "meta_fill_archives": "historical_fill_archives",
     "meta_fill_rows": "historical_fill_rows",
     "meta_analyse.paper_fills": "historical READ ONLY source; bytes/digest identity unchanged",
     "meta_analyse.level_map": "historical READ ONLY source; restore not yet qualified",
-    "meta_analyse.checkpoints": "historical READ ONLY source; restore not yet qualified"
+    "meta_analyse.checkpoints": "historical READ ONLY source; restore not yet qualified",
+    "grid.history.v1.1": "market_data.history.v1.1",
+    "meta.ohlcv.research.request.v1": "terminan.ohlcv.research.request.v1"
   },
   "historical_vectors_sha256": "3a59ac1dc4e4e484d5dddb6af6ccb4592ab6233331ccb3f11995de5e32e0a19a",
   "retirement_authorized": false,
