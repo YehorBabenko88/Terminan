@@ -3092,10 +3092,17 @@
       ],
       "source_blob": "943715544c52d513e6307d92d32b5e75642eeee8",
       "canonical_owner": "Terminan",
-      "numeric_kernel_owner": "Math",
-      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
-      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING",
-      "note": "Unique frozen SQLite reader still needs canonical migration; existing terminan.research_archive storage must be reused, not copied."
+      "numeric_kernel_owner": "NOT_APPLICABLE_OPAQUE_HISTORICAL_ARCHIVE",
+      "status": "CANONICAL_FROZEN_READER_PORTED_ORIGINAL_RETAINED",
+      "destination": "terminan/migration/research_results.py",
+      "note": "Exact original six/nine/staged schema descriptors and row bytes retained through existing ResearchArchive; source byte-only, private immutable SQLite copy; separate exclusively fresh target; no adoption or automatic original conversion.",
+      "symbol_map": {
+        "_verify_no_sidecars": "terminan.migration.research_results._no_sidecars",
+        "_copy_verified": "terminan.migration.research_results._copy_verified",
+        "_columns": "terminan.migration.research_results._columns",
+        "import_frozen_results": "terminan.migration.research_results.restore_frozen_research_results",
+        "main": "python -m terminan.migration.research_results"
+      }
     },
     {
       "imports": [],
