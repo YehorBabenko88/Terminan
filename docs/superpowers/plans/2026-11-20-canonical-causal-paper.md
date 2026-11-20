@@ -38,3 +38,15 @@ The next isolated descendant implements durable RESERVED/DENIED/UNCERTAIN transi
 Conservative policy relationships from the original controller are mandatory: notional <= maximum reserve <= initial cash; strict nonzero drawdown below one, bounded nonzero spread, latency before both decision windows and bounded hold-plus-exit window. These are input/control admission rules, not duplicated financial formulas.
 
 Scope remains RESERVATIONS_ONLY. Durable opening/closing decisions, entry selection, CLOSE_READY intent, completed result publication and cross-database SETTLED reconciliation are still pending. No original lab pipeline retirement or full behavior-parity claim is made.
+
+## Durable decision and settlement checkpoint
+
+Risk-bound opening decisions, fresh same-epoch post-latency entry quotes, hold-bound closing decisions, CLOSE_READY intents and explicit SETTLED reconciliation now reuse the same event-receipt ledger. Canonical decision source IDs are terminan_paper_risk_decision / terminan_paper_close_decision, binding versioned terminan.paper.*.v2 input hashes. Completed results are produced and later independently recomputed only through the existing PaperEngine. No second simulator or financial evaluator exists.
+
+Cross-database commits remain non-atomic. Missing completed result after durable intent is UNKNOWN_NO_REEXECUTION and retains collateral; a completed result whose acknowledgement failed contributes verified pending PnL to cash, never peak, until a separately timestamped SETTLED event. Reconciliation preserves original admitted_ms and records later settled_at_ms explicitly. A state writer lock serializes publication/admission. Historical risk replay uses only earlier causal SETTLED rows, excluding future profitable results; a literal earlier ETH drawdown denial remains unchanged after later BTC profit.
+
+Representation-only decimal decoding is isolated from ambient Decimal flags before public Math domain predicates. Numeric formulas and exact predicates stay Math-owned. Foreign schemas, noncanonical JSON, hash-valid forged financial results, source gaps, stale entries and conflicting retries fail closed without adoption or repair.
+
+This still does not retire the old lab pipeline: the book_tape_research signal/history controller and final Data-packet-to-decision orchestration need canonical migration and original 16-role composed fixtures. Data operational read model/managed route, protected admission and native crash qualification remain unqualified. No actual user database, network or native process was exercised.
+
+The sole existing PaperReplayLedger.record now explicitly sets synchronous=FULL before BEGIN IMMEDIATE. A synthetic connection deliberately starting with synchronous=OFF reproduces the prior default-dependent publication; the regression verifies FULL is established before the result transaction. This strengthens source durability policy without claiming actual power-loss/native qualification.

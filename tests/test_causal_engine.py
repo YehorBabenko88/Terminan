@@ -53,3 +53,13 @@ class CausalEngineTests(unittest.TestCase):
    data=self.profitable();events=[receipt('f200',event_ms=200,observed_ms=200,rate='0.001',mark_price='100'),receipt('f400',event_ms=400,observed_ms=400,rate='0.001',mark_price='100')];changed=dict(events[-1]);changed.pop('sha256');changed[field]=value;events[-1]=seal(changed);f=dict(data['funding']);f.pop('sha256');f.update(kind='COMPLETE_EVENTS',previous_ms=0,next_ms=600,interval_ms=200,observed_ms=400,events=events);data['funding']=seal(f);data['now_ms']=451;data['max_quote_age_ms']=200;engine=self.engine();before=copy.deepcopy(engine.__dict__)
    with self.subTest(field=field,value=value),self.assertRaises(ValueError):self.execute(engine,data)
    self.assertEqual(engine.__dict__,before)
+
+ def test_unrepresentable_decimal_text_refuses_without_ambient_context_flags(self):
+  from decimal import localcontext
+  value=self.profitable();q=dict(value['quotes'][0]);q.pop('sha256');q['ask']='1e99999999999999999999999999999999999999';value['quotes'][0]=seal(q);engine=self.engine();before=copy.deepcopy(engine.__dict__)
+  with localcontext() as c:
+   for signal in c.traps:c.traps[signal]=True
+   c.clear_flags()
+   with self.assertRaises(ValueError):self.execute(engine,value)
+   self.assertFalse(any(c.flags.values()))
+  self.assertEqual(engine.__dict__,before)

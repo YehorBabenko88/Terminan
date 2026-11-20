@@ -192,6 +192,7 @@ class PaperReplayLedger:
         run_id = receipt["run_id"]
         request_sha256 = receipt["request_sha256"]
         with closing(self._connect()) as database, database:
+            database.execute("PRAGMA synchronous = FULL")
             database.execute("BEGIN IMMEDIATE")
             if self._application_id(database) != _APPLICATION_ID:
                 raise RuntimeError("paper replay requires a dedicated database")

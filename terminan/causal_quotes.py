@@ -7,6 +7,7 @@ No storage, account, execution simulator or transport is implemented here.
 from dataclasses import dataclass
 from hashlib import sha256
 import re
+from decimal import Decimal,DecimalException,localcontext
 from .paper_ledger import canonical_json
 _BASE={'receipt_id','source_id','raw_sha256','sha256','symbol'}
 def _need(value):
@@ -15,6 +16,15 @@ def _clock(value):
  _need(type(value) is int and 0<=value<=2**53-1);return value
 def _label(value):return type(value) is str and len(value)<=128 and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',value) is not None
 def _decimal_text(value):return type(value) is str and len(value)<=256 and re.fullmatch(r'-?(?:0|[1-9][0-9]*)(?:[.][0-9]+)?(?:[eE][+-]?[0-9]+)?',value) is not None
+def _decimal_value(value):
+ # Representation decoding only. Market/rate domains remain Math-owned.
+ _need(_decimal_text(value))
+ try:
+  with localcontext() as context:
+   context.clear_flags();number=Decimal(value)
+ except DecimalException as exc:raise ValueError('unrepresentable causal decimal text') from exc
+ _need(number.is_finite() and -4096<=number.as_tuple().exponent<=4096)
+ return number
 def _receipt_shape(value,fields):
  expected=_BASE|set(fields)
  _need(type(value) is dict and len(value)==len(expected))
