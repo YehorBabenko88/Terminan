@@ -78,7 +78,7 @@ class CausalPaperSession:
   if not callable(self._clock_ms):raise ValueError('explicit session clock required')
   self.started_ms=self._now();self._current()
   from .analytics.book_tape_research import BookTapeResearch
-  self._state={symbol:dict(strategy=BookTapeResearch(symbol,min_history=min_history),cursor=0,book=None,book_row=None,book_context=None,tape_context=None,funding_context=None,funding=None,prefix=(),last_candidate=None,candidates=0,denied=0,closed=0,issue=None,retry=None) for symbol in sorted(SYMBOLS)}
+  self._state={symbol:dict(strategy=BookTapeResearch(symbol,min_history=min_history),cursor=0,book=None,book_row=None,book_context=None,tape_context=None,funding_context=None,funding=None,funding_gap_ms=None,prefix=(),last_candidate=None,candidates=0,denied=0,closed=0,issue=None,retry=None) for symbol in sorted(SYMBOLS)}
  def _current(self):
   if self._blocked is not None:raise ValueError(self._blocked)
   try:valid=self.account.require_current() is True
@@ -176,6 +176,43 @@ class CausalPaperSession:
    observed=max(_ceil_ms(row['ingest_us']),*(proof['observed_ms'] for proof in payload['_field_observations']['fields'].values()))
    return _seal(dict(receipt_id='f_'+self.run_id+'_'+symbol+'_'+str(row['id']),symbol=symbol,source_id='market_data_persisted_funding',raw_sha256=row['row_sha256'],kind='COMPLETE_INTERVAL',observed_ms=observed,previous_ms=next_ms-interval,next_ms=next_ms,interval_ms=interval,events=[]))
   except (KeyError,ValueError,TypeError):return None
+ def _funding_assessments(self,checked,now):
+  try:from market_data.paper_inputs import assess_paper_funding_rows
+  except ImportError:raise RuntimeError('DATA_FUNDING_ROW_ASSESSMENT_REQUIRED') from None
+  if not callable(assess_paper_funding_rows):raise RuntimeError('DATA_FUNDING_ROW_ASSESSMENT_REQUIRED')
+  tickers=tuple(row for row in checked['rows'] if row['event_type']=='derivatives_ticker');assessments=assess_paper_funding_rows(checked,now_ms=now);request_sha=digest(checked['request'])
+  if type(assessments) is not tuple or len(assessments)!=len(tickers):raise ValueError('funding assessment row binding mismatch')
+  for row,assessment in zip(tickers,assessments):
+   fields(assessment,('row_id','funding_status','evaluated_at_ms','source_request_sha256','row_sha256','fields','field_observations','field_states'))
+   if type(assessment['row_id']) is not int or assessment['row_id']!=row['id'] or type(assessment['evaluated_at_ms']) is not int or assessment['evaluated_at_ms']!=now or assessment['source_request_sha256']!=request_sha or assessment['row_sha256']!=row['row_sha256']:raise ValueError('funding assessment identity mismatch')
+  return tuple(zip(tickers,assessments))
+ def _observe_funding(self,checked,symbol,now,events,assessments):
+  if not assessments:return
+  state=self._state[symbol];funding_fields=('funding_rate','funding_interval_hour','next_funding_time')
+  # First latch EVERY visible unknown before numeric changes or advancement.
+  # An entire packet is caller-visible here; this claims no physical/PIT order.
+  gap=False;numeric=tuple(self._funding_values(assessment['fields']) for row,assessment in assessments)
+  for (row,assessment),values in zip(assessments,numeric):
+   states=assessment['field_states'];explicit_unknown=any(states[key]=='EXPLICIT_UNKNOWN' for key in funding_fields)
+   complete=all(states[key]!='OMITTED' for key in funding_fields)
+   complete_unavailable=complete and (assessment['funding_status']!='KNOWN_SOURCE_FIELDS' or values is None)
+   if explicit_unknown or complete_unavailable:
+    gap=True;state['funding_gap_ms']=max(state['funding_gap_ms'] or 0,_ceil_ms(row['ingest_us']))
+  if gap:
+   state['funding']=None;self._uncertain(symbol,'SOURCE_GAP',now,events)
+  for (row,assessment),values in zip(assessments,numeric):
+   pending=self._pending.get(symbol)
+   if values is not None and pending is not None and pending['status']!='UNCERTAIN' and pending['candidate'].get('funding') is not None:
+    prior=pending['candidate']['funding']
+    if values!=(prior['interval_ms'],prior['next_ms']):self._uncertain(symbol,'FUNDING_CHANGED',now,events)
+  # Only the final canonically assessed row may populate the current cache.
+  # Pre-gap field proofs never repair the cache; even fresh proof never
+  # resurrects an already UNCERTAIN reservation or releases its collateral.
+  row,assessment=assessments[-1];eligible=assessment['funding_status']=='KNOWN_SOURCE_FIELDS' and numeric[-1] is not None
+  if eligible and state['funding_gap_ms'] is not None:
+   proofs=assessment['field_observations'];watermark=state['funding_gap_ms']
+   eligible=all(key in proofs and proofs[key]['event_ms']>watermark and proofs[key]['observed_ms']>watermark for key in funding_fields)
+  state['funding']=(checked,row) if eligible else None
  def _proposal(self,symbol,row,answer,now,packet_sha,events):
   state=self._state[symbol];p=self.account.policy
   if answer.get('eligible') is not True or answer.get('direction') not in (-1,1) or symbol in self._pending:return
@@ -224,21 +261,9 @@ class CausalPaperSession:
     now=self._now()
     if q['as_of_ms']>now:raise ValueError('future source packet cut')
     if now>=self.started_ms+self.duration:return self.advance()
+    assessments=self._funding_assessments(checked,now) if any(row['event_type']=='derivatives_ticker' for row in checked['rows']) else ()
     batch=state['strategy'].observe_packet(checked,expected_request=expected_request);answers={r['row_id']:r for r in batch.observations};events=[]
-    tickers=[r for r in checked['rows'] if r['event_type']=='derivatives_ticker']
-    if tickers:
-     payload=tickers[-1]['payload'];pending=self._pending.get(symbol);funding_fields=('funding_rate','funding_interval_hour','next_funding_time')
-     # A newly observed explicit unknown is not a numeric schedule change.
-     # Invalidate BEFORE hold/close advancement; omitted fields/no arrival
-     # remain distinct and cannot fabricate facts about the prior interval.
-     explicit_unknown=any(key in payload and payload[key] is None for key in funding_fields)
-     complete_unavailable=all(key in payload for key in funding_fields) and checked['funding_status']!='KNOWN_SOURCE_FIELDS'
-     if pending is not None and (explicit_unknown or complete_unavailable):self._uncertain(symbol,'SOURCE_GAP',now,events)
-     values=self._funding_values(payload)
-     if values is not None and pending is not None and pending['candidate'].get('funding') is not None:
-      prior=pending['candidate']['funding']
-      if values!=(prior['interval_ms'],prior['next_ms']):self._uncertain(symbol,'FUNDING_CHANGED',now,events)
-     state['funding']=(checked,tickers[-1]) if checked['funding_status']=='KNOWN_SOURCE_FIELDS' and checked['producer_context_status']=='CONSISTENT' else None
+    self._observe_funding(checked,symbol,now,events,assessments)
     self._advance(now,events)
     financial=checked['producer_context_status']=='CONSISTENT'
     for row in checked['rows']:
