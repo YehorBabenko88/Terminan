@@ -43,9 +43,9 @@ def parse_rows(response):
     if isinstance(response, list):
         return response
     if isinstance(response, dict):
-        for key in ("items", "list", "levels", "data"):
-            if isinstance(response.get(key), list):
-                return response[key]
+        keys = [key for key in ("items", "list", "levels", "data") if key in response]
+        if len(keys) == 1 and isinstance(response[keys[0]], list):
+            return response[keys[0]]
     raise ValueError("Unknown MetaScalp levels response; refusing destructive synchronization")
 
 
