@@ -186,3 +186,11 @@ class AmbiguousResponseTests(unittest.IsolatedAsyncioTestCase):
    with self.assertRaises(ValueError):await sync.replace(1,'BTCUSDT',report(),connection_verified=True,instrument_verified=True)
    self.assertEqual(terminal.calls,[('read',)])
    with self.assertRaises(ValueError):parse_rows(response)
+
+class CandlePublicationRefusalTests(unittest.IsolatedAsyncioTestCase):
+ async def test_malformed_candle_never_becomes_publishable(self):
+  good=candle(0);end=START+timedelta(minutes=1)
+  for changes in ({'open':D(11)},{'close':D(11)},{'volume':D('NaN')},{'volume':D(-1)},{'open':True},{'close':D('Infinity')},{'low':D(0)}):
+   with self.subTest(changes=changes),self.assertRaises(ValueError):
+    result=verified_levels([replace(good,**changes)],'M1',START,end,as_of=end)
+    await LevelSync(FakeTerminal()).replace(1,'BTCUSDT',result,connection_verified=True,instrument_verified=True)
