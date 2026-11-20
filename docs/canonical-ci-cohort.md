@@ -7,3 +7,5 @@ The previous workflow was invalid YAML on line 36: an unquoted plain run scalar 
 Windows and Linux wheel jobs compare every runtime member against raw Git blobs before installing the three wheels together outside the source checkout. Checkout conversion is disabled for those exact-source inputs. The check is source consistency, not publisher authentication. Proof JSON is retained as a workflow artifact. The verifier independently accepted the corrected d4bb wheel and rejected its archive-converted predecessor at terminan/__init__.py; no hash was changed to admit the bad wheel.
 
 Local installed-cohort validation ran the existing four history/levels tests using only the canonical isolated wheel site. Native service, installer and protection changes were not run. Full hosted tests, browser flow and process-fault gates remain enabled in CI and require their own current-SHA evidence.
+
+Independent QA found that the installed constructor smoke initially preceded Math installation. The job now installs the three exact built wheels together before any PaperEngine constructor, avoiding a false standalone success or missing-kernel failure.
