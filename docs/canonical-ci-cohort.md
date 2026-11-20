@@ -11,3 +11,5 @@ Local installed-cohort validation ran the existing four history/levels tests usi
 Independent QA found that the installed constructor smoke initially preceded Math installation. The job now installs the three exact built wheels together before any PaperEngine constructor, avoiding a false standalone success or missing-kernel failure.
 
 Feature commits run through pull-request events once; pushes to main retain their own check. Per-PR concurrency cancels superseded runs. This avoids duplicate push/PR matrices for an unchanged candidate. No manual rerun on unchanged code is requested.
+
+The first hosted Windows wheel gate correctly refused terminan/__init__.py after checkout newline conversion (job136250822220). An earlier edit did not insert the scoped Git environment into LF workflow text. The environment is now explicitly present on all eight checkouts; the raw Git comparison stays unchanged.
