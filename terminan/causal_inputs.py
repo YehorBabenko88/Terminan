@@ -40,11 +40,15 @@ class CausalInputCursor:
    for row in checked['rows']:
     kind=row['event_type'];event=int(row['event_us']);ingest=int(row['ingest_us'])
     if kind in events and event<=events[kind]:raise ValueError('source event regression')
-    events[kind]=event;channel='tape' if kind=='trade_tape_250ms' else 'book';context=row['payload'].get('_producer_connection');current=None if context is None else context['connection_id']
-    if epochs[channel]!=current:
-     if epochs[channel] is not None:changed.add(channel)
-     if channel=='book':book=None
-    epochs[channel]=current
+    events[kind]=event
+    # Funding has independent field provenance; it is not a book connection
+    # event and must never erase or replace orderbook sequence watermarks.
+    if kind in ('trade_tape_250ms','orderbook_snapshot'):
+     channel='tape' if kind=='trade_tape_250ms' else 'book';context=row['payload'].get('_producer_connection');current=None if context is None else context['connection_id']
+     if epochs[channel]!=current:
+      if epochs[channel] is not None:changed.add(channel)
+      if channel=='book':book=None
+     epochs[channel]=current
     if kind=='orderbook_snapshot':
      sequence=(row['payload']['sequence'],row['payload']['update_id'])
      if book is not None and any(a<=b for a,b in zip(sequence,book)):raise ValueError('source book sequence regression')
