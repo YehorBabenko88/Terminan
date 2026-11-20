@@ -28,3 +28,5 @@ Required `balances_basis` is `PRODUCER_CLAIMED_LOCAL_ACCOUNT_SNAPSHOT_NOT_RECONS
 Owner verification:171 scoped pure cases passed on Python3.11 and3.12 against Math135 a5868944bf1bae813403a32b22d329c1da6f8238 and Data5bb26e2f469c407c16bd4165ba80844db6e4379d. Includes17 finite session roles and5 pure reader cases, with actual ten-symbol Data→Math→sole PaperEngine→ledger→reader composition. Actual Root Journal/writer/pinned-reader/provider-failure integration remains separate and required before old pipeline retirement.
 
 Correction descendant: `causal-unknown-funding-and-json-bounds.md` records explicit latest-unknown invalidation before hold/close advancement and the raw structural/typed descriptor resource contract. These guards do not grant source authentication or operational permission.
+
+All-visible funding descendant: `all-visible-funding-availability.md` requires Data105 e1ea525273aa2181e7357ca84a774ac2fb30ced0 and Math135 a5868944bf1bae813403a32b22d329c1da6f8238. It consumes canonical per-row assessments, latches all visible gaps before advancement and rejects pre-gap proof cache restoration.
