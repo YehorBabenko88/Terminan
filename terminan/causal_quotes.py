@@ -12,14 +12,40 @@ def _need(value):
  if not value:raise ValueError('invalid causal quote schedule')
 def _clock(value):
  _need(type(value) is int and 0<=value<=2**53-1);return value
-def _label(value):return type(value) is str and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',value) is not None
+def _label(value):return type(value) is str and len(value)<=128 and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',value) is not None
 def _decimal_text(value):return type(value) is str and len(value)<=256 and re.fullmatch(r'-?(?:0|[1-9][0-9]*)(?:[.][0-9]+)?(?:[eE][+-]?[0-9]+)?',value) is not None
+def _receipt_shape(value,fields):
+ expected=_BASE|set(fields)
+ _need(type(value) is dict and len(value)==len(expected))
+ _need(all(type(k) is str for k in value) and set(value)==expected)
+ _need(all(_label(value[k]) for k in ('receipt_id','source_id')))
+ _need(type(value['symbol']) is str and len(value['symbol'])<=30 and re.fullmatch('[A-Z0-9]{2,30}',value['symbol']) is not None)
+ for key in ('raw_sha256','sha256'):_need(type(value[key]) is str and len(value[key])==64 and re.fullmatch('[a-f0-9]{64}',value[key]) is not None)
 def _receipt(value,fields):
- _need(type(value) is dict and set(value)==_BASE|set(fields))
- _need(all(_label(value[k]) for k in ('receipt_id','source_id')) and type(value['symbol']) is str and re.fullmatch('[A-Z0-9]{2,30}',value['symbol']) is not None)
- _need(type(value['raw_sha256']) is str and re.fullmatch('[a-f0-9]{64}',value['raw_sha256']) is not None)
- _need(type(value['sha256']) is str and value['sha256']==sha256(canonical_json({k:v for k,v in value.items() if k!='sha256'})).hexdigest())
+ _receipt_shape(value,fields)
+ _need(value['sha256']==sha256(canonical_json({k:v for k,v in value.items() if k!='sha256'})).hexdigest())
  return value
+
+def _preflight(a,b,quotes,f):
+ # Exact container type/count checks precede iteration, serialization or hashes.
+ _need(type(quotes) is list and len(quotes)==2)
+ _receipt_shape(a,{'decision_ms','observed_ms','expires_ms','side'})
+ _receipt_shape(b,{'decision_ms','observed_ms','expires_ms'})
+ _need(type(a['side']) is str and a['side'] in ('long','short'))
+ for d in (a,b):
+  for key in ('decision_ms','observed_ms','expires_ms'):_clock(d[key])
+ _receipt_shape(f,{'kind','observed_ms','previous_ms','next_ms','interval_ms','events'})
+ _need(type(f['kind']) is str and f['kind'] in ('COMPLETE_INTERVAL','COMPLETE_EVENTS'))
+ _need(type(f['events']) is list and len(f['events'])<=128)
+ for key in ('observed_ms','previous_ms','next_ms','interval_ms'):_clock(f[key])
+ for q in quotes:
+  _receipt_shape(q,{'epoch','sequence','event_ms','observed_ms','bid','ask'})
+  _need(_label(q['epoch']) and _decimal_text(q['bid']) and _decimal_text(q['ask']))
+  for key in ('sequence','event_ms','observed_ms'):_clock(q[key])
+ for event in f['events']:
+  _receipt_shape(event,{'event_ms','observed_ms','rate','mark_price'})
+  _need(_decimal_text(event['rate']) and _decimal_text(event['mark_price']))
+  _clock(event['event_ms']);_clock(event['observed_ms'])
 
 def validate_causal_schedule(*,open_decision,close_decision,quotes,funding,latency_ms,max_quote_age_ms,max_hold_ms,now_ms):
  """Return selected (mark-price text, rate text) only after full temporal proof.
@@ -29,6 +55,7 @@ def validate_causal_schedule(*,open_decision,close_decision,quotes,funding,laten
  """
  _clock(now_ms)
  for value in (latency_ms,max_quote_age_ms,max_hold_ms):_need(1<=_clock(value)<=3600000)
+ _preflight(open_decision,close_decision,quotes,funding)
  _need(len(canonical_json([open_decision,close_decision,quotes,funding]))<=262144)
  a=_receipt(open_decision,{'decision_ms','observed_ms','expires_ms','side'})
  b=_receipt(close_decision,{'decision_ms','observed_ms','expires_ms'})
