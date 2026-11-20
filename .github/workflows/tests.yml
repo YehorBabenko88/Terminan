@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/math
-          ref: dae65b688e65ade8308af1ad8dd22b357068d42d
+          ref: 8b6887f8d7f7993bb05e8a3ab6514b53c0dff1c3
           path: upstream/math-sdk
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -70,13 +70,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/strattester
-          ref: fa09e6883fe2af073237cb0e105900c7b2e2c2fa
+          ref: 82dac3c7122d0588c89f94e026e529cda51b428b
           path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: YehorBabenko88/math
-          ref: dae65b688e65ade8308af1ad8dd22b357068d42d
+          ref: 8b6887f8d7f7993bb05e8a3ab6514b53c0dff1c3
           path: upstream/math-sdk
           persist-credentials: false
       - uses: actions/setup-python@v5
