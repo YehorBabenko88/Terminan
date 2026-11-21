@@ -78,3 +78,23 @@ def load_bounded_json(raw,*,max_bytes):
  preflight_json(raw,max_bytes=max_bytes)
  try:return json.loads(raw,object_pairs_hook=_pairs,parse_float=_refuse,parse_constant=_refuse)
  except (UnicodeError,ValueError,RecursionError) as exc:raise ValueError('closed bounded JSON required') from exc
+
+
+def ascii_json_string_size(value,*,max_bytes):
+ """Count ensure_ascii JSON string bytes without creating escaped text.
+
+ This is a representation budget, not a JSON encoder. Quotes, backslashes,
+ short control escapes, BMP escapes and astral surrogate pairs match json.dumps.
+ """
+ if (type(value) is not str or type(max_bytes) is not int
+     or not 2<=max_bytes<=1048576):
+  raise ValueError('bounded literal JSON string budget required')
+ size=2
+ for character in value:
+  code=ord(character)
+  if character in ('"','\\') or code in (8,9,10,12,13):size+=2
+  elif 32<=code<=126:size+=1
+  elif code<=65535:size+=6
+  else:size+=12
+  if size>max_bytes:raise ValueError('JSON escaped string byte budget exceeded')
+ return size

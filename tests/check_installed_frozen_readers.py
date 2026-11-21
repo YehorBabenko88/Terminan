@@ -32,7 +32,7 @@ for name in ('VolatilityTransferTests','CanonicalVolatilityBoundaryTests'):
  suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(volatility[name]))
 entry_context=runpy.run_path(str(pathlib.Path(__file__).with_name('test_entry_context.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(entry_context['EntryContextTests']))
-if suite.countTestCases()!=28:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+if suite.countTestCases()!=31:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -42,4 +42,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==28 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==31 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))

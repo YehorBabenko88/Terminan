@@ -104,3 +104,28 @@ class EntryContextTests(unittest.TestCase):
   a=m.build_entry_context(decision_ms=120,metadata={},volatility=rows)
   b=m.build_entry_context(decision_ms=120,metadata={},volatility=[v])
   self.assertEqual(a,b);self.assertEqual(rows,[v,v])
+
+ def test_escaped_metadata_budget_refuses_before_encoder(self):
+  from unittest.mock import patch
+  m=self.api()
+  for size in (256,1536):
+   text='\x01'*size;metadata={'a':[text]*200,'b':[text]*200}
+   with patch.object(m.json,'dumps',side_effect=AssertionError('ENCODER_CALLED_BEFORE_BUDGET')):
+    with self.assertRaises(ValueError):m.build_entry_context(decision_ms=120,metadata=metadata)
+ def test_metadata_exact_64k_and_one_byte_over_boundary(self):
+  from unittest.mock import patch
+  m=self.api();metadata={'a':['x'*1536]*42,'b':'x'*884}
+  self.assertEqual(len(m.json.dumps(metadata,separators=(',',':'),ensure_ascii=True)),65536)
+  self.assertEqual(m.build_entry_context(decision_ms=120,metadata=metadata)['metadata'],metadata)
+  oversized={'a':['x'*1536]*42,'b':'x'*885}
+  with patch.object(m.json,'dumps',side_effect=AssertionError('OVERSIZE_ENCODER_CALLED')):
+   with self.assertRaises(ValueError):m.build_entry_context(decision_ms=120,metadata=oversized)
+ def test_ascii_escape_size_matches_encoder_and_preserves_valid_unicode_metadata(self):
+  import terminan.bounded_json as codec
+  self.assertTrue(hasattr(codec,'ascii_json_string_size'),'pre-encoder ASCII budget helper missing')
+  m=self.api()
+  for text in ('abc','"','\\','\b\f\n\r\t','\x00\x01','é','😀','\ud800','\x7f','/'):
+   encoded=m.json.dumps(text,ensure_ascii=True,separators=(',',':'))
+   self.assertEqual(codec.ascii_json_string_size(text,max_bytes=65536),len(encoded))
+   self.assertEqual(m.build_entry_context(decision_ms=120,metadata={'tag':text})['metadata']['tag'],text)
+   with self.assertRaises(ValueError):codec.ascii_json_string_size(text,max_bytes=len(encoded)-1)

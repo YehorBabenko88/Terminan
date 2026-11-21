@@ -4,4 +4,6 @@ ProfileSummary carries a caller-declared, finite nonnegative binary64-presentati
 
 The old scalp bootstrap uses next-row close to classify a current state while advertising current bar end. That confirmed causal defect remains a blocker for the later bootstrap tranche, not code to preserve mechanically. The old scientific history projection also omits availability and turnover in the current v1.1 handoff.
 
-Source discovery includes the eleven new cases. The existing installed checker preserves its seventeen old roles and adds these eleven, requiring exactly twenty-eight and refusing skips/xfails. Native/provider/SQL/SourceFence and full legacy discovery are NOT_RUN locally.
+Source discovery includes the fourteen new cases. The existing installed checker preserves its seventeen old roles and adds these fourteen, requiring exactly thirty-one and refusing skips/xfails. Native/provider/SQL/SourceFence and full legacy discovery are NOT_RUN locally.
+
+Metadata accounting includes ensure_ascii escapes, key/colon/comma/container overhead and bounded integer/bool/null representations before json.dumps is called. The global limit is exactly 65,536 serialized ASCII bytes; oversized input never reaches the encoder. The shared bounded_json helper counts string representation bytes without constructing escaped text. The original depth/node/cardinality/string/scalar/clock and no-grant constraints remain.
