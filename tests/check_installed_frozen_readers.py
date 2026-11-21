@@ -36,7 +36,7 @@ profile_analysis=runpy.run_path(str(pathlib.Path(__file__).with_name('test_profi
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(profile_analysis['ProfileAnalysisTests']))
 continuation=runpy.run_path(str(pathlib.Path(__file__).with_name('test_continuation_strategy.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(continuation['ContinuationStrategyTests']))
-if suite.countTestCases()!=52:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+if suite.countTestCases()!=56:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -46,4 +46,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==52 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==56 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))

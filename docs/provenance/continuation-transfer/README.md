@@ -5,3 +5,5 @@ The original `volatility_expansion_entries` decision policy now lives in Termina
 Old inferred `start + bar_ms` availability is replaced by required event-end and availability clocks. Future rows are preflighted; missing or future matching volatility emits no signal. Conflicting identities refuse; eligible versions are selected by clock rather than list order. Caller declarations do not authenticate market data or authorize trading.
 
 The Math prerequisite is currently an unpublished candidate. This transfer is not active in hosted CI until independently accepted Math is published and all consumers are source-pinned. Old Data generators and consumers remain; no legacy inventory deduction.
+
+Causal revision replay emits the first qualifying decision per body. At body availability it uses the latest version already declared available, then considers later declared revisions in chronological order. A later revision cannot erase an emitted signal. Returned signals are stably ordered by decision clock even when an older body arrives late. The earlier unpublished latest-at-cutoff candidate failed explicit prefix/order regressions; those failures are retained.

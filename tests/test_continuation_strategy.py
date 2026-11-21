@@ -49,3 +49,21 @@ class ContinuationStrategyTests(unittest.TestCase):
   signal,=self.generate();engine=PaperEngine(fee_rate='0',slippage_bps='0');engine.enabled=True
   result=engine.execute_signal(signal,(ResearchBar(60000,D('101'),D('103'),D('101'),D('102')),),bar_ms=60000,as_of_ms=120000,ambiguity_policy='SL_FIRST')
   self.assertEqual(result.fill.reason,'target');self.assertEqual(engine.positions,{})
+
+ def test_later_revision_cannot_erase_an_earlier_emitted_signal(self):
+  old=self.volatility();later=self.volatility(available_at_ms=65000,volume_ratio=1.)
+  before=self.generate(as_of=60000,vols=(old,later));after=self.generate(as_of=70000,vols=(old,later))
+  self.assertEqual(len(before),1);self.assertEqual(after,before);self.assertEqual(after[0].decision_ms,60000)
+ def test_first_qualifying_available_revision_emits_only_once(self):
+  rows=(self.volatility(volume_ratio=1.),self.volatility(available_at_ms=65000),self.volatility(available_at_ms=66000,atr_fraction=.02))
+  signal,=self.generate(as_of=70000,vols=rows)
+  self.assertEqual(signal.decision_ms,65000);self.assertEqual(signal.stop,D('100.2425'))
+ def test_obsolete_versions_before_body_availability_do_not_emit(self):
+  rows=(self.volatility(),self.volatility(available_at_ms=65000,volume_ratio=1.))
+  self.assertEqual(self.generate(available=70000,as_of=70000,vols=rows),())
+
+ def test_delayed_older_body_does_not_reverse_decision_event_order(self):
+  cls,fn=self.api();bodies=(cls(0,60000,130000,100,101),cls(60000,120000,120000,100,101))
+  vols=(self.volatility(),self.volatility(event_start_ms=60000,available_at_ms=120000))
+  before=fn('BTCUSDT',bodies,vols,as_of_ms=120000);after=fn('BTCUSDT',bodies,vols,as_of_ms=130000)
+  self.assertEqual(tuple(s.decision_ms for s in before),(120000,));self.assertEqual(tuple(s.decision_ms for s in after),(120000,130000));self.assertEqual(after[:1],before)

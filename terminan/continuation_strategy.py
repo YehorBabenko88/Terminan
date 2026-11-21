@@ -60,11 +60,17 @@ def generate_continuation_signals(symbol,bodies,volatility,*,as_of_ms,
         if row.available_at_ms>cutoff:continue
         matching=tuple(v for v in projected if v is not None and v['event_start_ms']==row.event_start_ms)
         if not matching:continue
-        v=max(matching,key=lambda value:value['available_at_ms'])
-        decision=max(row.event_end_ms,row.available_at_ms,v['available_at_ms'])
-        if v['atr_percentile']<min_percentile or v['volume_ratio']<min_volume_ratio:continue
-        side=owner.research_expansion_side(row.open,row.close,v['atr_fraction'],min_body_atr=min_body_atr)
-        if side is None:continue
-        stop,target=owner.research_bracket_prices(row.close,v['atr_fraction'],side).as_decimal()
-        out.append(ResearchSignal(symbol,decision,side,'market',None,stop,target))
-    return tuple(out)
+        # Replay declared versions chronologically. Only the latest version at
+        # body availability is visible initially; later updates cannot erase a
+        # signal already emitted at an earlier decision clock.
+        decisions=sorted({max(row.available_at_ms,v['available_at_ms']) for v in matching})
+        for decision in decisions:
+            eligible=tuple(v for v in matching if v['available_at_ms']<=decision)
+            v=max(eligible,key=lambda value:value['available_at_ms'])
+            if v['atr_percentile']<min_percentile or v['volume_ratio']<min_volume_ratio:continue
+            side=owner.research_expansion_side(row.open,row.close,v['atr_fraction'],min_body_atr=min_body_atr)
+            if side is None:continue
+            stop,target=owner.research_bracket_prices(row.close,v['atr_fraction'],side).as_decimal()
+            out.append(ResearchSignal(symbol,decision,side,'market',None,stop,target))
+            break
+    return tuple(sorted(out,key=lambda signal:signal.decision_ms))
