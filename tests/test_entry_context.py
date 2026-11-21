@@ -15,10 +15,16 @@ class EntryContextTests(unittest.TestCase):
   return m.ProfileSummary(poc,102,98,available,m.ProfileKind.TRADE_DISTRIBUTION,4)
  def test_entry_context_uses_latest_snapshot_available_at_entry(self):
   """Original latest-known volatility AND profile cutoff, four assertions."""
-  from terminan.volatility import VolatilityRegime
+  from terminan.volatility import VolatilityMetrics,VolatilityRegime
   m=self.api()
-  vols=[self.volatility(0,60),self.volatility(60,120,regime=VolatilityRegime.EXTREME)]
-  profiles=[self.profile(60),self.profile(180,110)]
+  vols=[
+   VolatilityMetrics(0,60,.01,.01,.01,.02,1,1,.5,VolatilityRegime.NORMAL,'v1'),
+   VolatilityMetrics(60,120,.02,.02,.02,.03,2,2,.9,VolatilityRegime.EXTREME,'v1'),
+  ]
+  profiles=[
+   m.ProfileSummary(100,102,98,60,m.ProfileKind.TRADE_DISTRIBUTION,4),
+   m.ProfileSummary(110,112,108,180,m.ProfileKind.TRADE_DISTRIBUTION,4),
+  ]
   value=m.build_entry_context(decision_ms=120,metadata={},volatility=vols,profiles=profiles)
   self.assertEqual(value['volatility']['regime'],'EXTREME')
   self.assertEqual(value['volatility']['version'],'v1')
@@ -26,9 +32,10 @@ class EntryContextTests(unittest.TestCase):
   self.assertEqual(value['profile']['kind'],'TRADE_DISTRIBUTION')
  def test_future_context_is_never_attached(self):
   """Original future exclusion AND unrelated metadata preservation."""
-  from terminan.volatility import VolatilityRegime
+  from terminan.volatility import VolatilityMetrics,VolatilityRegime
   m=self.api()
-  value=m.build_entry_context(decision_ms=120,metadata={'coverage':'COMPLETE_HISTORY'},volatility=[self.volatility(60,180,regime=VolatilityRegime.EXTREME)])
+  volatility=[VolatilityMetrics(60,180,.02,.02,.02,.03,2,2,.9,VolatilityRegime.EXTREME,'v1')]
+  value=m.build_entry_context(decision_ms=120,metadata={'coverage':'COMPLETE_HISTORY'},volatility=volatility)
   self.assertIsNone(value['volatility'])
   self.assertEqual(value['metadata']['coverage'],'COMPLETE_HISTORY')
  def test_delayed_old_event_uses_explicit_availability_and_latest_order_not_input_position(self):
