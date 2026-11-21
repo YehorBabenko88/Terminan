@@ -23,10 +23,8 @@ def _clock(value):
     return value
 
 def _number(value):
-    from market_compute_api import finite_nonnegative_number_valid
-    if ((type(value) is not int and type(value) is not float)
-        or (type(value) is int and value.bit_length()>53)
-        or not finite_nonnegative_number_valid(value)):
+    from market_math import lossless_nonnegative_binary64_valid
+    if not lossless_nonnegative_binary64_valid(value):
         raise ValueError('ENTRY_CONTEXT_DECLARED_FINITE_NUMBER_REQUIRED')
     return value
 

@@ -60,7 +60,7 @@ class EntryContextTests(unittest.TestCase):
   class Equal(type):
    def __eq__(self,other):raise AssertionError('METACLASS_CALLBACK')
   class Bad(metaclass=Equal):pass
-  for bad in (True,I(100),Bad(),Decimal('100'),float('nan'),float('inf'),-1.,2**53):
+  for bad in (True,I(100),Bad(),Decimal('100'),float('nan'),float('inf'),-1.,2**53+1):
    with self.assertRaises(ValueError):m.ProfileSummary(bad,102,98,60,m.ProfileKind.TRADE_DISTRIBUTION,4)
  def test_all_inputs_preflight_bounded_and_invalid_future_refuses_whole_request(self):
   m=self.api()
@@ -129,3 +129,12 @@ class EntryContextTests(unittest.TestCase):
    self.assertEqual(codec.ascii_json_string_size(text,max_bytes=65536),len(encoded))
    self.assertEqual(m.build_entry_context(decision_ms=120,metadata={'tag':text})['metadata']['tag'],text)
    with self.assertRaises(ValueError):codec.ascii_json_string_size(text,max_bytes=len(encoded)-1)
+ def test_market_metric_lossless_domain_is_math_owned_not_metadata_clock_budget(self):
+  m=self.api()
+  for value in (2**53,2**54,2**1023):
+   summary=m.ProfileSummary(value,value,value,60,m.ProfileKind.TRADE_DISTRIBUTION,0)
+   self.assertIs(type(summary.poc),int)
+   self.assertEqual(summary.poc,value)
+  for metadata in ({'x':2**53},{'x':2**54}):
+   with self.assertRaises(ValueError):m.build_entry_context(decision_ms=60,metadata=metadata)
+  with self.assertRaises(ValueError):m.ProfileSummary(100,102,98,2**53,m.ProfileKind.TRADE_DISTRIBUTION,4)

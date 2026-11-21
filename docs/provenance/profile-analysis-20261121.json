@@ -1,0 +1,33 @@
+{
+  "schema": "terminan.math-profile-integration.v1",
+  "Math": "e99ac02889766d821e2bc6865d6dab373f4e0c39",
+  "source_data": "84684f20755e6b6bfd00f95acd863302b6f5df59",
+  "mapping": {
+    "strattester.research.volume_profile.trade_profile": "market_math.trade_value_area_metrics -> terminan.profile_analysis.analyze_trade_profile",
+    "strattester.research.volume_profile.proxy_profile": "market_math.candle_proxy_value_area_metrics -> terminan.profile_analysis.analyze_candle_proxy_profile",
+    "VolumeProfileSnapshot": "terminan.entry_context.ProfileSummary",
+    "POCMode": "terminan.entry_context.ProfileKind",
+    "known_at": "decision_ms is request cutoff; available_at_ms is max explicit consumed declared availability, never inferred",
+    "vah": "value_area_high",
+    "val": "value_area_low"
+  },
+  "ownership": {
+    "numerical_aggregation_and_price_arithmetic": "Math ONLY",
+    "analysis_projection_and_context": "Terminan",
+    "collection_and_storage": "market_data",
+    "lifecycle": "Unified System"
+  },
+  "numeric_policy": {
+    "market_metrics": "Math-owned lossless_nonnegative_binary64_valid; representable2**53,2**54,2**1023 accepted,2**53+1 refused",
+    "previous_negative_calibration": "tests/test_entry_context.py numeric2**53 replaced with first inexact2**53+1; new positive domain test added",
+    "control_metadata_and_clock_budgets": "UNCHANGED_53_BITS"
+  },
+  "original_context_two_transfer_methods": "UNCHANGED",
+  "old_profile_source_retirement": "HELD_OLD_SCIENTIFIC_BOOTSTRAP_AND_SCALP_CONSUMERS",
+  "remaining_accepted": 516,
+  "aliases_added": false,
+  "source_authentication": "NOT_EVALUATED",
+  "execution_authority": false,
+  "trading_authorized": false,
+  "production": "NO_GO"
+}
