@@ -1,4 +1,4 @@
-"""Installed frozen-reader, volatility, entry-context and profile regressions; no admission authority."""
+"""Installed frozen-reader, volatility, entry-context and profile and continuation regressions; no admission authority."""
 import os,pathlib,runpy,sys,unittest,hashlib,importlib.util,stat
 if not(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode):raise RuntimeError('ISOLATED_NO_SITE_NO_WRITE_REQUIRED')
 site=pathlib.Path(os.environ['TERMINAN_COHORT_PATH']).resolve(strict=True)
@@ -34,7 +34,9 @@ entry_context=runpy.run_path(str(pathlib.Path(__file__).with_name('test_entry_co
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(entry_context['EntryContextTests']))
 profile_analysis=runpy.run_path(str(pathlib.Path(__file__).with_name('test_profile_analysis.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(profile_analysis['ProfileAnalysisTests']))
-if suite.countTestCases()!=40:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+continuation=runpy.run_path(str(pathlib.Path(__file__).with_name('test_continuation_strategy.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(continuation['ContinuationStrategyTests']))
+if suite.countTestCases()!=52:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -44,4 +46,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==40 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==52 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
