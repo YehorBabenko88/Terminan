@@ -1,0 +1,9 @@
+Canonical entry-context projection only. Original two assertion families are retained through an explicit API/DTO transfer, without a compatibility alias. Raw original modules/tests remain byte-exact in raw/. Source Data code is NOT removed by this Terminan commit; original remaining count stays 518 pending independent acceptance and the separate all-caller removal proof.
+
+ProfileSummary carries a caller-declared, finite nonnegative binary64-presentation summary, not a computed or qualified distribution. Availability is required explicitly; source authentication is NOT_EVALUATED and execution/trading authority are false. Math alone validates numeric scalars. Control metadata is nested, detached, bounded literal JSON without float-valued metrics; clock integers use the JS-safe representation budget. No missing availability, turnover, POC or level is fabricated.
+
+The old scalp bootstrap uses next-row close to classify a current state while advertising current bar end. That confirmed causal defect remains a blocker for the later bootstrap tranche, not code to preserve mechanically. The old scientific history projection also omits availability and turnover in the current v1.1 handoff.
+
+Source discovery includes the fourteen new cases. The existing installed checker preserves its seventeen old roles and adds these fourteen, requiring exactly thirty-one and refusing skips/xfails. Native/provider/SQL/SourceFence and full legacy discovery are NOT_RUN locally.
+
+Metadata accounting includes ensure_ascii escapes, key/colon/comma/container overhead and bounded integer/bool/null representations before json.dumps is called. The global limit is exactly 65,536 serialized ASCII bytes; oversized input never reaches the encoder. The shared bounded_json helper counts string representation bytes without constructing escaped text. The original depth/node/cardinality/string/scalar/clock and no-grant constraints remain.

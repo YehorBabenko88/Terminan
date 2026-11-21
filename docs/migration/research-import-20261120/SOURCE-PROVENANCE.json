@@ -1,0 +1,45 @@
+{
+  "validator_source_baseline": "839fc78d4fbd79b7b5a662a141dc8d2fe889ba92",
+  "canonical_test_transfer_source": "8042142bedc19718249f6de7519e382de3a1ed78",
+  "files": [
+    {
+      "source": "8042142bedc19718249f6de7519e382de3a1ed78",
+      "path": "market_data/research_handoff.py",
+      "archive": "docs/migration/research-import-20261120/raw/market_data__research_handoff.py.txt",
+      "sha256": "71bffbcadb6e2a3e05d30de22d4f23d3b50e7bce3842ec5198acd305946a5da1",
+      "bytes": 2993
+    },
+    {
+      "source": "8042142bedc19718249f6de7519e382de3a1ed78",
+      "path": "tests/unmigrated_market_data/test_source_provenance.py",
+      "archive": "docs/migration/research-import-20261120/raw/tests__unmigrated_market_data__test_source_provenance.py.txt",
+      "sha256": "db44e0d619deddca4daa9f9173e4bf36b434f8c1a752ca94a9bd3b8dc3725709",
+      "bytes": 11596
+    },
+    {
+      "source": "8042142bedc19718249f6de7519e382de3a1ed78",
+      "path": "tests/market_data/test_canonical_handoff.py",
+      "archive": "docs/migration/research-import-20261120/raw/tests__market_data__test_canonical_handoff.py.txt",
+      "sha256": "9a7e03b2d4991d87c0023867cfe39ca20bf070a896ed9f134d7e7f85f6bb1c9d",
+      "bytes": 1429
+    },
+    {
+      "source": "8042142bedc19718249f6de7519e382de3a1ed78",
+      "path": "tests/market_data/fixtures/legacy-experiment-export.synthetic.json",
+      "archive": "docs/migration/research-import-20261120/raw/tests__market_data__fixtures__legacy-experiment-export.synthetic.json.txt",
+      "sha256": "70a0ed567ca82cb5273911c59611248c4e45a382a9f6c35e60cdab5d7f1793a3",
+      "bytes": 1936
+    },
+    {
+      "source": "221a2562f70558e7753a92499fee1c3f2e706bfb",
+      "path": "terminan/source_contract.md",
+      "archive": "docs/migration/research-import-20261120/raw/Term122__source_contract.md.txt",
+      "sha256": "ca334f0772040e34b5cb517ff1c1006deded40dd5ba32ff6616cadb61b2778ff",
+      "bytes": 3423
+    }
+  ],
+  "fixture_sha256": "70a0ed567ca82cb5273911c59611248c4e45a382a9f6c35e60cdab5d7f1793a3",
+  "executed_original_Data_tests": false,
+  "data_runtime_dependency": false,
+  "authority": "SOURCE_ONLY_NO_GRANT"
+}

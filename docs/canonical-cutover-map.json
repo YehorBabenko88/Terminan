@@ -1,0 +1,866 @@
+{
+  "schema": "terminan.canonical-cutover-map.v1",
+  "source_sha": "b1a4d6a41054f0040a88dc80b585380fb6b4f323",
+  "math_sha": "8b6887f8d7f7993bb05e8a3ab6514b53c0dff1c3",
+  "files": [
+    {
+      "old": "src/meta_analyse/__init__.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": []
+    },
+    {
+      "old": "src/meta_analyse/analysis_coordinator.py",
+      "new": "terminan/analytics/analysis_coordinator.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "AnalysisCoordinator"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/analysis_session.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "AnalysisSession"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_day_boundary.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "DayBoundary",
+        "utc_day_boundary",
+        "validate_day_audit"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_db_import.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "file_sha256",
+        "iter_rows",
+        "parse_trade",
+        "_validate_receipt",
+        "import_verified_archive"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_file_lock.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "archive_file_lock",
+        "_lock",
+        "_unlock",
+        "async_archive_file_lock",
+        "_prepare_lock_file"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_ingestion.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ArchiveReceipt",
+        "_digest",
+        "_receipt_path",
+        "_load_receipt",
+        "_write_receipt",
+        "_to_thread_join_on_cancel",
+        "acquire_archive",
+        "acquire_many"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_partial_state.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "PartialMetadata",
+        "_sha256",
+        "partial_paths",
+        "read_partial",
+        "save_partial",
+        "discard_partial"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_resumable_download.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "download_resumable"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/archive_resume.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ResumeState",
+        "strong_etag",
+        "resume_headers",
+        "validate_partial_response"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/backfill.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "BackfillCoordinator"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/book_summary.py",
+      "new": "terminan/analytics/book_summary.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "BookSummary",
+        "summarize_book"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/bybit_archive_audit.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ArchiveAudit",
+        "audit_trade_gzip",
+        "_LimitedReader"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/bybit_archive_download.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "validate_archive_url",
+        "download_archive",
+        "download_many"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/bybit_archive_plan.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ArchiveDay",
+        "archive_url",
+        "plan_archive_days"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/collector.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "CollectorService"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/core.py",
+      "new": "terminan/analytics/core.py (DTO/flow only; PaperEngine/Position/PaperFill -> terminan.paper, no copied engine)",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "floor_minute",
+        "Candle",
+        "Level",
+        "untouched_levels",
+        "Trade",
+        "Minute",
+        "new_minute",
+        "Position",
+        "PaperFill",
+        "PaperEngine",
+        "RollingFlow"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/crossing_quality.py",
+      "new": "terminan/analytics/crossing_quality.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "CrossingObservation",
+        "crossed_prices"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/crossing_service.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "CrossingService"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/desktop.py",
+      "new": "terminan/desktop.py:ResearchWindow (source injection; no collector/Store)",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "FlowTableItem",
+        "WorkerSignals",
+        "Window",
+        "main"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/desktop_service.py",
+      "new": "terminan/research_service.py:ResearchService (presenter only; old acquisition ownership refused)",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "DesktopSnapshot",
+        "_client_operation",
+        "DesktopService"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/durable_sync.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "generation_for",
+        "DurableLevelSync"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/exchange.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "BybitPublic"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/feed_watchdog.py",
+      "new": "terminan/analytics/feed_watchdog.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "Telemetry",
+        "FeedWatchdog"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/flow_bridge.py",
+      "new": "terminan/analytics/flow_bridge.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "FlowRow",
+        "FlowBridge"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/flow_diff.py",
+      "new": "terminan/analytics/flow_diff.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "changed_rows"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/flow_history_storage.py",
+      "new": "terminan/migration/historical_trades.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "HistoricalTrade",
+        "FlowHistorySnapshot",
+        "_utc",
+        "read_flow_history",
+        "to_orderflow_records"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/flow_style.py",
+      "new": "terminan/analytics/flow_style.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "flow_cell_style"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/footprint.py",
+      "new": "terminan/analytics/footprint.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "FootprintCell",
+        "Footprint"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/footprint_engine.py",
+      "new": "terminan/analytics/footprint_engine.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "FootprintEngine"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/freshness.py",
+      "new": "terminan/analytics/freshness.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "freshness_state",
+        "freshness_for_feed"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/freshness_style.py",
+      "new": "terminan/analytics/freshness_style.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "freshness_colors",
+        "freshness_colors_for_feed"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/grid_history_adapter.py",
+      "new": "terminan/analytics/market_history.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "_clock",
+        "_hash",
+        "_canonical",
+        "_digest",
+        "_fields",
+        "analyze_grid_history",
+        "_analyze"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/headless_service.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "need",
+        "regular",
+        "directory",
+        "Identity",
+        "SourceVerifier",
+        "owned_profile",
+        "attest_module",
+        "selfcheck",
+        "strict_json",
+        "admitted_result",
+        "admitted_ohlcv_result",
+        "PrivateServer",
+        "Handler",
+        "main"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/health.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "StreamHealth",
+        "HealthTracker"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/history.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "Coverage",
+        "validate_fixed_interval",
+        "yearly_from_daily",
+        "collect_history"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/history_checkpoint.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "HistoryKey",
+        "HistoryCheckpoint"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/history_parallel.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "BatchOutcome",
+        "bounded_map"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/history_progress.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "Availability",
+        "Segment",
+        "Progress",
+        "coverage",
+        "combined_readiness"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/history_retention.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RetentionRecord",
+        "RetentionDecision",
+        "plan_retention"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/http_client.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ManagedAsyncClient"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/instruments.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "Instrument",
+        "parse_instrument",
+        "instruments"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/integrity.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "Quality",
+        "ExecutionAggregator"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/level_publish.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "LevelPublication",
+        "publication_decision"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/level_quality.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "LevelReport",
+        "verified_levels"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/level_sync.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "signature",
+        "owned_id",
+        "parse_rows",
+        "LevelSync"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/liquidity.py",
+      "new": "terminan/analytics/liquidity.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "LiquiditySignal",
+        "large_levels"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/market_clock.py",
+      "new": "terminan/analytics/market_clock.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "FeedState",
+        "Alignment",
+        "MarketClock"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/market_collector.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "MarketCollector"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/market_health.py",
+      "new": "terminan/analytics/market_health.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "MarketHealth",
+        "MarketHealthMonitor"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/market_store.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "MarketStore"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/market_telemetry.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "TelemetrySnapshot",
+        "MarketTelemetry"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/metascalp_locator.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "find_metascalp"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/offline_paper_delivery.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "deliver",
+        "main"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/ohlcv_research_adapter.py",
+      "new": "terminan/analytics/ohlcv_research.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "_need",
+        "_fields",
+        "_clock",
+        "_canonical",
+        "_digest",
+        "_label",
+        "analyze_ohlcv_research",
+        "_analyze"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/open_interest.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "OIPoint",
+        "parse_oi",
+        "fetch_open_interest"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderbook.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "OrderBook"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderbook_stream.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "BookSnapshot",
+        "_ResubscribeRequired",
+        "OrderBookStream"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderflow_adapters.py",
+      "new": "terminan/analytics/orderflow_adapters.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "from_records",
+        "StreamingTrades"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderflow_aggregation.py",
+      "new": "terminan/analytics/orderflow_aggregation.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "_adapt",
+        "aggregate_by_time",
+        "aggregate_by_price"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderflow_archive_reader.py",
+      "new": "terminan/migration/orderflow_archive.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "read_orderflow_trades"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderflow_metrics.py",
+      "new": "terminan/analytics/orderflow_metrics.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "Trade",
+        "FlowMetrics",
+        "calculate"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/orderflow_view.py",
+      "new": "terminan/analytics/orderflow_view.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "OrderFlowViewRow",
+        "make_rows"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/pg_authorized_connection.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "authorized_private_connection",
+        "validate_connection_parameters"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/pg_checkpoint_witness.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "WitnessTicket",
+        "WitnessResult",
+        "_lsn",
+        "_identity",
+        "_clock",
+        "_observe",
+        "capture_witness",
+        "verify_witness"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/pg_cluster_attestation.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "AttestationRefused",
+        "ExpectedCluster",
+        "attest_connected_cluster"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/pg_cluster_plan.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "PlanRefused",
+        "ClusterPlan",
+        "plan_only"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/pipeline.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RawPipeline"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/ports.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "MetaScalp"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/raw_store.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RawStore"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/raw_trades.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RawExecution",
+        "parse_public_trade",
+        "RawTradeStream"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/recovery.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RecoveryDecision",
+        "decide_recovery"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/retention_report.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "RetentionSummary",
+        "summarize_retention"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/retirement_receipt.py",
+      "new": "terminan/migration/state_receipt.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "_canonical",
+        "_check_source",
+        "_encoded_rows",
+        "_receipt",
+        "persisted_state_receipt",
+        "archive_paper_fills"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/runtime.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "DurableSinksRequired",
+        "Runtime"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/storage.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "initialize_schema",
+        "Store"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/storage_migrations.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "initialize_archive_schema"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/sync_journal.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "SyncRecord",
+        "SyncJournal"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/tape_velocity.py",
+      "new": "terminan/analytics/tape_velocity.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "TapeSnapshot",
+        "TapeVelocity"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/terminal_pipeline.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "build_terminal_pipeline"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/trade_archive.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "ArchiveManifest",
+        "verify_archive"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/trade_archive_audit.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "TradeAudit",
+        "audit_trade_csv"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/trader_theme.py",
+      "new": "terminan/analytics/trader_theme.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": []
+    },
+    {
+      "old": "src/meta_analyse/wall_tracker.py",
+      "new": "terminan/analytics/wall_tracker.py",
+      "status": "MIGRATED_SELECTED_CAPABILITY",
+      "symbols": [
+        "WallObservation",
+        "WallTracker"
+      ]
+    },
+    {
+      "old": "src/meta_analyse/write_drain.py",
+      "new": null,
+      "status": "PRESERVED_SOURCE_RETIREMENT_BLOCKED",
+      "symbols": [
+        "drain_thread_write"
+      ]
+    }
+  ],
+  "removed_active_dependencies": [
+    "grid",
+    "meta_analyse",
+    "TERMINAN_STRATTESTER_DB",
+    "TERMINAN_GRID_DSN",
+    "TERMINAN_GRID_API_PORT"
+  ],
+  "api_map": {
+    "import_meta_fills": "PaperReplayLedger.import_historical_fills",
+    "restore_meta_fills": "PaperReplayLedger.restore_historical_fills",
+    "grid_level_candles": "market_data_level_candles",
+    "levels_from_grid_series": "levels_from_market_data_series",
+    "terminan.server:run": "terminan.server:main",
+    "analyze_grid_history": "terminan.analytics.market_history.analyze_market_history",
+    "analyze_ohlcv_research": "terminan.analytics.ohlcv_research.analyze_ohlcv_research"
+  },
+  "schema_map": {
+    "meta_fill_archives": "historical_fill_archives",
+    "meta_fill_rows": "historical_fill_rows",
+    "meta_analyse.paper_fills": "historical READ ONLY source; bytes/digest identity unchanged",
+    "meta_analyse.level_map": "historical READ ONLY source; restore not yet qualified",
+    "meta_analyse.checkpoints": "historical READ ONLY source; restore not yet qualified",
+    "grid.history.v1.1": "market_data.history.v1.1",
+    "meta.ohlcv.research.request.v1": "terminan.ohlcv.research.request.v1"
+  },
+  "historical_vectors_sha256": "3a59ac1dc4e4e484d5dddb6af6ccb4592ab6233331ccb3f11995de5e32e0a19a",
+  "retirement_authorized": false,
+  "remaining_gates": [
+    "Qt physical/render acceptance",
+    "original source data/backup/restore",
+    "unmoved unique source capabilities",
+    "qualified market_data live adapter",
+    "source admission native/host acceptance",
+    "security clearance"
+  ]
+}

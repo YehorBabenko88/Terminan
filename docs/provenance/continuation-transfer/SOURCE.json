@@ -1,0 +1,24 @@
+{
+  "schema": "terminan.continuation-transfer.v1",
+  "source_repository": "YehorBabenko88/strattester",
+  "source_head": "622e99dcd169d471279b5d38204d29a01eaf8647",
+  "path": "strattester/research/scalp_entries.py",
+  "blob": "533904ce3b28f5d9d69f5bfc72efda168f6674ee",
+  "bytes": 5468,
+  "sha256": "fcc39f27efe6730eaa85329dcab6160b838c0b2229e8a1ec58443f582218b24b",
+  "original_function": "volatility_expansion_entries",
+  "canonical": "terminan.continuation_strategy.generate_continuation_signals",
+  "policy": "EXPLICIT_END_AND_AVAILABILITY;FULL_BATCH_PREFLIGHT;SAME_EVENT_VOLATILITY;LATEST_AVAILABLE_NOT_INPUT_ORDER;EXISTING_RESEARCH_SIGNAL_AND_PAPER_ENGINE",
+  "domain": "LITERAL_FINITE_LOSSLESS_NONNEGATIVE_BINARY64_INPUTS;POSITIVE_ENTRY;FINITE_SIGNED_OUTPUTS",
+  "source_retirement": "HELD_THREE_OTHER_GENERATORS_AND_OLD_CONSUMERS_REMAIN",
+  "original_role_deduction": 0,
+  "execution_authority": false,
+  "source_authentication": "NOT_EVALUATED",
+  "production": "NO_GO",
+  "math_candidate": "9f27dc27039568b55b9407f47ec515f66d9cc523",
+  "math_functions": [
+    "research_expansion_side",
+    "research_bracket_prices",
+    "ResearchBracketPrices.as_decimal"
+  ]
+}

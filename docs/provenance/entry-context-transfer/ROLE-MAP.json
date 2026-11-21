@@ -1,0 +1,58 @@
+{
+  "schema": "terminan.entry-context.transfer.v1",
+  "original_remaining": 518,
+  "count_deduction": 0,
+  "roles": [
+    {
+      "path": "tests/research/test_trade_context.py",
+      "name": "test_entry_context_uses_latest_snapshot_known_at_entry",
+      "line": 5,
+      "assertions": 4,
+      "ast_sha256": "a68bfadacdaf78ae30619a2d9d9aa76772ccc0369b908b5162696394f08d9acd",
+      "target": "tests/test_entry_context.py::EntryContextTests.test_entry_context_uses_latest_snapshot_available_at_entry",
+      "assertion_families_preserved": [
+        "latest eligible volatility regime",
+        "version",
+        "profile cutoff POC",
+        "profile kind"
+      ]
+    },
+    {
+      "path": "tests/research/test_trade_context.py",
+      "name": "test_future_context_is_never_attached",
+      "line": 20,
+      "assertions": 2,
+      "ast_sha256": "552b3fe147c1909e602498c48013644d28de8741c1d4bc2c735f7773bfa88b6e",
+      "target": "tests/test_entry_context.py::EntryContextTests.test_future_context_is_never_attached",
+      "assertion_families_preserved": [
+        "future volatility absent",
+        "unrelated metadata preserved"
+      ]
+    }
+  ],
+  "API": {
+    "old": "strattester.research.trade_context.attach_entry_context",
+    "canonical": "terminan.entry_context.build_entry_context",
+    "alias": false
+  },
+  "field_map": {
+    "entry_time": "decision_ms",
+    "known_at": "available_at_ms",
+    "atr_pct": "atr_fraction",
+    "realized_vol": "realized_volatility",
+    "parkinson_vol": "parkinson_volatility",
+    "volume_expansion": "volume_ratio",
+    "turnover_expansion": "turnover_ratio",
+    "percentile": "atr_percentile"
+  },
+  "intentional_contract_changes": [
+    "explicit availability only; no inference from bar/event",
+    "closed exact typed summaries; full batch preflight inclfuture",
+    "nested detached bounded control metadata; no float metrics in metadata",
+    "ambiguous same clock/event different contents refuse",
+    "canonical summary names/profile kinds; no legacy aliases",
+    "literal numeric display budget: finite nonnegative int/float, int<=53bits; no distribution consistency/authentication claim"
+  ],
+  "Data_removal_gate": "AFTER_TERM_INDEPENDENT_ACCEPTANCE_AND_ALL_CALLERS_VERIFIED",
+  "remaining_blocker": "old scalp/scientific/bootstrap+entry strategies stillretainoldvolatility dependency; confirmed nextrowclose lookahead mustnotport"
+}

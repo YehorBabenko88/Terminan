@@ -1,0 +1,7 @@
+# Private managed Market Data client
+
+Managed Terminan receives one private per-start read capability from the owning Unified ProcessDriver, never from public configuration or a token endpoint/file. data.configure_market_data_client consumes and removes UNIFIED_MARKET_DATA_READ_CAPABILITY before the listener starts. Source commit/release and current admission are checked; missing, extra, duplicate or invalid fields refuse managed startup. Tokens are excluded from repr/status and not stored in any journal/database.
+
+The private client permits only fixed health/capabilities/candles/footprint internal GET routes at the bound IPv4 loopback port. Every request checks live source admission before and after transport. Data restart rotates its existing bearer; stale capability yields UNAVAILABLE/empty results without SQL fallback. Existing runtime dependency restart obtains a new epoch. Metadata remains UNQUALIFIED and grants no collection, strategy or execution authority. Standalone offline paper/replay remains available with no managed capability. Paper journals/recovery state are untouched.
+
+22 reviewed pure private-client/data/startup tests PASS on CPython3.11 and3.12 with process/system/socket construction audit-denied. Cross-owner pure proof uses actual Unified issuance and canonical Data request guard through inert headers/transport; no HTTP listener, native service or production/user data change. Native integration remains separately unqualified.

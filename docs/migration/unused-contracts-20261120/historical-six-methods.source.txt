@@ -1,0 +1,37 @@
+def test_legacy_poc_admission_rejects_nonfinite_observations(self):
+        for invalid in (float('nan'), float('inf'), float('-inf'), 'NaN', 'Infinity'):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    aggregate_footprint([dict(t=1, price=invalid, volume=1)])
+                with self.assertRaises(ValueError):
+                    aggregate_footprint([dict(t=1, price=1, volume=invalid)])
+                with self.assertRaises(ValueError):
+                    poc_close_events([dict(t=1, poc=1)], [dict(t=1, c=invalid)])
+                with self.assertRaises(ValueError):
+                    poc_close_events([dict(t=1, poc=invalid)], [dict(t=1, c=1)])
+
+def test_poc_tie_and_close(self):
+        rows=[dict(t=100,price=11,volume=5),dict(t=100,price=10,volume=5),dict(t=200,price=9,volume=8)]
+        buckets=aggregate_footprint(rows)
+        self.assertEqual(buckets[0]['poc'],10)
+        events=poc_close_events(buckets,[dict(t=100,c=11),dict(t=200,c=9)])
+        self.assertEqual([e['relation'] for e in events],['above','at'])
+
+def test_no_negative_volume(self):
+        with self.assertRaises(ValueError):aggregate_footprint([dict(t=1,price=2,volume=-1)])
+
+def test_poc_math_sdk_preserves_duplicate_price_policy(self):
+        rows = [dict(t=100, price=10, volume=4), dict(t=100, price=10, volume=4),
+                dict(t=100, price=11, volume=6)]
+        self.assertEqual(aggregate_footprint(rows),
+                         [dict(t=100, levels=rows, poc=11.0, poc_volume=6.0)])
+
+def test_poc_ranking_does_not_round_with_callers_decimal_context(self):
+        rows = [dict(t=100, price=10, volume=1001), dict(t=100, price=20, volume=1002)]
+        with localcontext() as context:
+            context.prec = 2
+            self.assertEqual(aggregate_footprint(rows)[0]['poc'], 20.0)
+
+def test_poc_retains_first_volume_encoding_on_equal_rows(self):
+        rows = [dict(t=100, price=10, volume=-0.0), dict(t=100, price=10, volume=0)]
+        self.assertEqual(copysign(1, aggregate_footprint(rows)[0]['poc_volume']), -1.0)

@@ -1,0 +1,3563 @@
+{
+  "schema": "terminan.execution-owner-map.v1",
+  "source_repository": "YehorBabenko88/Strattester",
+  "source_revision": "13998cf87139330dd0406fed00acd148e045e6c4",
+  "canonical_baseline": "f20eef4bb3050412f1e1a72bf57f212cccdc5d22",
+  "retirement_authority": false,
+  "scope": "Static complete research/strategy/engine/persistence symbol inventory; retained means no deletion or claimed parity. Market acquisition/storage belongs exclusively to market_data and is outside this execution port.",
+  "records": [
+    {
+      "imports": [
+        ".orderflow",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/absorption.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "AbsorptionConfig"
+        },
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "AbsorptionSetup"
+        },
+        {
+          "kind": "function",
+          "line": 22,
+          "name": "detect_absorption_setup"
+        }
+      ],
+      "source_blob": "6c9f6502ad00b3bdd65d7608f3203608c1f446b4",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/adaptive_role_allocator.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 12,
+          "name": "WorkerNode"
+        },
+        {
+          "kind": "class",
+          "line": 24,
+          "name": "RoleRequest"
+        },
+        {
+          "kind": "class",
+          "line": 31,
+          "name": "RolePlacement"
+        },
+        {
+          "kind": "class",
+          "line": 38,
+          "name": "AdaptiveRoleAllocator"
+        },
+        {
+          "kind": "function",
+          "line": 39,
+          "name": "AdaptiveRoleAllocator.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 45,
+          "name": "AdaptiveRoleAllocator._score"
+        },
+        {
+          "kind": "function",
+          "line": 53,
+          "name": "AdaptiveRoleAllocator.place"
+        },
+        {
+          "kind": "function",
+          "line": 75,
+          "name": "AdaptiveRoleAllocator.allocate"
+        },
+        {
+          "kind": "function",
+          "line": 86,
+          "name": "AdaptiveRoleAllocator.execution_health"
+        }
+      ],
+      "source_blob": "1fb5bdaf60910605fb35008994b1dd634d607aa6",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/agent_communication.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 14,
+          "name": "AgentMessage"
+        },
+        {
+          "kind": "class",
+          "line": 24,
+          "name": "LinkState"
+        },
+        {
+          "kind": "class",
+          "line": 34,
+          "name": "RouteChoice"
+        },
+        {
+          "kind": "class",
+          "line": 40,
+          "name": "StigmergicBlackboard"
+        },
+        {
+          "kind": "function",
+          "line": 41,
+          "name": "StigmergicBlackboard.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 44,
+          "name": "StigmergicBlackboard.publish"
+        },
+        {
+          "kind": "function",
+          "line": 50,
+          "name": "StigmergicBlackboard.cue"
+        },
+        {
+          "kind": "class",
+          "line": 53,
+          "name": "SelfOrganizingCommunicationFabric"
+        },
+        {
+          "kind": "function",
+          "line": 54,
+          "name": "SelfOrganizingCommunicationFabric.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 65,
+          "name": "SelfOrganizingCommunicationFabric.link"
+        },
+        {
+          "kind": "function",
+          "line": 68,
+          "name": "SelfOrganizingCommunicationFabric.observe_delivery"
+        },
+        {
+          "kind": "function",
+          "line": 88,
+          "name": "SelfOrganizingCommunicationFabric.observe_preparation_outcome"
+        },
+        {
+          "kind": "function",
+          "line": 100,
+          "name": "SelfOrganizingCommunicationFabric.route_score"
+        },
+        {
+          "kind": "function",
+          "line": 108,
+          "name": "SelfOrganizingCommunicationFabric.neighbors"
+        },
+        {
+          "kind": "function",
+          "line": 114,
+          "name": "SelfOrganizingCommunicationFabric.publish_cue"
+        },
+        {
+          "kind": "function",
+          "line": 117,
+          "name": "SelfOrganizingCommunicationFabric.should_direct_signal"
+        },
+        {
+          "kind": "function",
+          "line": 122,
+          "name": "SelfOrganizingCommunicationFabric.anticipate_links"
+        },
+        {
+          "kind": "function",
+          "line": 135,
+          "name": "SelfOrganizingCommunicationFabric.topology_health"
+        }
+      ],
+      "source_blob": "ab551e3ee37377d54742b541f957bc0648199c25",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/brain_quorum.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 12,
+          "name": "BrainLease"
+        },
+        {
+          "kind": "class",
+          "line": 18,
+          "name": "PartitionView"
+        },
+        {
+          "kind": "class",
+          "line": 26,
+          "name": "QuorumReport"
+        },
+        {
+          "kind": "class",
+          "line": 37,
+          "name": "BrainQuorumFence"
+        },
+        {
+          "kind": "function",
+          "line": 38,
+          "name": "BrainQuorumFence.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 44,
+          "name": "BrainQuorumFence.quorum_size"
+        },
+        {
+          "kind": "function",
+          "line": 47,
+          "name": "BrainQuorumFence.assess"
+        },
+        {
+          "kind": "function",
+          "line": 65,
+          "name": "BrainQuorumFence.can_renew"
+        },
+        {
+          "kind": "function",
+          "line": 70,
+          "name": "BrainQuorumFence.next_epoch"
+        }
+      ],
+      "source_blob": "4a93d0b64ed10d251b75b217d976f2b008a573e8",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/causal.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 6,
+          "name": "CausalFeature"
+        },
+        {
+          "kind": "function",
+          "line": 12,
+          "name": "CausalFeature.__post_init__"
+        },
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "CausalView"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "CausalView.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "CausalView.at"
+        }
+      ],
+      "source_blob": "b157076bf8c6b260a16a0b63e292176bde38f24c",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".decision_memory",
+        "__future__",
+        "collections",
+        "dataclasses",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/credit_assignment.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 10,
+          "name": "CreditReport"
+        },
+        {
+          "kind": "class",
+          "line": 19,
+          "name": "CreditAssigner"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "CreditAssigner.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "CreditAssigner.add"
+        },
+        {
+          "kind": "function",
+          "line": 32,
+          "name": "CreditAssigner.assess"
+        }
+      ],
+      "source_blob": "950763a633f588b2c45d6529a0159146311a5319",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "math",
+        "time",
+        "typing"
+      ],
+      "source_path": "strattester/research/decision_memory.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "DecisionTrace"
+        },
+        {
+          "kind": "class",
+          "line": 21,
+          "name": "ObservedOutcome"
+        },
+        {
+          "kind": "class",
+          "line": 28,
+          "name": "CounterfactualEstimate"
+        },
+        {
+          "kind": "class",
+          "line": 38,
+          "name": "LearningSignal"
+        },
+        {
+          "kind": "class",
+          "line": 46,
+          "name": "DecisionMemory"
+        },
+        {
+          "kind": "function",
+          "line": 47,
+          "name": "DecisionMemory.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 52,
+          "name": "DecisionMemory.remember"
+        },
+        {
+          "kind": "function",
+          "line": 57,
+          "name": "DecisionMemory.observe"
+        },
+        {
+          "kind": "function",
+          "line": 62,
+          "name": "DecisionMemory.estimate"
+        },
+        {
+          "kind": "function",
+          "line": 69,
+          "name": "DecisionMemory.learning_signal"
+        },
+        {
+          "kind": "function",
+          "line": 82,
+          "name": "DecisionMemory.comparable_history"
+        }
+      ],
+      "source_blob": "f3b551cdd7ebb52df4e96e62d556e6910846e3c8",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".decision_memory",
+        ".learning_event_log",
+        "__future__",
+        "hashlib",
+        "json",
+        "math"
+      ],
+      "source_path": "strattester/research/durable_learning_log.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 7,
+          "name": "event_payload"
+        },
+        {
+          "kind": "function",
+          "line": 15,
+          "name": "_hash"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "decode_row"
+        },
+        {
+          "kind": "class",
+          "line": 32,
+          "name": "DurableLearningLog"
+        },
+        {
+          "kind": "function",
+          "line": 33,
+          "name": "DurableLearningLog.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "DurableLearningLog.append"
+        },
+        {
+          "kind": "function",
+          "line": 37,
+          "name": "DurableLearningLog.events"
+        }
+      ],
+      "source_blob": "4c59545b959e9b4cced1531482828e8d63147beb",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "math"
+      ],
+      "source_path": "strattester/research/entry_screening.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 11,
+          "name": "EntryPatternVerdict"
+        },
+        {
+          "kind": "function",
+          "line": 21,
+          "name": "_metric"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "screen_entry_pattern"
+        },
+        {
+          "kind": "function",
+          "line": 47,
+          "name": "segment_verdicts"
+        }
+      ],
+      "source_blob": "540971e96734b928b145456f85f5e4e0787974b5",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/execution.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "ExecutionPolicy"
+        },
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "Signal"
+        },
+        {
+          "kind": "class",
+          "line": 22,
+          "name": "ResearchTrade"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "_adverse"
+        },
+        {
+          "kind": "function",
+          "line": 40,
+          "name": "simulate_trade"
+        },
+        {
+          "kind": "class",
+          "line": 112,
+          "name": "ScaleSignal"
+        },
+        {
+          "kind": "class",
+          "line": 121,
+          "name": "ExecutionFill"
+        },
+        {
+          "kind": "class",
+          "line": 128,
+          "name": "ExecutionExit"
+        },
+        {
+          "kind": "class",
+          "line": 135,
+          "name": "ScaleTrade"
+        },
+        {
+          "kind": "function",
+          "line": 143,
+          "name": "simulate_scale_trade"
+        }
+      ],
+      "source_blob": "da3d4f66d8debcd770392ab36c4e123f310fc2db",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "SINGLE_SIGNAL_PORTED_SCALE_RETAINED",
+      "destination": "terminan/paper.py:PaperEngine.execute_signal + terminan/research_signals.py",
+      "symbol_map": {
+        "ExecutionPolicy": "PaperEngine parameters + execute_signal(bar_ms,ambiguity_policy)",
+        "Signal": "terminan.research_signals.ResearchSignal",
+        "ResearchTrade": "terminan.research_signals.SignalExecution + canonical PaperFill",
+        "_adverse": "market_math.adverse_execution_price",
+        "simulate_trade": "terminan.paper.PaperEngine.execute_signal",
+        "ScaleSignal": "RETAINED_SCALE_PORT_PENDING",
+        "ExecutionFill": "RETAINED_SCALE_PORT_PENDING",
+        "ExecutionExit": "RETAINED_SCALE_PORT_PENDING",
+        "ScaleTrade": "RETAINED_SCALE_PORT_PENDING",
+        "simulate_scale_trade": "RETAINED_SCALE_PORT_PENDING"
+      },
+      "behavior_delta": "Default conservative intrabar TP requires post-entry close crossing; original optimistic pre-entry wick behavior deliberately not preserved. Decimal28 Math accounting replaces binary64 simulation arithmetic."
+    },
+    {
+      "imports": [
+        ".neuro_controller",
+        ".structural_mathematics",
+        "__future__",
+        "dataclasses",
+        "enum",
+        "typing"
+      ],
+      "source_path": "strattester/research/homeostasis.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "ChannelLifecycle"
+        },
+        {
+          "kind": "class",
+          "line": 20,
+          "name": "ChannelHealth"
+        },
+        {
+          "kind": "class",
+          "line": 30,
+          "name": "HomeostaticDecision"
+        },
+        {
+          "kind": "class",
+          "line": 38,
+          "name": "HomeostaticSupervisor"
+        },
+        {
+          "kind": "function",
+          "line": 39,
+          "name": "HomeostaticSupervisor.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 51,
+          "name": "HomeostaticSupervisor._h"
+        },
+        {
+          "kind": "function",
+          "line": 53,
+          "name": "HomeostaticSupervisor.note_model_change"
+        },
+        {
+          "kind": "function",
+          "line": 58,
+          "name": "HomeostaticSupervisor.note_outcome"
+        },
+        {
+          "kind": "function",
+          "line": 65,
+          "name": "HomeostaticSupervisor.inspect_autonomy"
+        },
+        {
+          "kind": "function",
+          "line": 75,
+          "name": "HomeostaticSupervisor.immune_surveillance"
+        },
+        {
+          "kind": "function",
+          "line": 85,
+          "name": "HomeostaticSupervisor._filter"
+        },
+        {
+          "kind": "function",
+          "line": 88,
+          "name": "HomeostaticSupervisor._clone_dominance_veto"
+        },
+        {
+          "kind": "function",
+          "line": 94,
+          "name": "HomeostaticSupervisor.decide"
+        },
+        {
+          "kind": "function",
+          "line": 120,
+          "name": "HomeostaticSupervisor.bounded_slow_modulate"
+        }
+      ],
+      "source_blob": "1d81c11245f9b2fb174519f963a7130bd8c4be59",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/hypotheses.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 4,
+          "name": "SMCHypothesis"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "build_smc_hypotheses"
+        }
+      ],
+      "source_blob": "869a6d509d738db10911f7adb90ef89cc24827a6",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [],
+      "source_path": "strattester/research/journal.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 1,
+          "name": "TradeJournal"
+        },
+        {
+          "kind": "function",
+          "line": 2,
+          "name": "TradeJournal.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "TradeJournal.append"
+        },
+        {
+          "kind": "function",
+          "line": 4,
+          "name": "TradeJournal.extend"
+        }
+      ],
+      "source_blob": "14abc71411e8ae90ac3bbe87f310b97c729e4f25",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".decision_memory",
+        "__future__",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/learning_event_log.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "LearningEvent"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "learning_event_id"
+        },
+        {
+          "kind": "class",
+          "line": 28,
+          "name": "LearningEventLog"
+        },
+        {
+          "kind": "function",
+          "line": 30,
+          "name": "LearningEventLog.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "LearningEventLog.append"
+        },
+        {
+          "kind": "function",
+          "line": 51,
+          "name": "LearningEventLog.events"
+        },
+        {
+          "kind": "function",
+          "line": 55,
+          "name": "LearningEventLog.export"
+        },
+        {
+          "kind": "function",
+          "line": 67,
+          "name": "LearningEventLog.restore"
+        }
+      ],
+      "source_blob": "01b2c5540df8cdb0f3477e706c5cc4ab34c6b018",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/learning_journal.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 11,
+          "name": "LearningJournalState"
+        },
+        {
+          "kind": "class",
+          "line": 17,
+          "name": "LearningJournal"
+        },
+        {
+          "kind": "function",
+          "line": 18,
+          "name": "LearningJournal.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "LearningJournal.begin"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "LearningJournal.commit"
+        },
+        {
+          "kind": "function",
+          "line": 30,
+          "name": "LearningJournal.status"
+        },
+        {
+          "kind": "function",
+          "line": 35,
+          "name": "LearningJournal.recoverable"
+        }
+      ],
+      "source_blob": "5895450ba74e565db39651ba7bfedf9e2bff2548",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".decision_memory",
+        ".learning_event_log",
+        "__future__",
+        "copy",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/learning_replay.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 9,
+          "name": "ReplayReport"
+        },
+        {
+          "kind": "class",
+          "line": 15,
+          "name": "LearningReplayEngine"
+        },
+        {
+          "kind": "function",
+          "line": 16,
+          "name": "LearningReplayEngine.replay"
+        }
+      ],
+      "source_blob": "a909fe3af0d7d62bd48a9c9b344a19af915613ad",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".causal"
+      ],
+      "source_path": "strattester/research/levels.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "completed_period_levels"
+        }
+      ],
+      "source_blob": "f0b6fa48578151d91dee22a67712de6db2c4f0fe",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "enum"
+      ],
+      "source_path": "strattester/research/microstructure.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 4,
+          "name": "AbsorptionMode"
+        },
+        {
+          "kind": "class",
+          "line": 9,
+          "name": "AbsorptionSignal"
+        },
+        {
+          "kind": "class",
+          "line": 14,
+          "name": "SweepReversalSignal"
+        },
+        {
+          "kind": "function",
+          "line": 18,
+          "name": "_flow"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "detect_absorption_proxy"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "detect_liquidity_sweep_reversal"
+        }
+      ],
+      "source_blob": "32bb26b29ac09b04b2a37e0d472d796a128b1fac",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".scientific_graph",
+        "__future__",
+        "dataclasses",
+        "enum",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/neuro_controller.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 15,
+          "name": "BrainState"
+        },
+        {
+          "kind": "class",
+          "line": 20,
+          "name": "EvidenceSignal"
+        },
+        {
+          "kind": "class",
+          "line": 29,
+          "name": "ChannelMemory"
+        },
+        {
+          "kind": "class",
+          "line": 35,
+          "name": "BrainDecision"
+        },
+        {
+          "kind": "class",
+          "line": 45,
+          "name": "NeuroDecisionController"
+        },
+        {
+          "kind": "function",
+          "line": 46,
+          "name": "NeuroDecisionController.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 55,
+          "name": "NeuroDecisionController._channel"
+        },
+        {
+          "kind": "function",
+          "line": 57,
+          "name": "NeuroDecisionController.integrate"
+        },
+        {
+          "kind": "function",
+          "line": 92,
+          "name": "NeuroDecisionController.slow_modulate"
+        },
+        {
+          "kind": "function",
+          "line": 99,
+          "name": "signals_from_artifacts"
+        }
+      ],
+      "source_blob": "42c8b4217dc948666fbc94be15bc0b189420bc0e",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".credit_assignment",
+        ".homeostasis",
+        ".neuro_controller",
+        ".stability_landscape",
+        ".timescale_memory",
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/offline_consolidation.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 17,
+          "name": "ConsolidationReport"
+        },
+        {
+          "kind": "class",
+          "line": 24,
+          "name": "OfflineConsolidator"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "OfflineConsolidator.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 32,
+          "name": "OfflineConsolidator.run"
+        }
+      ],
+      "source_blob": "41410294e86d8d1c345196815079f1c0be6ecb0c",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [],
+      "source_path": "strattester/research/orderflow.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 1,
+          "name": "cumulative_delta"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "aggression_decay"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "cvd_divergence"
+        }
+      ],
+      "source_blob": "bccf0462642f01f413e18c242d080dbb25f9f040",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".decision_memory",
+        ".homeostasis",
+        ".structural_memory",
+        "__future__",
+        "copy",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib"
+      ],
+      "source_path": "strattester/research/organism_checkpoint.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 12,
+          "name": "_canonical"
+        },
+        {
+          "kind": "function",
+          "line": 14,
+          "name": "export_state"
+        },
+        {
+          "kind": "function",
+          "line": 48,
+          "name": "save_checkpoint"
+        },
+        {
+          "kind": "function",
+          "line": 72,
+          "name": "_validate_payload"
+        },
+        {
+          "kind": "function",
+          "line": 93,
+          "name": "load_checkpoint"
+        }
+      ],
+      "source_blob": "fa1724c8c529d6b2c6c2108cf0e47ed31bea9e92",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".agent_communication",
+        ".brain_quorum",
+        ".credit_assignment",
+        ".decision_memory",
+        ".homeostasis",
+        ".neuro_controller",
+        ".population_guard",
+        ".scientific_graph",
+        ".stability_landscape",
+        ".structural_mathematics",
+        ".structural_memory",
+        ".structural_state_graph",
+        ".timescale_memory",
+        ".topology_recovery",
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/organism_controller.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 26,
+          "name": "OrganismDecision"
+        },
+        {
+          "kind": "class",
+          "line": 41,
+          "name": "ScientificOrganismController"
+        },
+        {
+          "kind": "function",
+          "line": 42,
+          "name": "ScientificOrganismController.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 68,
+          "name": "ScientificOrganismController.establish_native"
+        },
+        {
+          "kind": "function",
+          "line": 71,
+          "name": "ScientificOrganismController.decide"
+        },
+        {
+          "kind": "function",
+          "line": 142,
+          "name": "ScientificOrganismController.remember_decision"
+        },
+        {
+          "kind": "function",
+          "line": 145,
+          "name": "ScientificOrganismController.learn_decision"
+        },
+        {
+          "kind": "function",
+          "line": 174,
+          "name": "ScientificOrganismController.learn_from_outcomes"
+        },
+        {
+          "kind": "function",
+          "line": 180,
+          "name": "ScientificOrganismController.last_decisions"
+        }
+      ],
+      "source_blob": "f5ab364a81bd73f0b2f962f26e75464bda7acedc",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".entry_screening",
+        ".execution",
+        ".resampling",
+        ".statistics",
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/pattern_evaluation.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 10,
+          "name": "PatternEvaluation"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "evaluate_entry_signals"
+        }
+      ],
+      "source_blob": "118eedbe15c3ad01fc0ff618431fd8d72b50332b",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/population_guard.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 8,
+          "name": "ModelIdentity"
+        },
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "PopulationReport"
+        },
+        {
+          "kind": "class",
+          "line": 24,
+          "name": "ModelPopulationGuard"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "ModelPopulationGuard.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 31,
+          "name": "ModelPopulationGuard.assess"
+        },
+        {
+          "kind": "function",
+          "line": 46,
+          "name": "ModelPopulationGuard.independent_confirmation"
+        },
+        {
+          "kind": "function",
+          "line": 54,
+          "name": "ModelPopulationGuard.consensus_weights"
+        }
+      ],
+      "source_blob": "4acd51f4fdc6894fd05d2108d7055df1951cc6e1",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/portfolio.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "PortfolioPolicy"
+        },
+        {
+          "kind": "class",
+          "line": 10,
+          "name": "PortfolioResult"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "_stream_key"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "build_portfolio"
+        }
+      ],
+      "source_blob": "39dc834c6c753344a96ffc18ce76fc9e2ee91115",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".agent_communication",
+        ".structural_state_graph",
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/predictive_communication.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 9,
+          "name": "CommunicationPlan"
+        },
+        {
+          "kind": "class",
+          "line": 18,
+          "name": "PredictiveCommunicationCoordinator"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "PredictiveCommunicationCoordinator.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "PredictiveCommunicationCoordinator.plan"
+        },
+        {
+          "kind": "function",
+          "line": 50,
+          "name": "PredictiveCommunicationCoordinator.reinforce_plan"
+        },
+        {
+          "kind": "function",
+          "line": 59,
+          "name": "PredictiveCommunicationCoordinator.publish_work_progress"
+        }
+      ],
+      "source_blob": "e1639bfbc24d4d5a1c5c13ae584f0e7fef0b1eb1",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".statistics",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/reporting.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "ResearchReport"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "_group"
+        },
+        {
+          "kind": "function",
+          "line": 18,
+          "name": "research_report"
+        }
+      ],
+      "source_blob": "a03b5e159a40ecc90a323866a1fa34f56f2ffd12",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "random"
+      ],
+      "source_path": "strattester/research/resampling.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 6,
+          "name": "BootstrapCI"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "_quantile"
+        },
+        {
+          "kind": "function",
+          "line": 18,
+          "name": "bootstrap_expectancy"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "_max_drawdown"
+        },
+        {
+          "kind": "function",
+          "line": 35,
+          "name": "monte_carlo_max_drawdowns"
+        }
+      ],
+      "source_blob": "3858a98a6bd4272a9632ca74e6fed2dab2838400",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/result_persistence.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 4,
+          "name": "_metrics"
+        },
+        {
+          "kind": "function",
+          "line": 12,
+          "name": "persist_report"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "persist_report_fenced"
+        }
+      ],
+      "source_blob": "2b77c53bfc23486c8c9dc9927ba493dd38d84f8b",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING",
+      "note": "Unconditional COMPLETE_HISTORY must not be copied; canonical source qualification is separate."
+    },
+    {
+      "imports": [
+        "__future__",
+        "strattester.engine.executor"
+      ],
+      "source_path": "strattester/research/runner.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 12,
+          "name": "ResearchRunner"
+        },
+        {
+          "kind": "function",
+          "line": 13,
+          "name": "ResearchRunner.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "ResearchRunner.run"
+        }
+      ],
+      "source_blob": "53e64a71098b4fa19138002428ea9f8b48d482e7",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING",
+      "note": "Original already refuses execution after read-only history gate. New signal replay handles typed caller source; qualified instrument/coverage receipt integration remains unported."
+    },
+    {
+      "imports": [
+        ".orderflow",
+        ".smc",
+        ".volatility",
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/scalp_bootstrap.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 10,
+          "name": "_nearest_level"
+        },
+        {
+          "kind": "function",
+          "line": 21,
+          "name": "historical_scalp_events"
+        }
+      ],
+      "source_blob": "f51f42d88845f95c90adec41aed7fb8ca51bd9ba",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".execution",
+        "__future__",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/scalp_entries.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 11,
+          "name": "ScalpEntry"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "_known_bar"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "_vol_at"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "_profile_at"
+        },
+        {
+          "kind": "function",
+          "line": 26,
+          "name": "_flow_at"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "_risk"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "sweep_reclaim_entries"
+        },
+        {
+          "kind": "function",
+          "line": 51,
+          "name": "breakout_retest_volume_entries"
+        },
+        {
+          "kind": "function",
+          "line": 74,
+          "name": "volatility_expansion_entries"
+        },
+        {
+          "kind": "function",
+          "line": 92,
+          "name": "poc_reclaim_entries"
+        }
+      ],
+      "source_blob": "533904ce3b28f5d9d69f5bfc72efda168f6674ee",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".orderflow",
+        ".scalp_bootstrap",
+        ".scientific_graph",
+        ".smc",
+        ".volatility",
+        ".volume_profile",
+        "__future__",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "pathlib",
+        "time"
+      ],
+      "source_path": "strattester/research/scientific_bootstrap.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 30,
+          "name": "_bars"
+        },
+        {
+          "kind": "function",
+          "line": 35,
+          "name": "_trade_aggs"
+        },
+        {
+          "kind": "function",
+          "line": 38,
+          "name": "build_symbol_science"
+        },
+        {
+          "kind": "function",
+          "line": 80,
+          "name": "export_scientific_bootstrap"
+        }
+      ],
+      "source_blob": "84f60b064f5353332d7ff5f205f1568891b7e9a8",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".adaptive_role_allocator",
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/scientific_fleet.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 8,
+          "name": "ScientificFleetPlan"
+        },
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "ScientificFleetCoordinator"
+        },
+        {
+          "kind": "function",
+          "line": 14,
+          "name": "ScientificFleetCoordinator.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "ScientificFleetCoordinator.plan"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "ScientificFleetCoordinator.permission"
+        }
+      ],
+      "source_blob": "e385ea5a073c5e0675cb4d6e86258fe4ba67428e",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "statistics",
+        "typing"
+      ],
+      "source_path": "strattester/research/scientific_graph.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 14,
+          "name": "ScientificArtifact"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "ScientificArtifact.__post_init__"
+        },
+        {
+          "kind": "class",
+          "line": 30,
+          "name": "ScientificGraph"
+        },
+        {
+          "kind": "function",
+          "line": 31,
+          "name": "ScientificGraph.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 32,
+          "name": "ScientificGraph.add"
+        },
+        {
+          "kind": "function",
+          "line": 36,
+          "name": "ScientificGraph.artifacts"
+        },
+        {
+          "kind": "function",
+          "line": 37,
+          "name": "ScientificGraph.by_layer"
+        },
+        {
+          "kind": "function",
+          "line": 39,
+          "name": "_finite"
+        },
+        {
+          "kind": "function",
+          "line": 42,
+          "name": "observation_artifact"
+        },
+        {
+          "kind": "function",
+          "line": 50,
+          "name": "volatility_artifact"
+        },
+        {
+          "kind": "function",
+          "line": 60,
+          "name": "nonlinear_evidence_artifact"
+        },
+        {
+          "kind": "function",
+          "line": 76,
+          "name": "regime_artifact"
+        },
+        {
+          "kind": "function",
+          "line": 83,
+          "name": "robustness_artifact"
+        },
+        {
+          "kind": "function",
+          "line": 98,
+          "name": "pattern_artifact"
+        }
+      ],
+      "source_blob": "39a86ae9fe47c7fddfcb7e295754b15a66f764b0",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".causal",
+        "dataclasses"
+      ],
+      "source_path": "strattester/research/smc.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 4,
+          "name": "confirmed_swings"
+        },
+        {
+          "kind": "function",
+          "line": 13,
+          "name": "fair_value_gaps"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "market_structure"
+        },
+        {
+          "kind": "class",
+          "line": 66,
+          "name": "SMCEvent"
+        },
+        {
+          "kind": "function",
+          "line": 76,
+          "name": "build_mtf_structure"
+        },
+        {
+          "kind": "class",
+          "line": 84,
+          "name": "SMCContext"
+        },
+        {
+          "kind": "function",
+          "line": 85,
+          "name": "SMCContext.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 86,
+          "name": "SMCContext.bias_at"
+        },
+        {
+          "kind": "function",
+          "line": 90,
+          "name": "SMCContext.entry_allowed"
+        }
+      ],
+      "source_blob": "d4ad5325c5fc074ce51b35733891ac01b995a299",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".homeostasis",
+        ".neuro_controller",
+        "__future__",
+        "dataclasses",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/stability_landscape.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "BrainSnapshot"
+        },
+        {
+          "kind": "class",
+          "line": 23,
+          "name": "StabilityReport"
+        },
+        {
+          "kind": "class",
+          "line": 31,
+          "name": "BrainStabilityLandscape"
+        },
+        {
+          "kind": "function",
+          "line": 32,
+          "name": "BrainStabilityLandscape.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 40,
+          "name": "BrainStabilityLandscape.snapshot"
+        },
+        {
+          "kind": "function",
+          "line": 47,
+          "name": "BrainStabilityLandscape.establish_native"
+        },
+        {
+          "kind": "function",
+          "line": 52,
+          "name": "BrainStabilityLandscape._distance"
+        },
+        {
+          "kind": "function",
+          "line": 64,
+          "name": "BrainStabilityLandscape.assess"
+        },
+        {
+          "kind": "function",
+          "line": 78,
+          "name": "BrainStabilityLandscape.recover"
+        },
+        {
+          "kind": "class",
+          "line": 93,
+          "name": "PlasticityGate"
+        },
+        {
+          "kind": "function",
+          "line": 95,
+          "name": "PlasticityGate.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 99,
+          "name": "PlasticityGate.propose"
+        },
+        {
+          "kind": "function",
+          "line": 104,
+          "name": "PlasticityGate.confirm"
+        },
+        {
+          "kind": "function",
+          "line": 110,
+          "name": "PlasticityGate.consolidate"
+        }
+      ],
+      "source_blob": "31bd0c1eb1c342abb4ce70dea414aa159dcd648f",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "math"
+      ],
+      "source_path": "strattester/research/statistics.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 6,
+          "name": "TradeMetrics"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "evaluate_trades"
+        }
+      ],
+      "source_blob": "fab928cde9976cf3fd9c9d2811e6b1b29e26cff2",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "fractions",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/structural_mathematics.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 14,
+          "name": "StructuralReport"
+        },
+        {
+          "kind": "function",
+          "line": 22,
+          "name": "transformation_invariance"
+        },
+        {
+          "kind": "function",
+          "line": 32,
+          "name": "balanced_pair_coverage"
+        },
+        {
+          "kind": "function",
+          "line": 49,
+          "name": "temporal_tiling_score"
+        },
+        {
+          "kind": "function",
+          "line": 57,
+          "name": "normalized_word_complexity"
+        },
+        {
+          "kind": "function",
+          "line": 71,
+          "name": "rational_approximation"
+        },
+        {
+          "kind": "class",
+          "line": 78,
+          "name": "StructuralMathematicsSupervisor"
+        },
+        {
+          "kind": "function",
+          "line": 79,
+          "name": "StructuralMathematicsSupervisor.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 82,
+          "name": "StructuralMathematicsSupervisor.assess"
+        }
+      ],
+      "source_blob": "4970c47e1fff54e106606e8a285f081f0d919f30",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/structural_memory.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 15,
+          "name": "_stable"
+        },
+        {
+          "kind": "function",
+          "line": 21,
+          "name": "structural_signature"
+        },
+        {
+          "kind": "class",
+          "line": 31,
+          "name": "StructuralObservation"
+        },
+        {
+          "kind": "class",
+          "line": 39,
+          "name": "StructuralExperience"
+        },
+        {
+          "kind": "class",
+          "line": 49,
+          "name": "StructuralTransition"
+        },
+        {
+          "kind": "class",
+          "line": 55,
+          "name": "StructuralMemory"
+        },
+        {
+          "kind": "function",
+          "line": 56,
+          "name": "StructuralMemory.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 63,
+          "name": "StructuralMemory.observe_state"
+        },
+        {
+          "kind": "function",
+          "line": 70,
+          "name": "StructuralMemory.observe_outcome"
+        },
+        {
+          "kind": "function",
+          "line": 79,
+          "name": "StructuralMemory.observe"
+        },
+        {
+          "kind": "function",
+          "line": 85,
+          "name": "StructuralMemory.experience"
+        },
+        {
+          "kind": "function",
+          "line": 96,
+          "name": "StructuralMemory.transition"
+        },
+        {
+          "kind": "function",
+          "line": 101,
+          "name": "StructuralMemory.novelty"
+        },
+        {
+          "kind": "function",
+          "line": 105,
+          "name": "StructuralMemory.execution_permission"
+        },
+        {
+          "kind": "function",
+          "line": 113,
+          "name": "StructuralMemory.equivalent"
+        }
+      ],
+      "source_blob": "0ccc114f73d50340e53f3fc24e1a3f260719a8f9",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "math"
+      ],
+      "source_path": "strattester/research/structural_state_graph.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "StateNode"
+        },
+        {
+          "kind": "class",
+          "line": 20,
+          "name": "TransitionForecast"
+        },
+        {
+          "kind": "class",
+          "line": 29,
+          "name": "StructuralStateGraph"
+        },
+        {
+          "kind": "function",
+          "line": 30,
+          "name": "StructuralStateGraph.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 38,
+          "name": "StructuralStateGraph.observe_state"
+        },
+        {
+          "kind": "function",
+          "line": 46,
+          "name": "StructuralStateGraph.observe_outcome"
+        },
+        {
+          "kind": "function",
+          "line": 55,
+          "name": "StructuralStateGraph.observe"
+        },
+        {
+          "kind": "function",
+          "line": 61,
+          "name": "StructuralStateGraph.node"
+        },
+        {
+          "kind": "function",
+          "line": 66,
+          "name": "StructuralStateGraph.forecast"
+        },
+        {
+          "kind": "function",
+          "line": 83,
+          "name": "StructuralStateGraph.predicted_targets"
+        },
+        {
+          "kind": "function",
+          "line": 88,
+          "name": "StructuralStateGraph.transition_surprise"
+        },
+        {
+          "kind": "function",
+          "line": 94,
+          "name": "StructuralStateGraph.execution_permission"
+        }
+      ],
+      "source_blob": "d4cc74a2239339efaddb271083f044565bbc25c0",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "collections",
+        "dataclasses",
+        "math"
+      ],
+      "source_path": "strattester/research/timescale_memory.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 8,
+          "name": "MemoryState"
+        },
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "MultiTimescaleMemory"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "MultiTimescaleMemory.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 28,
+          "name": "MultiTimescaleMemory._ewma"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "MultiTimescaleMemory.add"
+        },
+        {
+          "kind": "function",
+          "line": 39,
+          "name": "MultiTimescaleMemory.state"
+        },
+        {
+          "kind": "function",
+          "line": 44,
+          "name": "MultiTimescaleMemory.reactive_modifier"
+        },
+        {
+          "kind": "function",
+          "line": 50,
+          "name": "MultiTimescaleMemory.consolidation_candidate"
+        }
+      ],
+      "source_blob": "ad2ea3238c54f12fd7833ae9c6b7fd04c08ed18d",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".adaptive_role_allocator",
+        ".scientific_fleet",
+        "__future__",
+        "dataclasses",
+        "enum",
+        "math",
+        "typing"
+      ],
+      "source_path": "strattester/research/topology_recovery.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 10,
+          "name": "RecoveryState"
+        },
+        {
+          "kind": "class",
+          "line": 16,
+          "name": "RecoveryReport"
+        },
+        {
+          "kind": "class",
+          "line": 26,
+          "name": "ScientificTopologyRecovery"
+        },
+        {
+          "kind": "function",
+          "line": 27,
+          "name": "ScientificTopologyRecovery.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 37,
+          "name": "ScientificTopologyRecovery.heartbeat"
+        },
+        {
+          "kind": "function",
+          "line": 44,
+          "name": "ScientificTopologyRecovery._live"
+        },
+        {
+          "kind": "function",
+          "line": 52,
+          "name": "ScientificTopologyRecovery.reconcile"
+        }
+      ],
+      "source_blob": "54f2c6c52e1465c3b2b3615b5400aa28c2665567",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [],
+      "source_path": "strattester/research/trade_context.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 1,
+          "name": "_latest_known"
+        },
+        {
+          "kind": "function",
+          "line": 5,
+          "name": "attach_entry_context"
+        }
+      ],
+      "source_blob": "88b7ea6fd32d5ab4f6e9d6a63dc09e88a067964e",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/research/validation.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 7,
+          "name": "ChronologicalSplit"
+        },
+        {
+          "kind": "class",
+          "line": 13,
+          "name": "FrozenParameters"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "chronological_split"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "walk_forward_folds"
+        },
+        {
+          "kind": "function",
+          "line": 34,
+          "name": "freeze_parameters"
+        }
+      ],
+      "source_blob": "c105e9a1263879b71c0e372a5b670a8ede793ddb",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "enum",
+        "math",
+        "statistics"
+      ],
+      "source_path": "strattester/research/volatility.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 7,
+          "name": "VolatilityRegime"
+        },
+        {
+          "kind": "class",
+          "line": 15,
+          "name": "VolatilitySnapshot"
+        },
+        {
+          "kind": "function",
+          "line": 28,
+          "name": "_regime"
+        },
+        {
+          "kind": "class",
+          "line": 35,
+          "name": "VolatilityObservatory"
+        },
+        {
+          "kind": "function",
+          "line": 36,
+          "name": "VolatilityObservatory.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 43,
+          "name": "VolatilityObservatory.snapshots"
+        }
+      ],
+      "source_blob": "673e6121b47d1bc558a50e98d268a473bf886e43",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "enum"
+      ],
+      "source_path": "strattester/research/volume_profile.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 4,
+          "name": "POCMode"
+        },
+        {
+          "kind": "class",
+          "line": 8,
+          "name": "VolumeProfileSnapshot"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "_profile"
+        },
+        {
+          "kind": "function",
+          "line": 25,
+          "name": "trade_profile"
+        },
+        {
+          "kind": "function",
+          "line": 28,
+          "name": "proxy_profile"
+        }
+      ],
+      "source_blob": "6d74dd706c720c3f801bb88ff886ca9be97235e2",
+      "canonical_owner": "Math",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "hashlib",
+        "inspect",
+        "json",
+        "strattester.marketdata.datasets",
+        "typing"
+      ],
+      "source_path": "strattester/strategies/base.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 10,
+          "name": "DataRequirement"
+        },
+        {
+          "kind": "function",
+          "line": 14,
+          "name": "DataRequirement.__post_init__"
+        },
+        {
+          "kind": "class",
+          "line": 19,
+          "name": "StrategyDefinition"
+        },
+        {
+          "kind": "function",
+          "line": 27,
+          "name": "strategy_fingerprint"
+        },
+        {
+          "kind": "class",
+          "line": 35,
+          "name": "Strategy"
+        },
+        {
+          "kind": "function",
+          "line": 39,
+          "name": "Strategy.run"
+        }
+      ],
+      "source_blob": "8fcd6f979a10d218f0ff4ce91b90f1ef72b646d5",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "CANONICAL_METADATA_ALREADY_MIGRATED",
+      "destination": "terminan/contracts.py"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "heapq",
+        "math",
+        "strattester.strategies.base",
+        "typing"
+      ],
+      "source_path": "strattester/strategies/builtin/legacy_grid.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "BacktestConfig"
+        },
+        {
+          "kind": "class",
+          "line": 17,
+          "name": "Trade"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "close_trade"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "legacy_variants"
+        },
+        {
+          "kind": "class",
+          "line": 47,
+          "name": "MinuteCandle"
+        },
+        {
+          "kind": "class",
+          "line": 51,
+          "name": "LevelSeed"
+        },
+        {
+          "kind": "class",
+          "line": 55,
+          "name": "Level"
+        },
+        {
+          "kind": "class",
+          "line": 60,
+          "name": "EngineTrade"
+        },
+        {
+          "kind": "class",
+          "line": 66,
+          "name": "BacktestEngine"
+        },
+        {
+          "kind": "function",
+          "line": 69,
+          "name": "BacktestEngine.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 77,
+          "name": "BacktestEngine.add_level"
+        },
+        {
+          "kind": "function",
+          "line": 90,
+          "name": "BacktestEngine._rearm"
+        },
+        {
+          "kind": "function",
+          "line": 97,
+          "name": "BacktestEngine._mark_broken"
+        },
+        {
+          "kind": "function",
+          "line": 101,
+          "name": "BacktestEngine._close_trade"
+        },
+        {
+          "kind": "function",
+          "line": 112,
+          "name": "BacktestEngine._open_trade"
+        },
+        {
+          "kind": "function",
+          "line": 132,
+          "name": "BacktestEngine._valid"
+        },
+        {
+          "kind": "function",
+          "line": 136,
+          "name": "BacktestEngine._process_existing_exits"
+        },
+        {
+          "kind": "function",
+          "line": 157,
+          "name": "BacktestEngine._break_gaps_at_open"
+        },
+        {
+          "kind": "function",
+          "line": 165,
+          "name": "BacktestEngine._process_new_entries"
+        },
+        {
+          "kind": "function",
+          "line": 191,
+          "name": "BacktestEngine._break_intraminute"
+        },
+        {
+          "kind": "function",
+          "line": 199,
+          "name": "BacktestEngine.process_minute"
+        },
+        {
+          "kind": "function",
+          "line": 208,
+          "name": "BacktestEngine.close_end_of_data"
+        },
+        {
+          "kind": "class",
+          "line": 216,
+          "name": "_AggBar"
+        },
+        {
+          "kind": "class",
+          "line": 224,
+          "name": "MultiTimeframeAggregator"
+        },
+        {
+          "kind": "function",
+          "line": 227,
+          "name": "MultiTimeframeAggregator._dt"
+        },
+        {
+          "kind": "function",
+          "line": 230,
+          "name": "MultiTimeframeAggregator._key"
+        },
+        {
+          "kind": "function",
+          "line": 237,
+          "name": "MultiTimeframeAggregator.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 238,
+          "name": "MultiTimeframeAggregator.push"
+        },
+        {
+          "kind": "function",
+          "line": 252,
+          "name": "_trade_row"
+        },
+        {
+          "kind": "function",
+          "line": 261,
+          "name": "run_legacy_suite"
+        },
+        {
+          "kind": "class",
+          "line": 288,
+          "name": "LegacyGridStrategy"
+        },
+        {
+          "kind": "function",
+          "line": 292,
+          "name": "LegacyGridStrategy.run"
+        }
+      ],
+      "source_blob": "87a7ea0fa5b66b2faeb2e8be45efa183cbc16ccd",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "typing"
+      ],
+      "source_path": "strattester/strategies/builtin/research_common.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "HypothesisSpec"
+        },
+        {
+          "kind": "function",
+          "line": 12,
+          "name": "HypothesisSpec.__post_init__"
+        },
+        {
+          "kind": "function",
+          "line": 18,
+          "name": "executable_hypotheses"
+        }
+      ],
+      "source_blob": "27665b18590ef56d31e680d43d0bac9b318a8e03",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "CANONICAL_METADATA_ALREADY_MIGRATED",
+      "destination": "terminan/contracts.py"
+    },
+    {
+      "imports": [
+        ".research_common"
+      ],
+      "source_path": "strattester/strategies/builtin/research_levels.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "level_hypotheses"
+        }
+      ],
+      "source_blob": "ba5a60c867fc0fc6f715a966b1a6ccfbb2ed19d5",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".research_common"
+      ],
+      "source_path": "strattester/strategies/builtin/research_poc.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "poc_hypotheses"
+        }
+      ],
+      "source_blob": "e1ceb266f1c342504e21a87bad0b267127f63e90",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".research_common"
+      ],
+      "source_path": "strattester/strategies/builtin/research_scalp.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "scalp_hypotheses"
+        }
+      ],
+      "source_blob": "47ee2fb1611ee21cb85f8d4f8204f6ec25d6dd2f",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".research_common"
+      ],
+      "source_path": "strattester/strategies/builtin/research_smc.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "smc_hypotheses"
+        }
+      ],
+      "source_blob": "ddaa04c19a3e4aa703fdb8fafc6ef8034d199ac2",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".research_common"
+      ],
+      "source_path": "strattester/strategies/builtin/research_volatility.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 3,
+          "name": "volatility_hypotheses"
+        }
+      ],
+      "source_blob": "f28ef49806456f6e79481559b1a70c74f08d41d8",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".base"
+      ],
+      "source_path": "strattester/strategies/registry.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 3,
+          "name": "StrategyRegistry"
+        },
+        {
+          "kind": "function",
+          "line": 4,
+          "name": "StrategyRegistry.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 5,
+          "name": "StrategyRegistry.register"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "StrategyRegistry.discover"
+        },
+        {
+          "kind": "function",
+          "line": 10,
+          "name": "StrategyRegistry.set_enabled"
+        }
+      ],
+      "source_blob": "b9c7849c0de48c81f2d81f205179441dbd59b42b",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "CANONICAL_METADATA_ALREADY_MIGRATED",
+      "destination": "terminan/contracts.py"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "json"
+      ],
+      "source_path": "strattester/engine/checkpoints.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "Checkpoint"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "checkpoint_compatible"
+        },
+        {
+          "kind": "function",
+          "line": 14,
+          "name": "encode_checkpoint"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "decode_checkpoint"
+        },
+        {
+          "kind": "function",
+          "line": 26,
+          "name": "require_compatible_checkpoint"
+        }
+      ],
+      "source_blob": "c79d93d3efd8eb94694bc88b6d810ecae79ea0ce",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "hashlib",
+        "strattester.engine.jobs"
+      ],
+      "source_path": "strattester/engine/distribution.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 5,
+          "name": "_score"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "assign_node"
+        },
+        {
+          "kind": "function",
+          "line": 15,
+          "name": "assign_symbols"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "make_sync_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 23,
+          "name": "make_backtest_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 31,
+          "name": "reassign_unavailable"
+        }
+      ],
+      "source_blob": "1feba9f1c0ed26362aaaf0d48fa41eec18cb26db",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "strattester.strategies.base"
+      ],
+      "source_path": "strattester/engine/executor.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "StrategyResult"
+        },
+        {
+          "kind": "class",
+          "line": 12,
+          "name": "StrategyContext"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "StrategyContext.candles"
+        },
+        {
+          "kind": "function",
+          "line": 19,
+          "name": "StrategyContext.public_trade_aggregates"
+        },
+        {
+          "kind": "function",
+          "line": 22,
+          "name": "StrategyContext.coverage"
+        },
+        {
+          "kind": "function",
+          "line": 27,
+          "name": "_step_ms"
+        },
+        {
+          "kind": "function",
+          "line": 37,
+          "name": "_coverage_ready"
+        },
+        {
+          "kind": "function",
+          "line": 49,
+          "name": "requirements_ready"
+        },
+        {
+          "kind": "function",
+          "line": 59,
+          "name": "execute_strategy"
+        }
+      ],
+      "source_blob": "0670c03d39fa5d5b0ab998231d9c2582eb4212b4",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "enum",
+        "time",
+        "uuid"
+      ],
+      "source_path": "strattester/engine/jobs.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 6,
+          "name": "JobState"
+        },
+        {
+          "kind": "class",
+          "line": 11,
+          "name": "Job"
+        },
+        {
+          "kind": "function",
+          "line": 28,
+          "name": "Job.new"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "Job.with_state"
+        },
+        {
+          "kind": "function",
+          "line": 30,
+          "name": "Job.recover_stale"
+        }
+      ],
+      "source_blob": "f80b80d4ea8f93e39c07a1590ac1b5cdf5bd227c",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "dataclasses",
+        "os"
+      ],
+      "source_path": "strattester/engine/resource_manager.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 7,
+          "name": "ResourceSnapshot"
+        },
+        {
+          "kind": "function",
+          "line": 14,
+          "name": "ResourceSnapshot.ram_used_ratio"
+        },
+        {
+          "kind": "function",
+          "line": 16,
+          "name": "ResourceSnapshot.effective_cpu_count"
+        },
+        {
+          "kind": "class",
+          "line": 19,
+          "name": "SchedulingDecision"
+        },
+        {
+          "kind": "function",
+          "line": 24,
+          "name": "_normal_slots"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "decide_resources"
+        }
+      ],
+      "source_blob": "ccaed677457f2928a10429708cbfc69260736ec3",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        ".jobs",
+        ".resource_manager",
+        "time"
+      ],
+      "source_path": "strattester/engine/scheduler.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "Scheduler"
+        },
+        {
+          "kind": "function",
+          "line": 6,
+          "name": "Scheduler.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "Scheduler.recover_stale_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 16,
+          "name": "Scheduler.ready_jobs"
+        }
+      ],
+      "source_blob": "608726f2742906716d59d4af245dd0cb52a385a2",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "argparse",
+        "contextlib",
+        "hashlib",
+        "json",
+        "pathlib",
+        "strattester.marketdata.integrity",
+        "tempfile",
+        "terminan.paper_ledger",
+        "terminan.research_archive"
+      ],
+      "source_path": "strattester/persistence/frozen_results.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 37,
+          "name": "_verify_no_sidecars"
+        },
+        {
+          "kind": "function",
+          "line": 42,
+          "name": "_copy_verified"
+        },
+        {
+          "kind": "function",
+          "line": 58,
+          "name": "_columns"
+        },
+        {
+          "kind": "function",
+          "line": 74,
+          "name": "import_frozen_results"
+        },
+        {
+          "kind": "function",
+          "line": 122,
+          "name": "main"
+        }
+      ],
+      "source_blob": "943715544c52d513e6307d92d32b5e75642eeee8",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "NOT_APPLICABLE_OPAQUE_HISTORICAL_ARCHIVE",
+      "status": "CANONICAL_FROZEN_READER_PORTED_ORIGINAL_RETAINED",
+      "destination": "terminan/migration/research_results.py",
+      "note": "Exact original six/nine/staged schema descriptors and row bytes retained through existing ResearchArchive; source byte-only, private immutable SQLite copy; separate exclusively fresh target; no adoption or automatic original conversion.",
+      "symbol_map": {
+        "_verify_no_sidecars": "terminan.migration.research_results._no_sidecars",
+        "_copy_verified": "terminan.migration.research_results._copy_verified",
+        "_columns": "terminan.migration.research_results._columns",
+        "import_frozen_results": "terminan.migration.research_results.restore_frozen_research_results",
+        "main": "python -m terminan.migration.research_results"
+      }
+    },
+    {
+      "imports": [],
+      "source_path": "strattester/persistence/migrate_state.py",
+      "symbols": [
+        {
+          "kind": "function",
+          "line": 1,
+          "name": "copy_jobs"
+        }
+      ],
+      "source_blob": "50e3e84e311359ef8331acd92081efe66d1fb319",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "psycopg",
+        "strattester.engine.jobs",
+        "time"
+      ],
+      "source_path": "strattester/persistence/postgres_state_store.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 7,
+          "name": "PostgresStateStore"
+        },
+        {
+          "kind": "function",
+          "line": 8,
+          "name": "PostgresStateStore.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "PostgresStateStore.reconnect"
+        },
+        {
+          "kind": "function",
+          "line": 21,
+          "name": "PostgresStateStore.connect"
+        },
+        {
+          "kind": "function",
+          "line": 53,
+          "name": "PostgresStateStore._encode"
+        },
+        {
+          "kind": "function",
+          "line": 56,
+          "name": "PostgresStateStore.put_job"
+        },
+        {
+          "kind": "function",
+          "line": 62,
+          "name": "PostgresStateStore._decode"
+        },
+        {
+          "kind": "function",
+          "line": 67,
+          "name": "PostgresStateStore.get_job"
+        },
+        {
+          "kind": "function",
+          "line": 71,
+          "name": "PostgresStateStore.list_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 75,
+          "name": "PostgresStateStore.claim_ready_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 121,
+          "name": "PostgresStateStore.renew_lease"
+        },
+        {
+          "kind": "function",
+          "line": 139,
+          "name": "PostgresStateStore.compare_and_swap_job"
+        },
+        {
+          "kind": "function",
+          "line": 155,
+          "name": "PostgresStateStore.lease_valid"
+        },
+        {
+          "kind": "function",
+          "line": 161,
+          "name": "PostgresStateStore.transition_claimed"
+        },
+        {
+          "kind": "function",
+          "line": 178,
+          "name": "PostgresStateStore.register_node_generation"
+        },
+        {
+          "kind": "function",
+          "line": 192,
+          "name": "PostgresStateStore.heartbeat_node"
+        },
+        {
+          "kind": "function",
+          "line": 209,
+          "name": "PostgresStateStore.node_generation_valid"
+        },
+        {
+          "kind": "function",
+          "line": 216,
+          "name": "PostgresStateStore.execution_fence_valid"
+        },
+        {
+          "kind": "function",
+          "line": 219,
+          "name": "PostgresStateStore.live_nodes"
+        },
+        {
+          "kind": "function",
+          "line": 226,
+          "name": "PostgresStateStore.membership"
+        },
+        {
+          "kind": "function",
+          "line": 234,
+          "name": "PostgresStateStore.replace_membership"
+        },
+        {
+          "kind": "function",
+          "line": 251,
+          "name": "PostgresStateStore._db_now"
+        },
+        {
+          "kind": "function",
+          "line": 255,
+          "name": "PostgresStateStore.acquire_brain_lease"
+        },
+        {
+          "kind": "function",
+          "line": 281,
+          "name": "PostgresStateStore.renew_brain_lease"
+        },
+        {
+          "kind": "function",
+          "line": 301,
+          "name": "PostgresStateStore.brain_lease"
+        },
+        {
+          "kind": "function",
+          "line": 308,
+          "name": "PostgresStateStore._canonical_payload"
+        },
+        {
+          "kind": "function",
+          "line": 312,
+          "name": "PostgresStateStore.append_learning_log"
+        },
+        {
+          "kind": "function",
+          "line": 341,
+          "name": "PostgresStateStore.learning_log_after"
+        },
+        {
+          "kind": "function",
+          "line": 352,
+          "name": "PostgresStateStore.claim_learning_event"
+        },
+        {
+          "kind": "function",
+          "line": 364,
+          "name": "PostgresStateStore.brain_authority_valid"
+        },
+        {
+          "kind": "function",
+          "line": 374,
+          "name": "PostgresStateStore.begin_learning_event"
+        },
+        {
+          "kind": "function",
+          "line": 394,
+          "name": "PostgresStateStore.complete_learning_event"
+        },
+        {
+          "kind": "function",
+          "line": 405,
+          "name": "PostgresStateStore.learning_event_status"
+        },
+        {
+          "kind": "function",
+          "line": 411,
+          "name": "PostgresStateStore.pending_learning_events"
+        },
+        {
+          "kind": "function",
+          "line": 417,
+          "name": "PostgresStateStore.learning_event_applied"
+        },
+        {
+          "kind": "function",
+          "line": 423,
+          "name": "PostgresStateStore.close"
+        }
+      ],
+      "source_blob": "44fc331c9ee15d396c10ac85d258820e78956fd0",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time"
+      ],
+      "source_path": "strattester/persistence/result_store.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 5,
+          "name": "ResultStore"
+        },
+        {
+          "kind": "function",
+          "line": 6,
+          "name": "ResultStore.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 8,
+          "name": "ResultStore.open"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "ResultStore.put"
+        },
+        {
+          "kind": "function",
+          "line": 36,
+          "name": "ResultStore.stage"
+        },
+        {
+          "kind": "function",
+          "line": 44,
+          "name": "ResultStore.promote"
+        },
+        {
+          "kind": "function",
+          "line": 63,
+          "name": "ResultStore.recover_staged"
+        },
+        {
+          "kind": "function",
+          "line": 73,
+          "name": "ResultStore.cleanup_staged"
+        },
+        {
+          "kind": "function",
+          "line": 83,
+          "name": "ResultStore.discard_stage"
+        },
+        {
+          "kind": "function",
+          "line": 87,
+          "name": "ResultStore.integrity_check"
+        },
+        {
+          "kind": "function",
+          "line": 90,
+          "name": "ResultStore.latest_fenced"
+        },
+        {
+          "kind": "function",
+          "line": 103,
+          "name": "ResultStore.latest"
+        },
+        {
+          "kind": "function",
+          "line": 110,
+          "name": "ResultStore.checkpoint_wal"
+        },
+        {
+          "kind": "function",
+          "line": 115,
+          "name": "ResultStore.close"
+        }
+      ],
+      "source_blob": "58955c83156674703c097e29ae9e1401a099a1d9",
+      "canonical_owner": "Terminan",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "strattester.engine.jobs",
+        "time"
+      ],
+      "source_path": "strattester/persistence/sqlite_state_store.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 8,
+          "name": "SQLiteStateStore"
+        },
+        {
+          "kind": "function",
+          "line": 9,
+          "name": "SQLiteStateStore.__init__"
+        },
+        {
+          "kind": "function",
+          "line": 11,
+          "name": "SQLiteStateStore.open"
+        },
+        {
+          "kind": "function",
+          "line": 17,
+          "name": "SQLiteStateStore._encode"
+        },
+        {
+          "kind": "function",
+          "line": 20,
+          "name": "SQLiteStateStore.put_job"
+        },
+        {
+          "kind": "function",
+          "line": 22,
+          "name": "SQLiteStateStore._decode"
+        },
+        {
+          "kind": "function",
+          "line": 26,
+          "name": "SQLiteStateStore.get_job"
+        },
+        {
+          "kind": "function",
+          "line": 29,
+          "name": "SQLiteStateStore.list_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 31,
+          "name": "SQLiteStateStore.claim_ready_jobs"
+        },
+        {
+          "kind": "function",
+          "line": 68,
+          "name": "SQLiteStateStore.renew_lease"
+        },
+        {
+          "kind": "function",
+          "line": 84,
+          "name": "SQLiteStateStore.compare_and_swap_job"
+        },
+        {
+          "kind": "function",
+          "line": 98,
+          "name": "SQLiteStateStore.lease_valid"
+        },
+        {
+          "kind": "function",
+          "line": 104,
+          "name": "SQLiteStateStore.transition_claimed"
+        },
+        {
+          "kind": "function",
+          "line": 119,
+          "name": "SQLiteStateStore.close"
+        }
+      ],
+      "source_blob": "531b0ed3fd784a6d4a5e0419d3b6125b061441d6",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    },
+    {
+      "imports": [
+        "__future__",
+        "typing"
+      ],
+      "source_path": "strattester/persistence/state_store.py",
+      "symbols": [
+        {
+          "kind": "class",
+          "line": 3,
+          "name": "StateStore"
+        },
+        {
+          "kind": "function",
+          "line": 4,
+          "name": "StateStore.put_job"
+        },
+        {
+          "kind": "function",
+          "line": 5,
+          "name": "StateStore.get_job"
+        },
+        {
+          "kind": "function",
+          "line": 6,
+          "name": "StateStore.list_jobs"
+        }
+      ],
+      "source_blob": "5167b2f0a6da13f2d8c1e17b850a16e88a13ba57",
+      "canonical_owner": "Unified",
+      "numeric_kernel_owner": "Math",
+      "status": "RETAINED_NOT_YET_PROVED_MIGRATED",
+      "destination": "OWNER_IDENTIFIED_SYMBOL_SPLIT_PENDING"
+    }
+  ],
+  "active_contract_map": {
+    "meta.poc.next_minute": "poc_next_minute",
+    "terminan.paper.replay.v1": "terminan.paper.replay.v2",
+    "terminan.paper.result.v1": "terminan.paper.result.v2",
+    "terminan.paper.event.v1": "terminan.paper.event.v2",
+    "terminan.paper.event.ack.v1": "terminan.paper.event.ack.v2",
+    "market_profile_math": "market_math",
+    "terminan.paper.trade_net_pnl": "market_math.paper_net_pnl"
+  },
+  "database_map": [
+    {
+      "source": "paper_replay_receipts",
+      "destination": "same dedicated Terminan ledger",
+      "policy": "v1 bytes read only through explicit historical decoder; activev2 exact digest cache; no old active alias"
+    },
+    {
+      "source": "paper_streams_v1 + paper_events_v1",
+      "destination": "paper_streams_v2 + paper_events_v2 in separate fresh restored ledger",
+      "policy": "source snapshot unchanged; complete old-row/ACK/financial preflight before output; active old-key reuse refused before DDL"
+    },
+    {
+      "source": "research_results + staged_research_results",
+      "destination": "terminan.research_archive historical archive",
+      "status": "FROZEN_READER_PORT_PENDING",
+      "policy": "original schemas/metrics preserved; no inferred coverage/activation"
+    },
+    {
+      "source": "jobs / organism state / learning checkpoints",
+      "destination": "Unified infrastructure jobs; Terminan strategy/replay/learning state",
+      "status": "SYMBOL_BOUNDARY_AND_DATA_RESTORE_PENDING"
+    }
+  ]
+}

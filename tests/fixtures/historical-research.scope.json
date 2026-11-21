@@ -1,0 +1,11 @@
+{
+  "source_revision": "13998cf87139330dd0406fed00acd148e045e6c4",
+  "source_blob": "943715544c52d513e6307d92d32b5e75642eeee8",
+  "scope": "SYNTHETIC_FIXTURE_FROM_EXACT_ORIGINAL_TABLE_DESCRIPTORS_NOT_USER_BACKUP",
+  "historical_metrics": "OPAQUE_TEXT_NO_FINANCIAL_OR_COVERAGE_ATTESTATION",
+  "original_tests": {
+    "path": "integration_tests/test_frozen_results.py",
+    "blob": "ae6cdc95563947f0ec35be1a117f0551cf539a5c",
+    "roles": "six/current+staged, badDDL, empty/infinite/signedzero rows, activeWAL, alias/hash, specialpath, reopen/backup; existingtargetretry intentionally replaced with fresh-only refusal"
+  }
+}
