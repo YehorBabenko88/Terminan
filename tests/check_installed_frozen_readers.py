@@ -38,7 +38,9 @@ continuation=runpy.run_path(str(pathlib.Path(__file__).with_name('test_continuat
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(continuation['ContinuationStrategyTests']))
 price_structure=runpy.run_path(str(pathlib.Path(__file__).with_name('test_price_structure.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(price_structure['PriceStructureTests']))
-if suite.countTestCases()!=73:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+market_structure=runpy.run_path(str(pathlib.Path(__file__).with_name('test_market_structure.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(market_structure['MarketStructureTests']))
+if suite.countTestCases()!=124:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -48,4 +50,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==73 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==124 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
