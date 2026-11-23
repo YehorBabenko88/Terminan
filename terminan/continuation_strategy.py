@@ -3,10 +3,11 @@
 Numerical geometry belongs to Math. Returned ResearchSignal records feed the
 existing PaperEngine only after its separate simulation admission checks.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass,fields
 import re
 from .entry_context import build_entry_context
 from .research_signals import ResearchSignal
+from .volatility import VolatilityMetrics
 _MAX_CLOCK=4102444800000
 @dataclass(frozen=True,slots=True)
 class CandleBodyObservation:
@@ -34,14 +35,26 @@ def generate_continuation_signals(symbol,bodies,volatility,*,as_of_ms,
     if type(symbol) is not str or re.fullmatch('[A-Z0-9]{2,30}',symbol) is None:
         raise ValueError('CONTINUATION_INSTRUMENT_REQUIRED')
     cutoff=_clock(as_of_ms)
+    if ((type(bodies) is not tuple and type(bodies) is not list) or len(bodies)>512
+            or (type(volatility) is not tuple and type(volatility) is not list) or len(volatility)>512):
+        raise ValueError('CONTINUATION_BOUNDED_LITERAL_BATCH_REQUIRED')
+    # Detach ALL records before the first numeric/projector call. Tuple copies
+    # alone retain caller DTOs, allowing a callback to change a later read.
+    def snapshot(values,kind):
+        out=[]
+        for value in tuple(values):
+            if type(value) is not kind:
+                raise ValueError('CONTINUATION_LITERAL_RECORD_REQUIRED')
+            leaves=tuple((f.name,getattr(value,f.name)) for f in fields(kind))
+            clone=object.__new__(kind)
+            for name,item in leaves:object.__setattr__(clone,name,item)
+            out.append(clone)
+        return tuple(out)
+    rows=snapshot(bodies,CandleBodyObservation);vols=snapshot(volatility,VolatilityMetrics)
     for value in (min_volume_ratio,min_percentile,min_body_atr):
         if not owner.lossless_nonnegative_binary64_valid(value):
             raise ValueError('CONTINUATION_NUMERIC_POLICY_REQUIRED')
     if min_percentile>1:raise ValueError('CONTINUATION_PERCENTILE_POLICY_REQUIRED')
-    if ((type(bodies) is not tuple and type(bodies) is not list) or len(bodies)>512
-            or (type(volatility) is not tuple and type(volatility) is not list) or len(volatility)>512):
-        raise ValueError('CONTINUATION_BOUNDED_LITERAL_BATCH_REQUIRED')
-    rows=tuple(bodies);vols=tuple(volatility)
     # Public projector preflights every row, including future values, and
     # refuses conflicting identities before the first output can be built.
     build_entry_context(decision_ms=cutoff,metadata={},volatility=vols)

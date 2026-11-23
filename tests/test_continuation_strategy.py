@@ -67,3 +67,28 @@ class ContinuationStrategyTests(unittest.TestCase):
   vols=(self.volatility(),self.volatility(event_start_ms=60000,available_at_ms=120000))
   before=fn('BTCUSDT',bodies,vols,as_of_ms=120000);after=fn('BTCUSDT',bodies,vols,as_of_ms=130000)
   self.assertEqual(tuple(s.decision_ms for s in before),(120000,));self.assertEqual(tuple(s.decision_ms for s in after),(120000,130000));self.assertEqual(after[:1],before)
+
+ def _during_first_numeric_policy(self,callback,run):
+  import market_math as owner
+  original=owner.lossless_nonnegative_binary64_valid;called=False
+  def numeric(value):
+   nonlocal called
+   if not called:called=True;callback()
+   return original(value)
+  owner.lossless_nonnegative_binary64_valid=numeric
+  try:return run()
+  finally:owner.lossless_nonnegative_binary64_valid=original
+ def test_body_snapshot_precedes_first_math_call(self):
+  cls,fn=self.api();body=cls(0,60000,60000,100,101);vol=self.volatility()
+  expected=fn('BTCUSDT',(body,),(vol,),as_of_ms=60000)
+  actual=self._during_first_numeric_policy(lambda:object.__setattr__(body,'close',99),lambda:fn('BTCUSDT',(body,),(vol,),as_of_ms=60000))
+  self.assertEqual(actual,expected);self.assertEqual(actual[0].side,'long')
+ def test_all_volatility_records_detach_before_first_math_call(self):
+  cls,fn=self.api();body=cls(0,60000,60000,100,101);vol=self.volatility()
+  expected=fn('BTCUSDT',(body,),(vol,),as_of_ms=60000)
+  actual=self._during_first_numeric_policy(lambda:object.__setattr__(vol,'volume_ratio',0),lambda:fn('BTCUSDT',(body,),(vol,),as_of_ms=60000))
+  self.assertEqual(actual,expected)
+ def test_future_invalid_snapshot_cannot_be_repaired_by_numeric_callback(self):
+  cls,fn=self.api();body=cls(0,60000,60000,100,101);future=cls(60000,120000,120000,100,float('nan'));vol=self.volatility()
+  with self.assertRaises(ValueError):
+   self._during_first_numeric_policy(lambda:object.__setattr__(future,'close',101),lambda:fn('BTCUSDT',(body,future),(vol,),as_of_ms=60000))
