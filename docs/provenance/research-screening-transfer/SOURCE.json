@@ -15,7 +15,25 @@
       "sha256": "1c42b614b6c05029b8b216e6fd0a64877c0dca5998c9bcb5fa59183cfd90430c"
     }
   ],
-  "math_api_prerequisite": "NEW_SCREENING_NUMERIC_API_PENDING_CORRECTED_IMMUTABLE_PUBLICATION",
+  "math_api_prerequisite": {
+    "repository": "YehorBabenko88/math",
+    "revision": "9ed369ddd41ae32c4b3a9434f0b29d6dcf51154f",
+    "publication": "PENDING_NOT_ACCEPTED_PUBLIC",
+    "raw": [
+      {
+        "path": "market_math.py",
+        "sha256": "6510a0b97b7184d668060c9c2a54fefe6ea422a238b7cc8fbad9a41c281c396b"
+      },
+      {
+        "path": "market_compute_api.py",
+        "sha256": "0fa992f10bd4b1d827d1d90bc8503528673a311163418db9f21abc1b0ea6b438"
+      },
+      {
+        "path": "history_statistics.py",
+        "sha256": "17c33415686db9cf56f200028dd84248e58c0dab1af0c1a9276b310aaf7aac6b"
+      }
+    ]
+  },
   "old_to_new": {
     "screen_entry_pattern": "screen_research_pattern",
     "segment_verdicts": "summarize_research_segments",
