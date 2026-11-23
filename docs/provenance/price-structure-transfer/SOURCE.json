@@ -34,9 +34,9 @@
   ],
   "numericalOwner": {
     "repository": "YehorBabenko88/math",
-    "candidate": "53fe518c012280557bc0f2b6fec9465942638d44",
+    "sourceHead": "53fe518c012280557bc0f2b6fec9465942638d44",
     "api": "market_math.price_structure_patterns",
-    "status": "UNPUBLISHED_PREREQUISITE"
+    "publicationRequiredBeforeConsumer": true
   },
   "analysisOwner": "terminan.price_structure.analyze_price_structure",
   "mapping": {
