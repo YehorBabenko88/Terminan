@@ -1,0 +1,9 @@
+# Rich research entries v2
+
+One bounded continuation selector returns ResearchEntry directly, retaining the detached CandleBodyObservation and actual selected VolatilityMetrics DTO, actual availability clocks, reference close, regime, percentile, volume ratio and observed ATR provenance. It replays declared revisions chronologically and emits once at the first qualifying decision; later revisions cannot rewrite earlier entries. Existing three generators use the same v2 evidence shape and retain their selection rules. Four catalog IDs gain _v2, version2 and ENTRIES output; remove the old bare continuation API without aliases after migrating active callers. Historical source archives stay byte-identical.
+
+Alternatives considered: an adapter around the old bare signal loses source context and retains an obsolete public API; a duplicate continuation implementation duplicates predicates. Chosen one selector emits rich records and delegates all geometry to Math420.
+
+A separate typed evaluate_research_entries wrapper admits and detaches the complete bounded entries/signals/evidence/context graph before any Math/evaluation callback. It retains exact literal metadata and missing None values, invokes existing evaluate_research_signals once, then associates each exact outcome with its unique ordered signal clock and validates signal identity. Duplicate clocks refuse. The sole PaperEngine remains inside the existing evaluator. The wrapper fingerprint covers full rich inputs plus evaluation fingerprint; all source/PIT/execution/trading declarations remain unqualified/false.
+
+Limits:512 entries, bounded literal nested graph, no Data dependency, fixed Math420/Data104 pins, no Math statistics or secondary engine. RootSDK127 stays immutable. SAFE_CODE_ONLY; only retained fresh private canonical SQLite fixtures are authorized for scoped suites,2thread/4HTTP cases held. ReleaseNO_GO, legacy516 deduction0.

@@ -1,6 +1,6 @@
 """Explicit-availability offline continuation strategy; no data store or executor.
 
-Numerical geometry belongs to Math. Returned ResearchSignal records feed the
+Numerical geometry belongs to Math. Returned rich ResearchEntry records feed the
 existing PaperEngine only after its separate simulation admission checks.
 """
 from dataclasses import dataclass,fields
@@ -22,9 +22,9 @@ def _clock(value):
         raise ValueError('CONTINUATION_EXPLICIT_CLOCK_REQUIRED')
     return value
 
-def generate_continuation_signals(symbol,bodies,volatility,*,as_of_ms,
+def generate_continuation_entries(symbol,bodies,volatility,*,as_of_ms,
                                   min_volume_ratio=1.35,min_percentile=.60,min_body_atr=.50):
-    """Generate research signals from fully preflighted caller-declared data.
+    """Generate rich v2 research entries from detached caller-declared data.
 
     Availability and end clocks are mandatory; no duration or source clock is
     reconstructed. Only volatility for the same event start may contribute.
@@ -32,6 +32,8 @@ def generate_continuation_signals(symbol,bodies,volatility,*,as_of_ms,
     This function neither authenticates data nor authorizes trading.
     """
     import market_math as owner
+    from .strategy_entries import ResearchEntry,ResearchEntryPattern,EntrySide,EntryEvidence,RiskBasis,_freeze
+    from .market_structure import MarketStructureReference
     if type(symbol) is not str or re.fullmatch('[A-Z0-9]{2,30}',symbol) is None:
         raise ValueError('CONTINUATION_INSTRUMENT_REQUIRED')
     cutoff=_clock(as_of_ms)
@@ -83,7 +85,15 @@ def generate_continuation_signals(symbol,bodies,volatility,*,as_of_ms,
             if v['atr_percentile']<min_percentile or v['volume_ratio']<min_volume_ratio:continue
             side=owner.research_expansion_side(row.open,row.close,v['atr_fraction'],min_body_atr=min_body_atr)
             if side is None:continue
-            stop,target=owner.research_bracket_prices(row.close,v['atr_fraction'],side).as_decimal()
-            out.append(ResearchSignal(symbol,decision,side,'market',None,stop,target))
+            bracket=owner.research_bracket_prices(row.close,v['atr_fraction'],side)
+            if type(bracket) is not owner.ResearchBracketPrices:raise ValueError('CONTINUATION_MATH_BRACKET_RECORD_REQUIRED')
+            stop,target=bracket.as_decimal()
+            selected=next(value for value in vols if value.event_start_ms==v['event_start_ms'] and value.available_at_ms==v['available_at_ms'])
+            context=build_entry_context(decision_ms=decision,metadata={'pattern':ResearchEntryPattern.CONTINUATION.value},volatility=(selected,))
+            evidence=EntryEvidence(row.close,(MarketStructureReference(row.event_start_ms,row.event_end_ms,row.available_at_ms),),None,None,
+                selected.volume_ratio,selected.regime,None,None,None,selected.atr_fraction,RiskBasis.OBSERVED_ATR,
+                body_reference=row,volatility=selected,atr_percentile=selected.atr_percentile)
+            signal=ResearchSignal(symbol,decision,side,'market',None,stop,target)
+            out.append(ResearchEntry(ResearchEntryPattern.CONTINUATION,decision,EntrySide(side),row.close,signal,evidence,_freeze(context)))
             break
-    return tuple(sorted(out,key=lambda signal:signal.decision_ms))
+    return tuple(sorted(out,key=lambda entry:entry.decision_ms))

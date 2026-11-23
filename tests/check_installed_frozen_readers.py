@@ -55,7 +55,13 @@ evaluation_boundaries=runpy.run_path(str(pathlib.Path(__file__).with_name('test_
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(evaluation_boundaries['EvaluationBoundaryTests']))
 history_v12=runpy.run_path(str(pathlib.Path(__file__).with_name('test_history_protocol_v12.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(history_v12['HistoryV12Tests']))
-if suite.countTestCases()!=255:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+continuation_v2=runpy.run_path(str(pathlib.Path(__file__).with_name('test_continuation_strategy.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(continuation_v2['ContinuationStrategyTests']))
+catalog_v2=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_catalog.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(catalog_v2['StrategyCatalogTests']))
+rich_v2=runpy.run_path(str(pathlib.Path(__file__).with_name('test_rich_entry_transfer.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(rich_v2['RichEntryTransferTests']))
+if suite.countTestCases()!=304:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -65,4 +71,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==255 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==304 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))

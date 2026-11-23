@@ -4,15 +4,15 @@ from decimal import Decimal as D
 from terminan.volatility import VolatilityMetrics,VolatilityRegime
 class ContinuationStrategyTests(unittest.TestCase):
  def api(self):
-  from terminan.continuation_strategy import CandleBodyObservation,generate_continuation_signals
-  return CandleBodyObservation,generate_continuation_signals
+  from terminan.continuation_strategy import CandleBodyObservation,generate_continuation_entries
+  return CandleBodyObservation,generate_continuation_entries
  def volatility(self,**changes):
   row=VolatilityMetrics(0,60000,.01,.01,.01,.01,2.,2.,.8,VolatilityRegime.HIGH,'test.v1')
   return replace(row,**changes)
  def generate(self,*,opening=100,closing=101,available=60000,as_of=60000,vols=None,**kwargs):
   cls,fn=self.api();return fn('BTCUSDT',(cls(0,60000,available,opening,closing),),(self.volatility(),) if vols is None else vols,as_of_ms=as_of,**kwargs)
  def test_long_signal_uses_canonical_decimal_geometry(self):
-  x,=self.generate();self.assertEqual((x.side,x.decision_ms,x.stop,x.target),('long',60000,D('100.2425'),D('102.13625')));self.assertIsNone(x.entry_price)
+  x,=self.generate();self.assertEqual((x.side,x.decision_ms,x.signal.stop,x.signal.target),('long',60000,D('100.2425'),D('102.13625')));self.assertIsNone(x.signal.entry_price)
  def test_short_signal(self):self.assertEqual(self.generate(opening=101,closing=100)[0].side,'short')
  def test_small_body_or_policy_does_not_emit(self):
   self.assertEqual(self.generate(closing=100.1),())
@@ -46,7 +46,7 @@ class ContinuationStrategyTests(unittest.TestCase):
  def test_generated_signal_runs_only_existing_paper_engine(self):
   from terminan.paper import PaperEngine
   from terminan.research_signals import ResearchBar
-  signal,=self.generate();engine=PaperEngine(fee_rate='0',slippage_bps='0');engine.enabled=True
+  entry,=self.generate();signal=entry.signal;engine=PaperEngine(fee_rate='0',slippage_bps='0');engine.enabled=True
   result=engine.execute_signal(signal,(ResearchBar(60000,D('101'),D('103'),D('101'),D('102')),),bar_ms=60000,as_of_ms=120000,ambiguity_policy='SL_FIRST')
   self.assertEqual(result.fill.reason,'target');self.assertEqual(engine.positions,{})
 
@@ -57,7 +57,7 @@ class ContinuationStrategyTests(unittest.TestCase):
  def test_first_qualifying_available_revision_emits_only_once(self):
   rows=(self.volatility(volume_ratio=1.),self.volatility(available_at_ms=65000),self.volatility(available_at_ms=66000,atr_fraction=.02))
   signal,=self.generate(as_of=70000,vols=rows)
-  self.assertEqual(signal.decision_ms,65000);self.assertEqual(signal.stop,D('100.2425'))
+  self.assertEqual(signal.decision_ms,65000);self.assertEqual(signal.signal.stop,D('100.2425'))
  def test_obsolete_versions_before_body_availability_do_not_emit(self):
   rows=(self.volatility(),self.volatility(available_at_ms=65000,volume_ratio=1.))
   self.assertEqual(self.generate(available=70000,as_of=70000,vols=rows),())

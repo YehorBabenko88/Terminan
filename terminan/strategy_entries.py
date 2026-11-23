@@ -12,11 +12,13 @@ from .market_structure import (OHLCObservation,MarketStructureEvent,MarketStruct
 from .entry_context import ProfileSummary,ProfileKind,build_entry_context
 from .volatility import VolatilityMetrics,VolatilityRegime
 from .research_signals import ResearchSignal
+from .continuation_strategy import CandleBodyObservation
 
 class ResearchEntryPattern(str,Enum):
-    SWEEP_RECLAIM='sweep_reclaim'
-    BREAKOUT_RETEST='breakout_retest'
-    PROFILE_RECLAIM='profile_reclaim'
+    SWEEP_RECLAIM='sweep_reclaim_v2'
+    BREAKOUT_RETEST='breakout_retest_v2'
+    PROFILE_RECLAIM='profile_reclaim_v2'
+    CONTINUATION='volatility_continuation_v2'
 class EntrySide(str,Enum):
     LONG='long';SHORT='short'
 class RiskBasis(str,Enum):
@@ -44,6 +46,9 @@ class EntryEvidence:
     flow:SignedFlowObservation|None
     risk_atr_fraction:int|float
     risk_basis:RiskBasis
+    body_reference:CandleBodyObservation|None=None
+    volatility:VolatilityMetrics|None=None
+    atr_percentile:int|float|None=None
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     execution_authority:bool=field(default=False,init=False)
     trading_authorized:bool=field(default=False,init=False)
@@ -56,7 +61,7 @@ class ResearchEntry:
     signal:ResearchSignal
     evidence:EntryEvidence
     context:MappingProxyType
-    version:str=field(default='strategy_entries.v1',init=False)
+    version:str=field(default='strategy_entries.v2',init=False)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     execution_authority:bool=field(default=False,init=False)
     trading_authorized:bool=field(default=False,init=False)
@@ -71,7 +76,10 @@ class ResearchEntry:
             profile_kind=None if evidence.profile_kind is None else evidence.profile_kind.value,
             delta=None if evidence.flow is None else evidence.flow.delta,
             volatility_regime=None if evidence.volatility_regime is None else evidence.volatility_regime.value,
-            risk_atr_fraction=evidence.risk_atr_fraction,risk_basis=evidence.risk_basis.value))
+            risk_atr_fraction=evidence.risk_atr_fraction,risk_basis=evidence.risk_basis.value,
+            atr_percentile=evidence.atr_percentile,
+            body_available_at_ms=None if evidence.body_reference is None else evidence.body_reference.available_at_ms,
+            volatility_available_at_ms=None if evidence.volatility is None else evidence.volatility.available_at_ms))
 @dataclass(frozen=True,slots=True)
 class _Batch:
     symbol:str
@@ -158,7 +166,9 @@ def _entry(batch,row,decision,side,reference,pattern,context,*,event=None,prior=
         _event_ref(event) if pattern is ResearchEntryPattern.BREAKOUT_RETEST else None,
         None if vol is None else vol['volume_ratio'],None if vol is None else VolatilityRegime(vol['regime']),
         None if profile is None else ProfileKind(profile['kind']),None if profile is None else profile['available_at_ms'],
-        flow,atr,basis)
+        flow,atr,basis,volatility=None if vol is None else next(value for value in batch.volatility
+            if value.event_start_ms==vol['event_start_ms'] and value.available_at_ms==vol['available_at_ms']),
+        atr_percentile=None if vol is None else vol['atr_percentile'])
     return ResearchEntry(pattern,decision,side,reference,signal,evidence,_freeze(context))
 
 def _ordered(entries):

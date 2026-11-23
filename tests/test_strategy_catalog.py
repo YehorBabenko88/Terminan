@@ -6,20 +6,20 @@ class StrategyCatalogTests(unittest.TestCase):
  def test_eight_unique_named_definitions(self):
   rows=self.catalog();self.assertIs(type(rows),tuple);self.assertEqual(len(rows),8)
   self.assertEqual(len({x.id for x in rows}),8)
-  for row in rows:self.assertRegex(row.id,r'^[a-z][a-z0-9_]+$');self.assertEqual(row.version,'1')
+  for row in rows:self.assertRegex(row.id,r'^[a-z][a-z0-9_]+$');self.assertEqual(row.version,'2' if row.generator is not None else '1')
  def test_only_four_have_research_generators(self):
   from terminan.strategy_catalog import StrategyAvailability
   rows=self.catalog();available={x.id for x in rows if x.availability is StrategyAvailability.RESEARCH_GENERATOR}
-  self.assertEqual(available,{'sweep_reclaim','breakout_retest','volatility_continuation','profile_reclaim'})
+  self.assertEqual(available,{'sweep_reclaim_v2','breakout_retest_v2','volatility_continuation_v2','profile_reclaim_v2'})
   for row in rows:self.assertEqual(row.generator is not None,row.availability is StrategyAvailability.RESEARCH_GENERATOR)
  def test_exact_canonical_callables_and_output_contracts(self):
   from terminan.strategy_entries import generate_sweep_reclaim_entries,generate_breakout_retest_entries,generate_profile_reclaim_entries
-  from terminan.continuation_strategy import generate_continuation_signals
+  from terminan.continuation_strategy import generate_continuation_entries
   from terminan.strategy_catalog import ResearchOutput
-  expected={'sweep_reclaim':generate_sweep_reclaim_entries,'breakout_retest':generate_breakout_retest_entries,'profile_reclaim':generate_profile_reclaim_entries,'volatility_continuation':generate_continuation_signals}
+  expected={'sweep_reclaim_v2':generate_sweep_reclaim_entries,'breakout_retest_v2':generate_breakout_retest_entries,'profile_reclaim_v2':generate_profile_reclaim_entries,'volatility_continuation_v2':generate_continuation_entries}
   for row in self.catalog():
    self.assertIs(row.generator,expected.get(row.id))
-   if row.generator is not None:self.assertIs(row.output,ResearchOutput.SIGNALS if row.id=='volatility_continuation' else ResearchOutput.ENTRIES)
+   if row.generator is not None:self.assertIs(row.output,ResearchOutput.ENTRIES)
  def test_no_definition_is_execution_authority(self):
   for row in self.catalog():self.assertIs(row.execution_authority,False);self.assertIs(row.trading_authorized,False);self.assertEqual(row.source_authentication,'NOT_EVALUATED')
  def test_unsupported_specs_retain_distinct_research_requirements(self):
@@ -35,7 +35,7 @@ class StrategyCatalogTests(unittest.TestCase):
   object.__setattr__(a[0],'id','changed');self.assertEqual(self.catalog()[0].id,b[0].id)
  def test_resolver_is_closed_and_has_no_dynamic_imports(self):
   from terminan.strategy_catalog import research_strategy
-  self.assertEqual(research_strategy('sweep_reclaim').id,'sweep_reclaim')
+  self.assertEqual(research_strategy('sweep_reclaim_v2').id,'sweep_reclaim_v2')
   for value in ('SCALP_SWEEP_RECLAIM','strattester.research.scalp_entries:sweep_reclaim_entries','missing','',None,True,1):
    with self.assertRaises(ValueError):research_strategy(value)
  def test_resolver_rejects_foreign_string_without_callbacks(self):
@@ -43,7 +43,7 @@ class StrategyCatalogTests(unittest.TestCase):
   class Hostile(str):
    def __hash__(self):raise AssertionError('hash callback')
    def __eq__(self,other):raise AssertionError('eq callback')
-  with self.assertRaises(ValueError):research_strategy(Hostile('sweep_reclaim'))
+  with self.assertRaises(ValueError):research_strategy(Hostile('sweep_reclaim_v2'))
  def test_catalog_discovery_never_calls_a_generator(self):
   import terminan.strategy_catalog as catalog
   old=catalog.generate_sweep_reclaim_entries

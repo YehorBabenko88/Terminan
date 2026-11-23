@@ -12,7 +12,7 @@ class ResearchEvaluationTests(unittest.TestCase):
  def signal(self,t,*,limit=None,stop=99,target=101):
   _,_,_,S=self.api();return S('BTCUSDT',t,'long','market' if limit is None else'limit',None if limit is None else D(limit),D(stop),D(target))
  def evaluate(self,signals,rows=None,*,dataset=None,**kwargs):
-  _,_,fn,_=self.api();return fn('sweep_reclaim',signals,self.rows() if rows is None else rows,dataset=self.dataset() if dataset is None else dataset,bar_ms=60000,notional=D(100),fee_rate=D(0),slippage_bps=D(0),**kwargs)
+  _,_,fn,_=self.api();return fn('sweep_reclaim_v2',signals,self.rows() if rows is None else rows,dataset=self.dataset() if dataset is None else dataset,bar_ms=60000,notional=D(100),fee_rate=D(0),slippage_bps=D(0),**kwargs)
  def test_original_chronological_five_folds_and_verdict(self):
   result=self.evaluate(tuple(self.signal(i*60000) for i in range(5,145,5)),folds=5,min_samples=10)
   self.assertEqual(len(result.folds),5);self.assertEqual(result.numeric.numeric.count,28);self.assertEqual(result.numeric.numeric.total,-28)
