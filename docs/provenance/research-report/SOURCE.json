@@ -25,7 +25,7 @@
   ],
   "canonical": {
     "path": "terminan/research_reporting.py",
-    "sha256": "42396d350c146f89743568e013b54f6d77c530638edf8a3c3a05f7caf5e7fc6f"
+    "sha256": "a7fb30a3549ac6e9bfa21fd674af2db75b6b362fa96c9a70b26bfdd4ece98864"
   },
   "units": "ALL_CALLER_DECLARED_UNIFORM_OPTIONAL_METRIC_UNITS_REQUIRED_NO_INFERENCE",
   "coverage": "DECLARATIONS_ONLY_ALL_FILLED_COMPLETE_PARTIAL_UNCLASSIFIED_CONSERVED",
@@ -35,5 +35,9 @@
   "legacyRemaining": 516,
   "retirementDeduction": 0,
   "instrumentConsistencyFixBase": "e914be871dc3ee627ab1f9bdad235393ac3c99ad",
-  "executionBasis": "CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED"
+  "executionBasis": "CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED",
+  "clockDomainFixBase": "5b3148bac89aa24c743c2bb94afd347ca4c4bb71",
+  "pendingExecutionDomainMathCandidate": "1b053524a111167760860f06bceae3298476a56c",
+  "fillClock": "EXACT_UTC_EPOCH_PLUS_INTEGER_MILLISECONDS_EXIT_MS",
+  "executionDomain": "CANONICAL_MATH_PAPER_EXECUTION_VALUES_VALID_AFTER_ALL_LITERAL_PREFLIGHT"
 }
