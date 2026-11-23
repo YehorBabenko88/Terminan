@@ -50,9 +50,9 @@ def screen_research_pattern(pattern,fold_metrics,*,min_folds=3,min_samples=60,
     if summary.folds and summary.profitable_fraction<min_profitable_fraction:reasons.append('UNSTABLE_OOS_EDGE')
     if summary.folds and summary.losing_fraction>max_loss_fold_fraction:reasons.append('MAJORITY_LOSS_MAKING')
     if summary.mean_expectancy<=min_expectancy:reasons.append('NON_POSITIVE_EXPECTANCY')
-    # The legacy rule rejects no eligible PF observations. Keep None explicit;
-    # do not misrepresent it as an observed zero or infinity.
-    if summary.mean_profit_factor is None or summary.mean_profit_factor<min_profit_factor:reasons.append('LOW_PROFIT_FACTOR')
+    # Legacy policy compares an absent eligible PF mean against its zero
+    # baseline. Preserve that threshold behavior while reporting None honestly.
+    if (summary.mean_profit_factor is None and min_profit_factor>0) or (summary.mean_profit_factor is not None and summary.mean_profit_factor<min_profit_factor):reasons.append('LOW_PROFIT_FACTOR')
     status=ScreeningStatus.REJECT if any(reason in reasons for reason in ('MAJORITY_LOSS_MAKING','NON_POSITIVE_EXPECTANCY','LOW_PROFIT_FACTOR')) else (ScreeningStatus.NEEDS_MORE_DATA if reasons else ScreeningStatus.KEEP)
     return ResearchPatternVerdict(definition.id,status,summary,tuple(reasons))
 

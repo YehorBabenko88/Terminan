@@ -18,7 +18,7 @@
   "math_api_prerequisite": {
     "repository": "YehorBabenko88/math",
     "revision": "9ed369ddd41ae32c4b3a9434f0b29d6dcf51154f",
-    "publication": "PENDING_NOT_ACCEPTED_PUBLIC",
+    "publication": "PUBLIC_REMOTE_HEAD_VERIFIED_9ED_PENDING_NEW_HOSTED_CI",
     "raw": [
       {
         "path": "market_math.py",

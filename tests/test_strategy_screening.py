@@ -90,3 +90,11 @@ class ResearchScreeningTests(unittest.TestCase):
   try:
    with self.assertRaises(ValueError):fn('sweep_reclaim',())
   finally:owner.numeric_fold_summary=old
+
+ def test_absent_factor_mean_preserves_legacy_zero_threshold_policy(self):
+  fn,F,P=self.api()
+  for factor in (P('NO_LOSSES',None),P('FINITE',1e100)):
+   out=fn('sweep_reclaim',(F(90,1,factor),),min_folds=1,min_profit_factor=0)
+   self.assertIsNone(out.numeric.mean_profit_factor);self.assertEqual(out.status.value,'KEEP');self.assertNotIn('LOW_PROFIT_FACTOR',out.reasons)
+  out=fn('sweep_reclaim',(),min_profit_factor=0)
+  self.assertEqual(out.status.value,'REJECT');self.assertNotIn('LOW_PROFIT_FACTOR',out.reasons)
