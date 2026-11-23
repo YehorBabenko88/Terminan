@@ -1,0 +1,95 @@
+{
+  "schema": "terminan.strategy-entry-transfer.v1",
+  "termBase": "975fa456e93c1fbd63f574cad24d3c1b616c0e24",
+  "sourceRepository": "YehorBabenko88/strattester",
+  "sourceHead": "622e99dcd169d471279b5d38204d29a01eaf8647",
+  "sources": [
+    {
+      "path": "strattester/research/scalp_entries.py",
+      "blob": "533904ce3b28f5d9d69f5bfc72efda168f6674ee",
+      "sha256": "fcc39f27efe6730eaa85329dcab6160b838c0b2229e8a1ec58443f582218b24b",
+      "bytes": 5468,
+      "archive": "raw/strattester__research__scalp_entries.py.txt"
+    },
+    {
+      "path": "tests/research/test_scalp_entries.py",
+      "blob": "079c89f5bf6ab6f6d2f295a1a68ad21d718451f6",
+      "sha256": "35e317f2ef99ebf12b6694508c73a36665160f08461fe0f231b6047bfe75a76d",
+      "bytes": 1942,
+      "archive": "raw/tests__research__test_scalp_entries.py.txt"
+    },
+    {
+      "path": "strattester/strategies/builtin/research_scalp.py",
+      "blob": "47ee2fb1611ee21cb85f8d4f8204f6ec25d6dd2f",
+      "sha256": "32a0bf1d43b710dcff70d8f3572543b293dcf1151012c0d75e42de7fd8edee17",
+      "bytes": 1847,
+      "archive": "raw/strattester__strategies__builtin__research_scalp.py.txt"
+    }
+  ],
+  "numericalOwner": {
+    "repository": "YehorBabenko88/math",
+    "sourceHead": "e3c56dd913bd5401b06b825dadc408e070edc691",
+    "publication": "PARENT_PUBLICATION_REQUIRED_BEFORE_CONSUMER_PUBLICATION",
+    "apis": [
+      "lossless_binary64_valid",
+      "lossless_nonnegative_binary64_valid",
+      "candle_ohlcv_valid",
+      "research_retest_matches",
+      "research_bracket_prices(...).as_decimal()"
+    ]
+  },
+  "analysisOwner": "terminan.strategy_entries",
+  "roles": [
+    {
+      "original": "sweep_reclaim_entries",
+      "canonical": "generate_sweep_reclaim_entries",
+      "state": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    },
+    {
+      "original": "breakout_retest_volume_entries",
+      "canonical": "generate_breakout_retest_entries",
+      "state": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    },
+    {
+      "original": "poc_reclaim_entries",
+      "canonical": "generate_profile_reclaim_entries",
+      "state": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    }
+  ],
+  "continuation": "Existing canonical continuation_strategy remains unchanged; no duplicate fourth generator",
+  "originalMetadataMapping": {
+    "pattern": "ResearchEntryPattern canonical descriptive enum",
+    "direction": "EntrySide plus canonical ResearchSignal.side",
+    "reference": "ResearchEntry.reference original int/float payload",
+    "sweep_event_time": "EntryEvidence.sweep_reference.event_start_ms; metadata.sweep_event_start_ms",
+    "bos_known_at": "EntryEvidence.break_reference.available_at_ms; metadata.break_available_at_ms",
+    "volume_expansion": "EntryEvidence.volume_ratio; metadata.volume_ratio",
+    "poc_mode": "EntryEvidence.profile_kind; metadata.profile_kind",
+    "delta": "EntryEvidence.flow.delta if actual flow exists, otherwise None",
+    "volatility_regime": "Actual VolatilityRegime or None; never fabricated observation"
+  },
+  "causalPolicy": [
+    "Snapshot every literal input before the first numeric owner call",
+    "Canonical MarketStructureContext preflights every structural record including future identities",
+    "Canonical build_entry_context preflights all summaries including future identities and selects latest by clock",
+    "Sweep decision=max(structure availability,actual candle availability)",
+    "Retest candidate must follow break in event time and have decision strictly after break known time",
+    "First qualifying retest by actual decision clock, bounded explicit validated timeframe cadence wait interval",
+    "Profile crossing decision=max(actual previous candle availability,actual current candle availability)",
+    "Only actual signed flow can gate direction; missing flow remains None",
+    "Risk fallback .002 is explicitly POLICY, never observed volatility"
+  ],
+  "originalFileDeclaredTestFunctions": 5,
+  "originalGeneratorGoldenFunctionsReexpressed": 3,
+  "legacyDeclaredTestFunctions": 547,
+  "remainingDeclaredLegacyTestFunctions": 516,
+  "retirementDeduction": 0,
+  "countUnit": "DECLARED_TEST_FUNCTIONS_NOT_FILES",
+  "oldSourcesOrConsumersRemoved": false,
+  "originalRegistryConsumer": "RETAINED_NOT_MIGRATED",
+  "compatibilityAliases": false,
+  "sourceAuthentication": "NOT_EVALUATED",
+  "executionAuthority": false,
+  "tradingAuthorized": false,
+  "release": "NO_GO"
+}
