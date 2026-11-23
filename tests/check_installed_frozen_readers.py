@@ -61,8 +61,13 @@ def _case_ids(value):
  for test in value:
   if isinstance(test,unittest.TestSuite):yield from _case_ids(test)
   else:yield test.id()
+def _require_roster(actual):
+ import json
+ expected=json.loads(pathlib.Path(__file__).with_name('research_entry_roster_v2.json').read_text(encoding='utf-8'))['case_ids']
+ if type(actual) is not tuple or len(actual)!=276 or any(type(name) is not str for name in actual) or len(set(actual))!=276 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
 case_ids=tuple(_case_ids(suite))
-if suite.countTestCases()!=276 or len(case_ids)!=276 or len(set(case_ids))!=276:raise RuntimeError('EXACT_UNIQUE_ROSTER_REQUIRED')
+_require_roster(case_ids)
+if suite.countTestCases()!=276:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
