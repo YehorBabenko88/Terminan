@@ -48,7 +48,7 @@ def validate_signal_batch(signal,bars,*,bar_ms,as_of_ms,ambiguity_policy,availab
     else:
         owner.adverse_execution_price(signal.entry_price,'long',Decimal(0),True)
         if not (signal.stop<signal.entry_price<signal.target if signal.side=='long' else signal.stop>signal.entry_price>signal.target):raise ValueError('ordered limit signal bounds required')
-    if type(bars) not in (tuple,list) or not 1<=len(bars)<=20000:raise ValueError('bounded closed OHLC bars required')
+    if (type(bars) is not tuple and type(bars) is not list) or not 1<=len(bars)<=20000:raise ValueError('bounded closed OHLC bars required')
     rows=tuple(bars);previous=None
     for bar in rows:
         if type(bar) is not ResearchBar or type(bar.start_ms) is not int or bar.start_ms<available_from_ms or bar.start_ms%bar_ms or bar.start_ms+bar_ms>as_of_ms:raise ValueError('unaligned or future OHLC bar')
