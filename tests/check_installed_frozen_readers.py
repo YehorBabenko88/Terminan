@@ -57,17 +57,19 @@ history_v12=runpy.run_path(str(pathlib.Path(__file__).with_name('test_history_pr
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(history_v12['HistoryV12Tests']))
 rich_v2=runpy.run_path(str(pathlib.Path(__file__).with_name('test_rich_entry_transfer.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(rich_v2['RichEntryTransferTests']))
+report_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_research_reporting.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(report_v1['ResearchReportingTests']))
 def _case_ids(value):
  for test in value:
   if isinstance(test,unittest.TestSuite):yield from _case_ids(test)
   else:yield test.id()
 def _require_roster(actual):
  import json
- expected=json.loads(pathlib.Path(__file__).with_name('research_entry_roster_v2.json').read_text(encoding='utf-8'))['case_ids']
- if type(actual) is not tuple or len(actual)!=276 or any(type(name) is not str for name in actual) or len(set(actual))!=276 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
+ expected=json.loads(pathlib.Path(__file__).with_name('research_report_roster_v1.json').read_text(encoding='utf-8'))['case_ids']
+ if type(actual) is not tuple or len(actual)!=301 or any(type(name) is not str for name in actual) or len(set(actual))!=301 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
 case_ids=tuple(_case_ids(suite))
 _require_roster(case_ids)
-if suite.countTestCases()!=276:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+if suite.countTestCases()!=301:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -77,4 +79,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==276 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==301 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
