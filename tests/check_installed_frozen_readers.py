@@ -42,7 +42,7 @@ market_structure=runpy.run_path(str(pathlib.Path(__file__).with_name('test_marke
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(market_structure['MarketStructureTests']))
 strategy_entries=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_entries.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(strategy_entries['StrategyEntryTests']))
-if suite.countTestCases()!=168:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+if suite.countTestCases()!=171:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -52,4 +52,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==168 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==171 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
