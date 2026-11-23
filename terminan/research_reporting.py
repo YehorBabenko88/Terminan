@@ -102,6 +102,18 @@ _NUMERIC=(numeric.NumericSampleSummary,numeric.ProfitFactorObservation,numeric.N
  numeric.NumericFoldSummary,numeric.IIDMeanInterval,numeric.NumericProfitLossSummary,
  numeric.NumericTradeObservation,numeric.NumericOptionalSummary,numeric.NumericTradeSummary)
 
+_NUMERIC_FIELDS={
+ numeric.NumericSampleSummary:((int,),(int,),(int,),(float,),(float,),(float,)),
+ numeric.ProfitFactorObservation:((str,),(int,float,type(None))),
+ numeric.NumericFoldObservation:((int,),(int,float),(numeric.ProfitFactorObservation,)),
+ numeric.NumericFoldSummary:((int,),(int,),(int,),(int,),(float,),(float,type(None)),(int,),(int,),(int,)),
+ numeric.IIDMeanInterval:((float,),(float,),(float,)),
+ numeric.NumericProfitLossSummary:((numeric.NumericSampleSummary,),(float,),(float,),(numeric.ProfitFactorObservation,),(float,),(int,)),
+ numeric.NumericTradeObservation:((int,float),(int,float),(int,float),(int,float,type(None)),(int,float,type(None)),(int,float,type(None)),(int,type(None))),
+ numeric.NumericOptionalSummary:((int,),(float,),(float,type(None))),
+ numeric.NumericTradeSummary:((numeric.NumericProfitLossSummary,),(float,),(float,),(numeric.NumericOptionalSummary,),(numeric.NumericOptionalSummary,),(numeric.NumericOptionalSummary,),(numeric.NumericOptionalSummary,)),
+}
+
 def _graph(value):
     """One global resource budget for all exact records, including unused fields."""
     nodes=0;budget=8388608
@@ -139,7 +151,9 @@ def _graph(value):
             return clone
         if any(kind is record for record in _NUMERIC):
             if len(item)!=len(kind._fields):raise ValueError('REPORT_NUMERIC_RECORD_ARITY')
-            return tuple.__new__(kind,tuple(copy(leaf,depth+1) for leaf in tuple(item)))
+            captured=tuple(copy(leaf,depth+1) for leaf in tuple(item))
+            if any(not any(type(leaf) is allowed for allowed in expected) for leaf,expected in zip(captured,_NUMERIC_FIELDS[kind])):raise ValueError('REPORT_EXACT_NUMERIC_FIELD_TYPES')
+            return tuple.__new__(kind,captured)
         if kind is MappingProxyType:
             referents=gc.get_referents(item)
             if len(referents)!=1 or type(referents[0]) is not dict:raise ValueError('REPORT_LITERAL_PROXY_REQUIRED')

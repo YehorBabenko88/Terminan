@@ -77,7 +77,7 @@ class ResearchReportingTests(unittest.TestCase):
 
  def test_malformed_typed_entry_or_verdict_refuses_before_math(self):
   e=self.evaluation()
-  for bad in (replace(e,entries=('wrong',)),replace(e,evaluation=replace(e.evaluation,verdict='wrong')),replace(e,evaluation=replace(e.evaluation,folds=('wrong',))),replace(e,evaluation=replace(e.evaluation,numeric='wrong')),replace(e,evaluation=replace(e.evaluation,bootstrap='wrong'))):
+  for bad in (replace(e,entries=('wrong',)),replace(e,evaluation=replace(e.evaluation,verdict='wrong')),replace(e,evaluation=replace(e.evaluation,folds=('wrong',))),replace(e,evaluation=replace(e.evaluation,numeric='wrong')),replace(e,evaluation=replace(e.evaluation,bootstrap='wrong')),replace(e,evaluation=replace(e.evaluation,numeric=e.evaluation.numeric._replace(gross_profit=True)))):
    with patch('history_statistics.project_decimal_observations',side_effect=AssertionError('MATH_CALLED')):
     with self.assertRaises(ValueError):self.build(bad)
  def test_math_summary_boolean_or_wrong_nested_record_refuses(self):
