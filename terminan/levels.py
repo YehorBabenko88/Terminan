@@ -1,135 +1,23 @@
-"""Presentation adapter for Math-owned levels on explicitly supplied candles."""
+"""Presentation adapters for Math-owned levels and closed historical versions."""
+from .history_protocol import legacy_rollup_candles,validate_rollup_v12,_snapshot_literal,_MARKET_DATA_LEVEL_WIDTHS
 
-from hashlib import sha256
-from hmac import compare_digest
-from math import isfinite
-import re
+def market_data_level_candles(snapshot,*,trusted_fingerprint,symbol,market_type,timeframe,start_ms,end_ms,as_of_ms):
+    return legacy_rollup_candles(snapshot,trusted_fingerprint=trusted_fingerprint,symbol=symbol,market_type=market_type,timeframe=timeframe,start_ms=start_ms,end_ms=end_ms,as_of_ms=as_of_ms)
 
-from .paper_ledger import canonical_json
+def market_data_level_candles_v12(snapshot,*,trusted_fingerprint,selection,catalog,as_of_ms):
+    p,_=validate_rollup_v12(snapshot,trusted_fingerprint=trusted_fingerprint,selection=selection,catalog=catalog,as_of_ms=as_of_ms,options={})
+    if p['timeframe'] not in _MARKET_DATA_LEVEL_WIDTHS:raise ValueError('MATH_LEVELS_TIMEFRAME_UNSUPPORTED')
+    return [{'t':r['event_start_ms'],'h':r['high'],'l':r['low'],'complete':True} for r in p['rows']]
 
-
-# MarketData v2 multipin calendar widths. The HTTP route remains fenced until
-# an authenticated provider supplies the expected rollup pins.
-_DAY = 86_400_000
-_MARKET_DATA_LEVEL_WIDTHS = {"1h": 3_600_000, "4h": 14_400_000, "1d": _DAY, "1w": 7 * _DAY}
-_MAX_MARKET_DATA_LEVEL_CANDLES = 1000
-_MAX_MARKET_DATA_SERIES_CANDLES = 32
-_MAX_MARKET_DATA_SERIES_SPAN_MS = 14 * _DAY
-_MARKET_DATA_MAX_TIMESTAMP = 2**53 - 1
-
-
-def _fingerprint(value):
-    return type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value) is not None
-
-
-def _valid_parent(parent):
-    return (type(parent) is dict and type(parent.get("dataset_id")) is str
-            and bool(parent["dataset_id"]) and _fingerprint(parent.get("dataset_fingerprint")))
-
-
-def _market_data_window_width(timeframe, start_ms, end_ms, as_of_ms):
-    if type(timeframe) is not str or timeframe not in _MARKET_DATA_LEVEL_WIDTHS:
-        raise ValueError("unsupported MarketData levels timeframe")
-    width = _MARKET_DATA_LEVEL_WIDTHS[timeframe]
-    anchor = 4 * _DAY if timeframe == "1w" else 0
-    if (any(type(value) is not int for value in (start_ms, end_ms, as_of_ms))
-            or not 0 <= start_ms < end_ms <= as_of_ms <= _MARKET_DATA_MAX_TIMESTAMP
-            or (start_ms - anchor) % width or (end_ms - anchor) % width
-            or (end_ms - start_ms) // width > _MAX_MARKET_DATA_LEVEL_CANDLES):
-        raise ValueError("invalid MarketData levels window")
-    return width
-
-
-def market_data_level_candles(snapshot, *, trusted_fingerprint, symbol, market_type,
-                       timeframe, start_ms, end_ms, as_of_ms):
-    """Map a pinned MarketData rollup to Math input after the caller authenticates its pin.
-
-    The trusted fingerprint comes from independent source admission, never from
-    the same response as the snapshot. This function does not authenticate a
-    transport or qualify a bare MarketData HTTP response.
-    """
-    if not _fingerprint(trusted_fingerprint):
-        raise ValueError("independent MarketData fingerprint required")
-    if (type(symbol) is not str or not re.fullmatch(r"[A-Z0-9]{2,30}", symbol)
-            or type(market_type) is not str or not market_type):
-        raise ValueError("invalid MarketData levels instrument")
-    width = _market_data_window_width(timeframe, start_ms, end_ms, as_of_ms)
-
-    if (type(snapshot) is not dict or snapshot.get("schema") not in
-            ("market_data.history.rollup.v1", "market_data.history.rollup.v2", "market_data.history.rollup.v3")
-            or snapshot.get("evidence_class") != "HISTORICAL"
-            or snapshot.get("timeframe") != timeframe
-            or type(snapshot.get("source")) is not dict
-            or snapshot.get("dataset_fingerprint") != trusted_fingerprint):
-        raise ValueError("MarketData rollup does not match trusted selection")
-    request = snapshot.get("request")
-    expected = {"venue": "bybit", "symbol": symbol, "market_type": market_type,
-                "start_ms": start_ms, "end_ms": end_ms}
-    if (type(request) is not dict or any(type(request.get(key)) is not type(value)
-                                       or request[key] != value for key, value in expected.items())):
-        raise ValueError("MarketData rollup request mismatch")
-    if snapshot["schema"] == "market_data.history.rollup.v1":
-        if (timeframe != "1h" or type(request.get("as_of_ms")) is not int
-                or request["as_of_ms"] != as_of_ms
-                or not _valid_parent({"dataset_id": snapshot.get("parent_dataset_id"),
-                                      "dataset_fingerprint": snapshot.get("parent_dataset_fingerprint")})):
-            raise ValueError("invalid MarketData single-pin lineage")
-    else:
-        parents = snapshot.get("parents")
-        span = end_ms - start_ms
-        sequence = snapshot["schema"] == "market_data.history.rollup.v3"
-        if sequence:
-            if (request.get("schema") != "market_data.history.selection.v4"
-                    or span > min(_MAX_MARKET_DATA_SERIES_CANDLES * width, _MAX_MARKET_DATA_SERIES_SPAN_MS)):
-                raise ValueError("invalid MarketData levels series window")
-        elif span != width:
-            raise ValueError("invalid MarketData single-candle window")
-        if (type(snapshot.get("as_of_ms")) is not int
-                or snapshot["as_of_ms"] != as_of_ms or request.get("timeframe") != timeframe
-                or type(snapshot.get("units")) is not dict or type(parents) is not list
-                or not 1 <= len(parents) <= (16 if sequence else 8)
-                or any(not _valid_parent(parent) or not _fingerprint(parent.get("snapshot_id"))
-                       for parent in parents)):
-            raise ValueError("invalid MarketData multipin lineage")
-        pins = [parent["snapshot_id"] for parent in parents]
-        if request.get("snapshot_ids") != pins or len(set(pins)) != len(pins):
-            raise ValueError("invalid MarketData parent order")
-        if sequence and any(
-            type(record.get(key)) is not str or not record[key]
-            for record, fields in ((snapshot["source"], ("identity", "source_revision", "epoch")),
-                                   (snapshot["units"], ("price", "volume")))
-            for key in fields
-        ):
-            raise ValueError("MarketData levels series source lineage is incomplete")
-    rows = snapshot.get("rows")
-    if type(rows) is not list or len(rows) != (end_ms - start_ms) // width:
-        raise ValueError("incomplete MarketData levels window")
-    payload = canonical_json({key: value for key, value in snapshot.items()
-                              if key != "dataset_fingerprint"})
-    if len(payload) > 2_097_152 or not compare_digest(sha256(payload).hexdigest(), trusted_fingerprint):
-        raise ValueError("MarketData rollup fingerprint mismatch")
-
-    candles = []
-    for index, row in enumerate(rows):
-        lower = start_ms + index * width
-        upper = lower + width
-        if (type(row) is not dict or row.get("complete", True) is not True
-                or any(type(row.get(field)) is not int for field in
-                       ("event_start_ms", "event_end_ms", "available_at_ms", "watermark_ms"))
-                or row["event_start_ms"] != lower or row["event_end_ms"] != upper
-                or not upper <= row["watermark_ms"] <= row["available_at_ms"] <= as_of_ms):
-            raise ValueError("incomplete or unavailable MarketData candle")
-        high, low = row.get("high"), row.get("low")
-        try:
-            valid = all(type(price) in (int, float) and isfinite(price)
-                        and price > 0 for price in (high, low))
-        except OverflowError:
-            valid = False
-        if not valid or high < low:
-            raise ValueError("invalid MarketData candle prices")
-        candles.append({"t": lower, "h": high, "l": low, "complete": True})
-    return candles
-
+def levels_from_market_data_series_v12(snapshot,*,trusted_fingerprint,selection,catalog,decision_ms,tick_size=0,max_levels=200):
+    p,options=validate_rollup_v12(snapshot,trusted_fingerprint=trusted_fingerprint,selection=selection,catalog=catalog,as_of_ms=None,
+        options={'decision_ms':decision_ms,'tick_size':tick_size,'max_levels':max_levels})
+    if p['operation']!='series' or p['timeframe'] not in _MARKET_DATA_LEVEL_WIDTHS:raise ValueError('HISTORY_LEVELS_SERIES_OPERATION')
+    decision=options['decision_ms'];width=_MARKET_DATA_LEVEL_WIDTHS[p['timeframe']]
+    known=[r for r in p['rows'] if r['event_end_ms']<=decision and r['available_at_ms']<=decision]
+    if any(r['event_start_ms']!=p['selection']['start_ms']+i*width for i,r in enumerate(known)):return []
+    candles=[{'t':r['event_start_ms'],'h':r['high'],'l':r['low'],'complete':True} for r in known]
+    return untouched_levels(candles,p['timeframe'],decision,tick_size=options['tick_size'],max_levels=options['max_levels'])
 
 def levels_from_market_data_series(snapshot, *, trusted_fingerprint, symbol, market_type,
                             timeframe, start_ms, end_ms, as_of_ms, tick_size=0,
@@ -138,6 +26,7 @@ def levels_from_market_data_series(snapshot, *, trusted_fingerprint, symbol, mar
 
     The caller authenticates the pin independently of the response.
     """
+    snapshot=_snapshot_literal(snapshot)
     if type(snapshot) is not dict or snapshot.get("schema") != "market_data.history.rollup.v3":
         raise ValueError("MarketData levels series requires a v3 rollup")
     candles = market_data_level_candles(
