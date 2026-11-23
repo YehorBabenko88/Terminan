@@ -25,7 +25,7 @@
   ],
   "canonical": {
     "path": "terminan/research_reporting.py",
-    "sha256": "822f79d7e23efcd0266e6b70b53e9cfe40747de5f91e54664db27ab22d1b7b4e"
+    "sha256": "5ae06aa54b7c3ede869dfddd5556cc411767407b06c00757a21b08d31d9b3c5a"
   },
   "units": "ALL_CALLER_DECLARED_UNIFORM_OPTIONAL_METRIC_UNITS_REQUIRED_NO_INFERENCE",
   "coverage": "DECLARATIONS_ONLY_ALL_FILLED_COMPLETE_PARTIAL_UNCLASSIFIED_CONSERVED",
@@ -33,5 +33,7 @@
   "persistence": "NOT_IMPLEMENTED_ROOT_INFRA_OWNERSHIP_LATER",
   "oldDataCallers": "UNMIGRATED_UNDELETED_NO_RETIREMENT_CLAIM",
   "legacyRemaining": 516,
-  "retirementDeduction": 0
+  "retirementDeduction": 0,
+  "instrumentConsistencyFixBase": "e914be871dc3ee627ab1f9bdad235393ac3c99ad",
+  "executionBasis": "CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED"
 }

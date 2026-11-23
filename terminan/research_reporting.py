@@ -88,6 +88,7 @@ class ResearchPerformanceReport:
     holding_basis:str=field(default='MODELED_BAR_START_DURATION',init=False)
     coverage_basis:str=field(default='CALLER_DECLARATIONS_ONLY',init=False)
     metric_basis:str=field(default='POSTHOC_CALLER_DECLARATIONS_NOT_INFERRED_EXCURSIONS',init=False)
+    execution_basis:str=field(default='CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED',init=False)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     completeness_qualified:bool=field(default=False,init=False)
     point_in_time_qualified:bool=field(default=False,init=False)
@@ -182,6 +183,32 @@ def _encoded(value):
 def _unit(value):
     return evaluation._text(value,'[A-Za-z0-9_.:/-]{1,32}')
 
+def _instrument_preflight(source,symbol):
+    """Literal consistency only: never proof that Paper produced the records."""
+    def signal(record):
+        if type(record) is not rich.ResearchSignal:raise ValueError('REPORT_TYPED_INSTRUMENT_SIGNAL_REQUIRED')
+        observed=evaluation._text(record.symbol,'[A-Z0-9]{2,30}')
+        if observed!=symbol:raise ValueError('REPORT_INSTRUMENT_ASSOCIATION')
+    def entry(record):
+        if type(record) is not rich.ResearchEntry:raise ValueError('REPORT_TYPED_INSTRUMENT_ENTRY_REQUIRED')
+        signal(record.signal)
+    def outcome(record):
+        if type(record) is not evaluation.EvaluationOutcome:raise ValueError('REPORT_TYPED_INSTRUMENT_OUTCOME_REQUIRED')
+        signal(record.signal)
+        # Check every present execution in both underlying and rich associations,
+        # including malformed nonfilled records, before any downstream owner.
+        execution=record.execution
+        if execution is not None:
+            if type(execution) is not SignalExecution or type(execution.fill) is not PaperFill:raise ValueError('REPORT_TYPED_INSTRUMENT_FILL_REQUIRED')
+            observed=evaluation._text(execution.fill.symbol,'[A-Z0-9]{2,30}')
+            if observed!=symbol:raise ValueError('REPORT_FILL_INSTRUMENT_ASSOCIATION')
+    for record in source.entries:entry(record)
+    for record in source.evaluation.outcomes:outcome(record)
+    for pair in source.outcomes:
+        if type(pair) is not rich.EntryEvaluationOutcome:raise ValueError('REPORT_TYPED_INSTRUMENT_PAIR_REQUIRED')
+        entry(pair.entry);outcome(pair.outcome)
+
+
 def _admit(source,declarations,amount_unit,cutoff):
     if type(source) is not rich.ResearchEntryEvaluation or source.version!='research_entry_evaluation.v2':raise ValueError('REPORT_TYPED_RICH_EVALUATION_REQUIRED')
     evaluation._text(source.input_sha256,'[a-f0-9]{64}')
@@ -192,6 +219,7 @@ def _admit(source,declarations,amount_unit,cutoff):
     if available>asof or amount_unit!=dataset.value_unit or not available<=cutoff<=asof:raise ValueError('REPORT_DECLARED_UNIT_CUTOFF_MISMATCH')
     if type(source.entries) is not tuple or len(source.entries)>512 or type(owner.outcomes) is not tuple or type(source.outcomes) is not tuple or len(owner.outcomes)!=len(source.entries) or len(source.outcomes)!=len(source.entries):raise ValueError('REPORT_OUTCOME_CONSERVATION')
     if type(owner.verdict) is not ResearchPatternVerdict or any(type(entry) is not rich.ResearchEntry for entry in source.entries):raise ValueError('REPORT_TYPED_ENTRIES_AND_VERDICT')
+    _instrument_preflight(source,dataset.symbol)
     evaluation._text(owner.input_sha256,'[a-f0-9]{64}')
     if type(owner.folds) is not tuple or not 1<=len(owner.folds)<=128 or type(owner.numeric) is not numeric.NumericProfitLossSummary or owner.bootstrap is not None and type(owner.bootstrap) is not numeric.IIDMeanInterval or type(owner.verdict.numeric) is not numeric.NumericFoldSummary or type(owner.verdict.status) is not ScreeningStatus or type(owner.verdict.reasons) is not tuple or any(type(reason) is not str for reason in owner.verdict.reasons):raise ValueError('REPORT_TYPED_NUMERIC_FOLDS_VERDICT')
     previous=None
@@ -277,7 +305,7 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
     cutoff=source.evaluation.dataset.as_of_ms if cutoff is None else cutoff;evaluation._clock(cutoff)
     filled,declared,units=_admit(source,declarations,value_unit,cutoff)
     if type(numeric.SCREENING_NUMERIC_ABI) is not str or numeric.SCREENING_NUMERIC_ABI!='math.numeric.screening.ordered-binary64.v1' or numeric.NumericTradeObservation._fields!=('gross_pnl','net_pnl','fees','mae','mfe','r_multiple','holding_ms'):raise RuntimeError('REPORT_UNSUPPORTED_MATH_ABI')
-    canonical=json.dumps({'schema':'terminan.research-report.inputs.v1','evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
+    canonical=json.dumps({'schema':'terminan.research-report.inputs.v1','evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY','execution_basis':'CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
     if len(canonical)>8388608:raise ValueError('REPORT_CANONICAL_BYTE_BUDGET')
     trades=[];observations=[]
     # One explicit owner conversion per complete scalar batch. No PnL summation
