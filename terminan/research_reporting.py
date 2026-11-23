@@ -179,12 +179,22 @@ def _admit(source,declarations,amount_unit,cutoff):
     if type(source.entries) is not tuple or len(source.entries)>512 or type(owner.outcomes) is not tuple or type(source.outcomes) is not tuple or len(owner.outcomes)!=len(source.entries) or len(source.outcomes)!=len(source.entries):raise ValueError('REPORT_OUTCOME_CONSERVATION')
     if type(owner.verdict) is not ResearchPatternVerdict or any(type(entry) is not rich.ResearchEntry for entry in source.entries):raise ValueError('REPORT_TYPED_ENTRIES_AND_VERDICT')
     evaluation._text(owner.input_sha256,'[a-f0-9]{64}')
+    if type(owner.folds) is not tuple or not 1<=len(owner.folds)<=128 or type(owner.numeric) is not numeric.NumericProfitLossSummary or owner.bootstrap is not None and type(owner.bootstrap) is not numeric.IIDMeanInterval or type(owner.verdict.numeric) is not numeric.NumericFoldSummary or type(owner.verdict.status) is not ScreeningStatus or type(owner.verdict.reasons) is not tuple or any(type(reason) is not str for reason in owner.verdict.reasons):raise ValueError('REPORT_TYPED_NUMERIC_FOLDS_VERDICT')
+    previous=None
+    for index,fold in enumerate(owner.folds):
+        if type(fold) is not evaluation.EvaluationFold or type(fold.index) is not int or fold.index!=index or type(fold.numeric) is not numeric.NumericProfitLossSummary:raise ValueError('REPORT_TYPED_ORDERED_FOLD')
+        start,end,test=(evaluation._clock(v) for v in (fold.start_ms,fold.end_ms,fold.test_start_ms))
+        if not available<=start<=test<end<=asof or previous is not None and start!=previous:raise ValueError('REPORT_FOLD_CLOCKS')
+        previous=end
     pattern=evaluation._text(owner.verdict.pattern,'[a-z0-9_]{1,64}')
     rich._admit(source.entries,pattern)
     by_clock={e.decision_ms:e for e in source.entries};underlying={};pairs={};filled=[]
     for outcome in owner.outcomes:
         if type(outcome) is not evaluation.EvaluationOutcome or type(outcome.signal) is not rich.ResearchSignal or type(outcome.disposition) is not evaluation.EvaluationDisposition:raise ValueError('REPORT_TYPED_OUTCOME')
         clock=evaluation._clock(outcome.signal.decision_ms)
+        if clock>cutoff or outcome.known_at_ms is not None and evaluation._clock(outcome.known_at_ms)>cutoff:raise ValueError('REPORT_ALL_OUTCOME_CLOCKS_WITHIN_CUTOFF')
+        if outcome.fold_index is not None and (type(outcome.fold_index) is not int or not 0<=outcome.fold_index<len(owner.folds)):raise ValueError('REPORT_LITERAL_OUTCOME_FOLD_INDEX')
+        if outcome.disposition is not evaluation.EvaluationDisposition.OUTSIDE_TEST_WINDOW and outcome.fold_index is None:raise ValueError('REPORT_OUTCOME_FOLD_REQUIRED')
         if clock in underlying or clock not in by_clock or outcome.signal!=by_clock[clock].signal:raise ValueError('REPORT_EXACT_SIGNAL_ASSOCIATION')
         underlying[clock]=outcome
     for pair in source.outcomes:

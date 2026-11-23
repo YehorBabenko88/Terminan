@@ -38,6 +38,10 @@ class ResearchReportingTests(unittest.TestCase):
   for clock in (row.available_at_ms-1,180001,True):
    with self.assertRaises(ValueError):self.build(e,(replace(row,available_at_ms=clock),))
   with self.assertRaises(ValueError):self.build(e,(row,),report_as_of_ms=row.available_at_ms-1)
+  from terminan.research_evaluation import EvaluationDisposition
+  pair=e.outcomes[0];changed=replace(pair.outcome,disposition=EvaluationDisposition.NOT_FILLED,known_at_ms=180001,execution=None)
+  future=replace(e,outcomes=(replace(pair,outcome=changed),),evaluation=replace(e.evaluation,outcomes=(changed,)))
+  with self.assertRaises(ValueError):self.build(future)
  def test_unused_duplicate_and_nonfilled_metadata_refuse(self):
   e=self.evaluation();row=self.declaration(e)
   for rows in ((row,row),(replace(row,decision_ms=0),),(replace(row,symbol='ETHUSDT'),)):
@@ -73,7 +77,7 @@ class ResearchReportingTests(unittest.TestCase):
 
  def test_malformed_typed_entry_or_verdict_refuses_before_math(self):
   e=self.evaluation()
-  for bad in (replace(e,entries=('wrong',)),replace(e,evaluation=replace(e.evaluation,verdict='wrong'))):
+  for bad in (replace(e,entries=('wrong',)),replace(e,evaluation=replace(e.evaluation,verdict='wrong')),replace(e,evaluation=replace(e.evaluation,folds=('wrong',))),replace(e,evaluation=replace(e.evaluation,numeric='wrong')),replace(e,evaluation=replace(e.evaluation,bootstrap='wrong'))):
    with patch('history_statistics.project_decimal_observations',side_effect=AssertionError('MATH_CALLED')):
     with self.assertRaises(ValueError):self.build(bad)
  def test_math_summary_boolean_or_wrong_nested_record_refuses(self):
