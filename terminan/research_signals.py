@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .paper import PaperFill
 
+class SignalNotFilled(ValueError):
+    """Valid offline admission with no eligible modeled fill."""
+
 @dataclass(frozen=True)
 class ResearchSignal:
     symbol:str

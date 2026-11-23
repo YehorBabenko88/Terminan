@@ -177,7 +177,7 @@ class PaperEngine:
         Intrabar-fill targets need post-entry close proof under SL_FIRST; the
         caller must explicitly select and retain the optimistic TP_FIRST model.
         """
-        from .research_signals import validate_signal_batch,SignalExecution
+        from .research_signals import validate_signal_batch,SignalExecution,SignalNotFilled
         if self.enabled is not True:raise ValueError('paper engine disabled')
         rows=validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=as_of_ms,available_from_ms=available_from_ms,ambiguity_policy=ambiguity_policy)
         if signal.symbol in self.positions:raise ValueError('paper instrument already has a position')
@@ -191,7 +191,7 @@ class PaperEngine:
             favorable=bar.open<=signal.entry_price if signal.side=='long' else bar.open>=signal.entry_price
             if favorable:entry_index=index;raw_entry=bar.open;break
             if bar.low<=signal.entry_price<=bar.high:entry_index=index;raw_entry=signal.entry_price;entry_at_open=False;break
-        if entry_index is None:raise ValueError('signal entry not filled')
+        if entry_index is None:raise SignalNotFilled('signal entry not filled')
         owner=_paper_math();entry=owner.adverse_execution_price(raw_entry,signal.side,self.slippage_bps,True)
         size=owner.paper_position_size(self.notional,entry);entry_fee=owner.paper_entry_fee(self.notional,self.fee_rate)
         position=Position(signal.symbol,signal.side,entry,signal.target,signal.stop,size,_timestamp(rows[entry_index].start_ms),entry_fee)
