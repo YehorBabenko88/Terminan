@@ -44,7 +44,11 @@ strategy_entries=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strat
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(strategy_entries['StrategyEntryTests']))
 strategy_catalog=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_catalog.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(strategy_catalog['StrategyCatalogTests']))
-if suite.countTestCases()!=180:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+screening=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_screening.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(screening['ResearchScreeningTests']))
+signal_literal=runpy.run_path(str(pathlib.Path(__file__).with_name('test_signal_literal_boundary.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(signal_literal['SignalLiteralBoundaryTests']))
+if suite.countTestCases()!=200:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -54,4 +58,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==180 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==200 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
