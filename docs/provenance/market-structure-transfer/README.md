@@ -34,7 +34,10 @@ candidates the latest event-time candle wins.
 MarketStructureEvent consistently carries level, low/high, source availability,
 a confirmed swing reference and an optional trigger reference, each with
 explicit clocks. MarketStructureContext snapshots all declared evidence and
-selects bias by maximum (known time,event time,kind), independent of list order.
+selects bias by maximum (known time,event time,analyzed side precedence),
+independent of list order. High-side transition precedes low-side transition
+within the exact same trigger, matching the actual analyzer state loop; the
+low-side transition is last only when both primary clocks tie.
 Its bias and higher-timeframe alignment results remain analytical declarations.
 No source authentication or trading/execution authority is granted. The context
 returns detached event copies; it does not expose its primitive snapshots.
@@ -62,3 +65,28 @@ visibility, broken-state uniqueness, candidate availability/event-time, prefix
 invariance, input snapshots, MTF evidence, hostile inputs, Math refusals and
 Decimal context preservation. Recheck existing price-pattern and selected pure
 canonical PaperEngine regressions without running its HTTP/server tests.
+
+## Context collision refusal
+
+The bounded context validates all evidence before any bias projection, including
+future evidence. Event identity is (event start,event end,availability,timeframe,
+kind). A repeated identity must have exactly equal full detached evidence,
+including literal numeric types and both references; conflicting payloads refuse
+in either input order. Exact duplicates are deduplicated without retaining input
+objects. No source authentication or retirement follows from this check.
+
+An actual delayed-input analyzer witness confirms that a single candle can
+break an older high and a newer higher low: high10 known400000 and low12
+known420000 both become visible at trigger start420000, with close11 and
+availability480000. The state loop emits bullish BOS then bearish CHOCH, so
+context must retain the resulting bearish state regardless of event-list order.
+The previous lexical kind tie projected bullish incorrectly. RED evidence and
+the intermediate identity-only79-test pass are retained in the external review
+receipt; the original3a55 checkpoint remains in history.
+
+The structural tie rule is an immutable closed mapping: bullish BOS/CHOCH are
+high-side transition0; bearish BOS/CHOCH are low-side transition1. Known time
+and event time remain primary. A single side cannot be both BOS and CHOCH at
+the same event/known clocks under this fixed analyzer, so conflicting same-side
+classifications refuse during full context preflight, including future events.
+A valid high-plus-low dual break is retained. Bias uses no lexical kind fallback.

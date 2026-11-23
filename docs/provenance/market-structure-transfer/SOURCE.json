@@ -88,5 +88,26 @@
   "sourceAuthentication": "NOT_EVALUATED",
   "executionAuthority": false,
   "tradingAuthorized": false,
-  "release": "NO_GO"
+  "release": "NO_GO",
+  "contextIdentityPolicy": {
+    "identity": [
+      "event_start_ms",
+      "event_end_ms",
+      "available_at_ms",
+      "timeframe",
+      "kind"
+    ],
+    "collision": "REFUSE_CONFLICTING_FULL_TYPED_EVIDENCE_BEFORE_ANY_PROJECTION",
+    "identicalDuplicates": "DETACHED_AND_DEDUPLICATED",
+    "futureRecords": "VALIDATED_WITHOUT_CUTOFF_FILTER"
+  },
+  "sameTriggerStatePolicy": "Latest known time then event time; exact clock ties preserve actual high-side then low-side transition order",
+  "sameSideClassificationConflict": "REFUSE_BOS_AND_CHOCH_FOR_ONE_SIDE_AT_IDENTICAL_EVENT_AND_KNOWN_CLOCKS",
+  "structuralTransitionOrder": {
+    "bullish_bos": 0,
+    "bullish_choch": 0,
+    "bearish_bos": 1,
+    "bearish_choch": 1
+  },
+  "lexicalBiasFallback": false
 }

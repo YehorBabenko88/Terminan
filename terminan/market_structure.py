@@ -25,6 +25,10 @@ class MarketStructureKind(str,Enum):
     BULLISH_ORDER_BLOCK='bullish_order_block';BEARISH_ORDER_BLOCK='bearish_order_block'
 _STRUCTURAL=(MarketStructureKind.BULLISH_BOS,MarketStructureKind.BEARISH_BOS,MarketStructureKind.BULLISH_CHOCH,MarketStructureKind.BEARISH_CHOCH)
 _BULLISH=(MarketStructureKind.BULLISH_BOS,MarketStructureKind.BULLISH_CHOCH)
+_STRUCTURAL_DECISION_ORDER=MappingProxyType({
+    MarketStructureKind.BULLISH_BOS:0,MarketStructureKind.BULLISH_CHOCH:0,
+    MarketStructureKind.BEARISH_BOS:1,MarketStructureKind.BEARISH_CHOCH:1,
+})
 _SWINGS=(MarketStructureKind.HIGH_SWING,MarketStructureKind.LOW_SWING)
 _BLOCKS=(MarketStructureKind.BULLISH_ORDER_BLOCK,MarketStructureKind.BEARISH_ORDER_BLOCK)
 @dataclass(frozen=True,slots=True)
@@ -214,7 +218,7 @@ def _context_records(events):
         snapshots.append((event.event_start_ms,event.event_end_ms,event.available_at_ms,event.source_available_at_ms,event.kind,event.timeframe,event.level,event.low,event.high,
             _reference_snapshot(event.swing_reference),_reference_snapshot(event.trigger_reference),event.version,event.availability_basis,event.source_authentication,event.execution_authority,event.trading_authorized))
     import market_math as owner
-    records=[]
+    records=[];seen={};classifications={}
     for row in snapshots:
         start,end,known,source,kind,timeframe,level,low,high,swing,trigger=row[:11]
         for value in (start,end,known,source):_clock(value)
@@ -232,7 +236,21 @@ def _context_records(events):
             if kind in _BLOCKS:
                 if not swing[0]<=start<trigger[0]:raise ValueError('MARKET_STRUCTURE_PRIOR_BLOCK_EVIDENCE_REQUIRED')
             elif (start,end,source)!=(trigger[0],trigger[1],trigger[2]) or not low==high==level:raise ValueError('MARKET_STRUCTURE_TRIGGER_EVIDENCE_REQUIRED')
-        records.append(row[:11])
+        if kind in _STRUCTURAL:
+            transition=(start,end,known,timeframe,_STRUCTURAL_DECISION_ORDER[kind])
+            if transition in classifications and classifications[transition] is not kind:
+                raise ValueError('MARKET_STRUCTURE_CONFLICTING_SIDE_CLASSIFICATION')
+            classifications[transition]=kind
+        identity=(start,end,known,timeframe,kind)
+        # Preserve full detached evidence, including literal price types. Equal
+        # numeric magnitudes with different payload representations are not an
+        # arbitrary first-record choice. Every record, even future evidence, is
+        # validated before context can project a bias.
+        fingerprint=(*row[:6],*((type(value),value) for value in row[6:9]),swing,trigger)
+        if identity in seen:
+            if seen[identity]!=fingerprint:raise ValueError('MARKET_STRUCTURE_CONFLICTING_EVENT_IDENTITY')
+            continue
+        seen[identity]=fingerprint;records.append(row[:11])
     return tuple(records)
 
 class MarketStructureContext:
@@ -245,7 +263,10 @@ class MarketStructureContext:
         cutoff=_clock(as_of_ms);timeframe=_timeframe(timeframe)
         visible=[row for row in self._records if row[5] is timeframe and row[2]<=cutoff and row[4] in _STRUCTURAL]
         if not visible:return None
-        latest=max(visible,key=lambda row:(row[2],row[0],row[4].value))
+        # One analyzer decision evaluates the high side before the low side.
+        # If both break at the same trigger, the later low-side transition is
+        # the resulting trend; lexical kind spelling cannot reverse that state.
+        latest=max(visible,key=lambda row:(row[2],row[0],_STRUCTURAL_DECISION_ORDER[row[4]]))
         direction=MarketDirection.BULLISH if latest[4] in _BULLISH else MarketDirection.BEARISH
         return MarketBiasObservation(direction,timeframe,cutoff,_record_event(latest))
     def alignment_at(self,as_of_ms,*,entry_timeframe,bias_timeframe,direction):

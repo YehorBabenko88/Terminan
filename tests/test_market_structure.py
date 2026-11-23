@@ -223,3 +223,65 @@ class MarketStructureTests(unittest.TestCase):
    def __float__(self):raise AssertionError('FOREIGN_FLOAT')
   for value in (Price(),Decimal('9')):
    with self.assertRaises(ValueError):self.analyze((OHLCObservation(0,60000,60000,8,value,7,8),))
+
+ def test_same_event_identity_conflicting_price_evidence_refuses_in_both_orders(self):
+  event=self.kinds(self.analyze(),MarketStructureKind.BULLISH_BOS)[0]
+  for level in (9,11):
+   conflict=replace(event,level=level,low=level,high=level)
+   for events in ((event,conflict),(conflict,event)):
+    with self.assertRaisesRegex(ValueError,'CONFLICTING_EVENT_IDENTITY'):MarketStructureContext(events)
+ def test_future_conflicting_identity_refuses_before_any_projection(self):
+  event=self.kinds(self.analyze(),MarketStructureKind.BULLISH_BOS)[0]
+  future=replace(event,available_at_ms=600000,source_available_at_ms=600000,trigger_reference=replace(event.trigger_reference,available_at_ms=600000))
+  conflict=replace(future,level=11,low=11,high=11)
+  with self.assertRaisesRegex(ValueError,'CONFLICTING_EVENT_IDENTITY'):MarketStructureContext((future,conflict))
+ def test_identical_duplicate_events_are_harmless_and_detached(self):
+  events=self.analyze();copies=tuple(replace(e,swing_reference=replace(e.swing_reference),trigger_reference=None if e.trigger_reference is None else replace(e.trigger_reference)) for e in events)
+  ctx=MarketStructureContext(events+copies);original=MarketStructureContext(events)
+  self.assertEqual(len(ctx.events),len(original.events));self.assertEqual(ctx.bias_at(240000,MarketTimeframe.M1),original.bias_at(240000,MarketTimeframe.M1))
+  object.__setattr__(copies[-1],'level',1);self.assertEqual(ctx.bias_at(240000,MarketTimeframe.M1),original.bias_at(240000,MarketTimeframe.M1))
+ def test_same_identity_conflicting_reference_or_numeric_representation_refuses(self):
+  event=self.kinds(self.analyze(),MarketStructureKind.BULLISH_BOS)[0]
+  conflict=replace(event,swing_reference=replace(event.swing_reference,available_at_ms=179999))
+  typed=replace(event,level=float(event.level),low=float(event.low),high=float(event.high))
+  for bad in (conflict,typed):
+   for events in ((event,bad),(bad,event)):
+    with self.assertRaisesRegex(ValueError,'CONFLICTING_EVENT_IDENTITY'):MarketStructureContext(events)
+ def test_same_identity_order_block_range_conflict_refuses(self):
+  rows=self.rows(((8,9,7,8.5),(9.5,10,8,8.5),(8.5,9.5,8,9),(9,11,8.9,10.5)))
+  event=self.kinds(self.analyze(rows),MarketStructureKind.BULLISH_ORDER_BLOCK)[0]
+  for bad in (replace(event,low=7.5),replace(event,high=10.5)):
+   with self.assertRaisesRegex(ValueError,'CONFLICTING_EVENT_IDENTITY'):MarketStructureContext((event,bad))
+
+ def test_opposite_structural_events_at_one_trigger_preserve_high_then_low_state(self):
+  values=((8,9,7,8),(9,10,8,9),(9,9,8,9),(13,15,12.5,13),(13,16,13,14),(13,17,12,13),(14,18,13,14),(11,19,10.5,11))
+  events=self.analyze(self.rows(values,delays={0:400000}),cutoff=480000)
+  structural=[e for e in events if e.kind in (MarketStructureKind.BULLISH_BOS,MarketStructureKind.BEARISH_BOS,MarketStructureKind.BULLISH_CHOCH,MarketStructureKind.BEARISH_CHOCH)]
+  self.assertEqual({e.kind for e in structural},{MarketStructureKind.BULLISH_BOS,MarketStructureKind.BEARISH_CHOCH})
+  self.assertEqual({(e.event_start_ms,e.available_at_ms) for e in structural},{(420000,480000)})
+  for supplied in (events,tuple(reversed(events))):
+   bias=MarketStructureContext(supplied).bias_at(480000,MarketTimeframe.M1)
+   self.assertIs(bias.direction,MarketDirection.BEARISH);self.assertIs(bias.evidence.kind,MarketStructureKind.BEARISH_CHOCH)
+
+ def test_same_side_bos_and_choch_classification_conflict_refuses_in_both_orders(self):
+  event=self.kinds(self.analyze(),MarketStructureKind.BULLISH_BOS)[0]
+  opposite_label=replace(event,kind=MarketStructureKind.BULLISH_CHOCH)
+  for events in ((event,opposite_label),(opposite_label,event)):
+   with self.assertRaisesRegex(ValueError,'CONFLICTING_SIDE_CLASSIFICATION'):MarketStructureContext(events)
+  bearish=replace(event,kind=MarketStructureKind.BEARISH_BOS);bearish_label=replace(event,kind=MarketStructureKind.BEARISH_CHOCH)
+  for events in ((bearish,bearish_label),(bearish_label,bearish)):
+   with self.assertRaisesRegex(ValueError,'CONFLICTING_SIDE_CLASSIFICATION'):MarketStructureContext(events)
+ def test_future_same_side_classification_conflict_is_not_filtered_out(self):
+  event=self.kinds(self.analyze(),MarketStructureKind.BULLISH_BOS)[0]
+  future=replace(event,available_at_ms=600000,source_available_at_ms=600000,trigger_reference=replace(event.trigger_reference,available_at_ms=600000))
+  label=replace(future,kind=MarketStructureKind.BULLISH_CHOCH)
+  for events in ((future,label),(label,future)):
+   with self.assertRaisesRegex(ValueError,'CONFLICTING_SIDE_CLASSIFICATION'):MarketStructureContext(events)
+
+ def test_later_event_clock_outranks_low_side_precedence_at_equal_known_time(self):
+  values=((7,10,5,7),(7,12,4,7),(7,10,5,7),(7,13,6,12.5),(7,11,3,3.5))
+  mirrored=tuple((20-o,20-l,20-h,20-c) for o,h,l,c in values)
+  events=self.analyze(self.rows(mirrored,delays={3:300000}),cutoff=300000)
+  for supplied in (events,tuple(reversed(events))):
+   bias=MarketStructureContext(supplied).bias_at(300000,MarketTimeframe.M1)
+   self.assertIs(bias.direction,MarketDirection.BULLISH);self.assertEqual(bias.evidence.event_start_ms,240000)
