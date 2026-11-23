@@ -1,0 +1,61 @@
+{
+  "schema": "terminan.history-v12-consumer.source.v1",
+  "runtime_anchor": "2409dc092e9bdffe64a5991b89b4daa85340bd8d",
+  "base": "3e943b90d5395682ec5266e1660b39ec0048288e",
+  "Data_fixture_candidate": "9c4da2710603c93f94440c40dd0df219c4ebcc94",
+  "Data_fixture_runtime": "f7ff8c6cf86d71c818469ad420d7efb38a33d760",
+  "fixture_class": "SYNTHETIC_DECLARED_ONLY_NOT_AUTHENTICATED_HISTORICAL",
+  "Math_public": "420290fa9a3d918903673d86d714feb5d9492aca",
+  "Math_runtime": "a4535057944b53e81aa074daabd2fc92be3b8798",
+  "Math_raw3": [
+    {
+      "name": "market_math.py",
+      "sha256": "6510a0b97b7184d668060c9c2a54fefe6ea422a238b7cc8fbad9a41c281c396b",
+      "bothRawEqual": true
+    },
+    {
+      "name": "market_compute_api.py",
+      "sha256": "0fa992f10bd4b1d827d1d90bc8503528673a311163418db9f21abc1b0ea6b438",
+      "bothRawEqual": true
+    },
+    {
+      "name": "history_statistics.py",
+      "sha256": "1c477f1e3275953a962d3692995d0baf1c5694026b6f2d72fdb6f1c2ac9a04c9",
+      "bothRawEqual": true
+    }
+  ],
+  "Math_wheel_sha256": "0a54aaa4bf7829f7261ab42aa8f8982d257d3dfb0dca14fb98c33d8d0efb0a30",
+  "source_sha256": {
+    "terminan/history_protocol.py": "8f15d7728e878238abc3d87fc7509deb8d1f34d83b570ea1cbfcfdc31b1905f4",
+    "terminan/analytics/market_history.py": "c4e07a8bdf7e6daa6992499d5d37c289328c37698ac38ee8c7d13ce863a74b96",
+    "terminan/levels.py": "85724c83f5375963976680adbb74b8b783796af57c3e13ac62b1d120ea12c9c4"
+  },
+  "fixture_sha256": {
+    "tests/fixtures/history_v12/data9c-delayed-middle.json": "e2bde3d284bbba69e19a6d24316c7272b1fd120d9aa32e88cfeae0269f8afe8f",
+    "tests/fixtures/history_v12/data9c-levels.json": "9c0af87283464ecdd49de9a3a7190786d6352ef43f426252921e168ba6827f96",
+    "tests/fixtures/history_v12/data9c-multipin.json": "210d517e302a56fcf725f5790a415279d2d852290b844bc26d74d7615988e1ee"
+  },
+  "wire_family": "SELECTION_HISTORY_ROLLUP_V1.2_EXPLICIT_OPERATIONS",
+  "new_mandatory_obligations": 33,
+  "mandatory_checker_census": "PARENT_SEPARATE_INTEGRATION_REQUIRED_AFTER_RUNTIME_FREEZE",
+  "source_scoped_tests_each_python": 63,
+  "wheel_scoped_tests_each_python": 63,
+  "legacy_level_golden_tests_each_python": 3,
+  "legacy_level_timeframes": [
+    "1h",
+    "4h",
+    "1d",
+    "1w"
+  ],
+  "whole_source": "NOT_RUN",
+  "full_installed_checker": "NOT_RUN",
+  "no_Data_runtime_import": true,
+  "independent_rollup_sum_recomputed": false,
+  "source_authentication": "NOT_EVALUATED",
+  "point_in_time_qualified": false,
+  "execution_authority": false,
+  "trading_authorized": false,
+  "legacy_remaining": 516,
+  "retirement_deduction": 0,
+  "release": "NO_GO"
+}
