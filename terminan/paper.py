@@ -217,6 +217,130 @@ class PaperEngine:
         self.last_trade_time[signal.symbol]=fill.exit_time;self.reference.pop(signal.symbol,None);self.fills.append(fill)
         return result
 
+    def execute_scale_plan(self, plan, bars, *, bar_ms, as_of_ms, available_from_ms=0):
+        """Stage conservative scaled-limit OHLC execution in this sole engine.
+
+        One target per bar; stop first; new intrabar entries require close proof
+        for a target. Final target closes the exact remainder and cancels pending
+        entries. Break-even changes apply from the next bar. Tick order, source
+        authenticity and real execution are not established by this model.
+        """
+        from .scale_execution import (validate_scale_batch, ScaleEntryFill,
+                                      ScaleExitFill, ScaleExecution)
+        from .research_signals import SignalNotFilled
+        if self.enabled is not True:
+            raise ValueError('paper engine disabled')
+        notional, fee_rate, slippage_bps = self.notional, self.fee_rate, self.slippage_bps
+        plan, rows = validate_scale_batch(plan, bars, bar_ms=bar_ms, as_of_ms=as_of_ms,
+                                         available_from_ms=available_from_ms)
+        if plan.symbol in self.positions:
+            raise ValueError('paper instrument already has a position')
+        prior = self.last_trade_time.get(plan.symbol)
+        if prior is not None and _timestamp(plan.decision_ms) < prior:
+            raise ValueError('out-of-order scale decision')
+        owner = _paper_math()
+
+        def checked_state(events):
+            state = owner.paper_scale_accounting(plan.side, tuple(events), fee_rate)
+            if type(state) is not owner.PaperScaleState or type(state.closed) is not bool:
+                raise ValueError('SCALE_MATH_STATE_TYPE_REQUIRED')
+            optional = ('current_entry_price', 'entry_mean', 'exit_mean')
+            for name in state._fields:
+                value = getattr(state, name)
+                if name == 'closed' or value is None and name in optional:
+                    continue
+                if type(value) is not D or not value.is_finite():
+                    raise ValueError('SCALE_MATH_PLAIN_FINITE_STATE_REQUIRED')
+            return state
+
+        pending = list(enumerate(plan.entries))
+        entries, exits, events = [], [], []
+        state = checked_state(events)
+        target_index = 0
+        active_stop = plan.stop
+        first = (plan.decision_ms // bar_ms + 1) * bar_ms
+        for bar in rows:
+            if bar.start_ms < first:
+                continue
+            remaining_pending = []
+            intrabar_entry = False
+            for index, leg in pending:
+                favorable = (bar.open <= leg.price if plan.side == 'long'
+                             else bar.open >= leg.price)
+                if not favorable and not bar.low <= leg.price <= bar.high:
+                    remaining_pending.append((index, leg))
+                    continue
+                raw_entry = bar.open if favorable else leg.price
+                metrics = owner.paper_scale_entry_metrics(
+                    plan.side, raw_entry, notional, leg.fraction, slippage_bps)
+                if (type(metrics) is not owner.PaperScaleEntryMetrics
+                        or type(metrics.price) is not D or not metrics.price.is_finite()
+                        or type(metrics.quantity) is not D or not metrics.quantity.is_finite()):
+                    raise ValueError('SCALE_MATH_ENTRY_METRICS_REQUIRED')
+                events.append(owner.PaperScaleEvent('ENTRY', metrics.price, metrics.quantity))
+                state = checked_state(events)
+                entries.append(ScaleEntryFill(index, bar.start_ms, metrics.price,
+                                              metrics.quantity, leg.fraction))
+                intrabar_entry = intrabar_entry or not favorable
+            pending = remaining_pending
+            if not entries:
+                continue
+            stop_gap = (bar.open <= active_stop if plan.side == 'long'
+                        else bar.open >= active_stop)
+            stop_hit = (bar.low <= active_stop if plan.side == 'long'
+                        else bar.high >= active_stop)
+            if stop_gap or stop_hit:
+                raw_exit = bar.open if stop_gap else active_stop
+                price = owner.adverse_execution_price(raw_exit, plan.side, slippage_bps, False)
+                quantity = state.remaining_quantity
+                events.append(owner.PaperScaleEvent('EXIT', price, quantity))
+                state = checked_state(events)
+                exits.append(ScaleExitFill(bar.start_ms, price, quantity, 'SL'))
+                break
+            target = plan.targets[target_index]
+            target_hit = (bar.open >= target.price or bar.high >= target.price
+                          if plan.side == 'long'
+                          else bar.open <= target.price or bar.low <= target.price)
+            if intrabar_entry:
+                target_hit = target_hit and (bar.close >= target.price if plan.side == 'long'
+                                            else bar.close <= target.price)
+            if target_hit:
+                # The last target releases the exact remainder, without epsilon.
+                fraction = D(1) if target_index == len(plan.targets) - 1 else target.fraction
+                quantity = owner.paper_scale_target_quantity(
+                    state.remaining_quantity, state.opened_quantity, fraction)
+                price = owner.adverse_execution_price(target.price, plan.side, slippage_bps, False)
+                events.append(owner.PaperScaleEvent('EXIT', price, quantity))
+                state = checked_state(events)
+                exits.append(ScaleExitFill(bar.start_ms, price, quantity, 'TP' + str(target_index + 1)))
+                target_index += 1
+                if state.closed:
+                    break
+                if plan.move_stop_to_entry_after_first_target and target_index == 1:
+                    active_stop = state.current_entry_price
+        if not entries:
+            raise SignalNotFilled('scale entry not filled')
+        if not state.closed:
+            bar = rows[-1]
+            quantity = state.remaining_quantity
+            price = owner.adverse_execution_price(bar.close, plan.side, slippage_bps, False)
+            events.append(owner.PaperScaleEvent('EXIT', price, quantity))
+            state = checked_state(events)
+            exits.append(ScaleExitFill(bar.start_ms, price, quantity, 'EOD'))
+        if not state.closed or state.entry_mean is None or state.exit_mean is None:
+            raise ValueError('SCALE_COMPLETE_ACCOUNTING_REQUIRED')
+        fill = PaperFill(plan.symbol, plan.side, state.entry_mean, state.exit_mean,
+                         'scale_' + exits[-1].reason.lower(), state.gross_pnl, state.fees,
+                         state.net_pnl, _timestamp(exits[-1].time_ms))
+        result = ScaleExecution(plan.symbol, entries[0].time_ms, exits[-1].time_ms,
+                                state.opened_quantity, tuple(entries), tuple(exits), fill,
+                                tuple(index for index, _ in pending))
+        # This is the sole commit point, after all admission and accounting.
+        self.last_trade_time[plan.symbol] = fill.exit_time
+        self.reference.pop(plan.symbol, None)
+        self.fills.append(fill)
+        return result
+
     def execute_quote(self,*,open_decision,close_decision,quotes,funding,latency_ms,max_quote_age_ms,max_hold_ms,now_ms,fee_bps):
         """Stage a declared causal quote profile using only canonical Math metrics.
 
