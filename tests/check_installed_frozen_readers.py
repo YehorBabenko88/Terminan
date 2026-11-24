@@ -88,7 +88,27 @@ def _require_roster(actual):
 case_ids=tuple(_case_ids(suite))
 _require_roster(case_ids)
 if suite.countTestCases()!=374:raise RuntimeError('EXACT_ROSTER_REQUIRED')
-result=unittest.TextTestRunner(verbosity=2).run(suite)
+def _require_original_producer_contract(root):
+ import json,hashlib
+ raw=(root/'tests/original_producer_counterparts_v1.json').read_bytes()
+ if hashlib.sha256(raw).hexdigest()!='356df139058f03c8187c0efc4297385544c4c9188e3e803c939b5b46e1c58f86':raise RuntimeError('ORIGINAL_PRODUCER_CONTRACT_REQUIRED')
+ contract=json.loads(raw)
+ for row in contract['source_files']:
+  if hashlib.sha256((root/row['archive']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('ORIGINAL_PRODUCER_SOURCE_REQUIRED')
+ for row in contract['counterpart_files']:
+  if hashlib.sha256((root/row['path']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('ORIGINAL_PRODUCER_COUNTERPART_REQUIRED')
+ return {row['id']:row['counterpart'] for row in contract['roles'] if row['role']=='producer'}
+producer_contract=_require_original_producer_contract(pathlib.Path(__file__).resolve().parents[1])
+producer_labels=[]
+class _OriginalProducerResult(unittest.TextTestResult):
+ def addSubTest(self,test,subtest,error):
+  original_id=dict(subtest.params).get('original_id')
+  if original_id in producer_contract:producer_labels.append((original_id,test.id(),error is None))
+  return super().addSubTest(test,subtest,error)
+def _require_original_producer_labels(actual,expected):
+ if len(actual)!=4 or {key:method for key,method,passed in actual}!=expected or not all(passed for key,method,passed in actual):raise RuntimeError('ORIGINAL_PRODUCER_FOUR_LABELS_REQUIRED')
+result=unittest.TextTestRunner(verbosity=2,resultclass=_OriginalProducerResult).run(suite)
+_require_original_producer_labels(producer_labels,producer_contract)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
  source=pathlib.Path(module.__file__).resolve(strict=True)

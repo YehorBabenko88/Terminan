@@ -21,10 +21,30 @@ class StrategyEntryTests(unittest.TestCase):
  def test_original_sweep_waits_for_confirmed_structure_and_uses_reference(self):
   x,=self.sweep(events=(self.event(MarketStructureKind.BULLISH_LIQUIDITY_SWEEP,level=99,known=180000),))
   self.assertEqual((x.pattern,x.decision_ms,x.side,x.reference),(ResearchEntryPattern.SWEEP_RECLAIM,180000,EntrySide.LONG,99));self.assertEqual(x.evidence.sweep_reference.event_start_ms,60000)
+  # Original60ms fixture is explicitly projected to synthetic M1; no real-time rewrite.
+  with self.subTest(original_id='tests/research/test_scalp_entries.py::test_sweep_entry_never_precedes_confirmed_event'):
+   bars=(OHLCObservation(60000,120000,120000,99,101,98,100),)
+   event=self.event(MarketStructureKind.BULLISH_LIQUIDITY_SWEEP,level=99,known=120000)
+   x,=self.sweep(bars=bars,events=(event,),cutoff=120000)
+   self.assertEqual((x.decision_ms,x.reference,x.evidence.entry_price),(120000,99,100))
+   self.assertEqual(self.sweep(bars=bars,events=(event,),cutoff=119999),())
+   raw=(OHLCObservation(60,120,120,99,101,98,100),)
+   with self.assertRaisesRegex(ValueError,'MARKET_STRUCTURE_DECLARED_TIMEFRAME_CADENCE_REQUIRED'):
+    self.sweep(bars=raw,events=(event,),cutoff=120)
  def test_sweep_decision_includes_actual_candle_availability(self):
   bars=self.bars();bars=(replace(bars[0],available_at_ms=240000),bars[1]);self.assertEqual(self.sweep(bars=bars)[0].decision_ms,240000);self.assertEqual(self.sweep(bars=bars,cutoff=239999),())
  def test_original_breakout_bar_is_not_reused_as_retest(self):
   x,=self.retest();self.assertEqual((x.decision_ms,x.reference,x.evidence.break_reference.available_at_ms),(180000,100,120000));self.assertEqual(x.signal.side,'long');self.assertEqual(x.evidence.volume_ratio,1.5)
+  with self.subTest(original_id='tests/research/test_scalp_entries.py::test_breakout_bar_is_not_reused_as_retest'):
+   bars=(OHLCObservation(60000,120000,120000,99,102,99,101),OHLCObservation(120000,180000,180000,101,102,99.9,101.2))
+   vol=VolatilityMetrics(120000,180000,.01,.01,.01,.02,1.5,1.5,.7,VolatilityRegime.HIGH,'v')
+   x,=self.retest(bars=bars,vols=(vol,),cutoff=180000,min_volume_ratio=1.2)
+   self.assertEqual((x.decision_ms,x.reference,x.evidence.entry_price,x.evidence.volume_ratio),(180000,100,101.2,1.5))
+   self.assertEqual(self.retest(bars=bars[:1],vols=(vol,),cutoff=180000,min_volume_ratio=1.2),())
+   self.assertEqual(self.retest(bars=bars,vols=(vol,),cutoff=179999,min_volume_ratio=1.2),())
+   raw=(OHLCObservation(60,120,120,99,102,99,101),OHLCObservation(120,180,180,101,102,99.9,101.2))
+   with self.assertRaisesRegex(ValueError,'MARKET_STRUCTURE_DECLARED_TIMEFRAME_CADENCE_REQUIRED'):
+    self.retest(bars=raw,vols=(),cutoff=180,min_volume_ratio=1.2)
  def test_retest_requires_later_event_and_strictly_later_decision(self):
   self.assertEqual(self.retest(bars=(self.bars()[0],)),());self.assertEqual(self.retest(events=(self.event(known=180000),)),())
   bars=self.bars();bars=(replace(bars[0],available_at_ms=300000),bars[1]);self.assertEqual(self.retest(bars=bars,events=(self.event(known=240000),)),())
@@ -42,6 +62,17 @@ class StrategyEntryTests(unittest.TestCase):
  def test_original_profile_reclaim_requires_profile_known_by_decision(self):
   x,=self.reclaim();self.assertEqual((x.pattern,x.decision_ms,x.side,x.reference),(ResearchEntryPattern.PROFILE_RECLAIM,120000,EntrySide.LONG,100));self.assertEqual(x.evidence.profile_kind,ProfileKind.TRADE_DISTRIBUTION)
   self.assertEqual(self.reclaim(profiles=(self.profile(120001),)),())
+  with self.subTest(original_id='tests/research/test_scalp_entries.py::test_poc_reclaim_uses_only_profile_known_by_decision'):
+   bars=(OHLCObservation(0,60000,60000,99,99.5,98.5,99),OHLCObservation(60000,120000,120000,99,101,98.8,100.5))
+   profile=ProfileSummary(100,101,99,120000,ProfileKind.TRADE_DISTRIBUTION,2)
+   x,=self.reclaim(bars=bars,profiles=(profile,),cutoff=120000)
+   self.assertEqual((x.decision_ms,x.reference,x.evidence.entry_price),(120000,100,100.5))
+   self.assertEqual((x.context['profile']['value_area_high'],x.context['profile']['value_area_low'],x.context['profile']['value_area_width']),(101,99,2))
+   self.assertIsNone(x.evidence.flow);self.assertIsNone(x.metadata['delta'])
+   self.assertEqual(self.reclaim(bars=bars,profiles=(replace(profile,available_at_ms=120001),),cutoff=120000),())
+   raw=(OHLCObservation(0,60,60,99,99.5,98.5,99),OHLCObservation(60,120,120,99,101,98.8,100.5))
+   with self.assertRaisesRegex(ValueError,'MARKET_STRUCTURE_DECLARED_TIMEFRAME_CADENCE_REQUIRED'):
+    self.reclaim(bars=raw,profiles=(),cutoff=120)
  def test_profile_reclaim_includes_previous_candle_availability(self):
   bars=self.profile_bars();bars=(replace(bars[0],available_at_ms=240000),bars[1]);x,=self.reclaim(bars=bars)
   self.assertEqual(x.decision_ms,240000);self.assertEqual(self.reclaim(bars=bars,cutoff=239999),())

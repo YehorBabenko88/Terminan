@@ -18,7 +18,17 @@ class ContinuationStrategyTests(unittest.TestCase):
   self.assertEqual(self.generate(closing=100.1),())
   self.assertEqual(self.generate(vols=(self.volatility(volume_ratio=1.),)),())
   self.assertEqual(self.generate(vols=(self.volatility(atr_percentile=.1),)),())
- def test_explicit_late_availability_is_decision_clock(self):self.assertEqual(self.generate(available=70000,as_of=90000,vols=(self.volatility(available_at_ms=80000),))[0].decision_ms,80000)
+ def test_explicit_late_availability_is_decision_clock(self):
+  self.assertEqual(self.generate(available=70000,as_of=90000,vols=(self.volatility(available_at_ms=80000),))[0].decision_ms,80000)
+  # Body-only counterpart preserves raw60ms clocks; H104/L99 are not body inputs.
+  with self.subTest(original_id='tests/research/test_scalp_entries.py::test_volatility_entry_waits_for_snapshot_known_at'):
+   cls,fn=self.api();body=cls(60,120,120,100,103)
+   from terminan.volatility import VolatilityMetrics,VolatilityRegime
+   vol=VolatilityMetrics(60,120,.01,.01,.01,.02,1.5,1.5,.7,VolatilityRegime.HIGH,'v')
+   x,=fn('BTCUSDT',(body,),(vol,),as_of_ms=120)
+   self.assertEqual((x.decision_ms,x.reference,x.evidence.body_reference.open,x.evidence.body_reference.close),(120,103,100,103))
+   self.assertEqual((x.signal.stop,x.signal.target),(D('102.2275'),D('104.15875')))
+   self.assertEqual(fn('BTCUSDT',(body,),(vol,),as_of_ms=119),())
  def test_no_future_observation_or_inferred_availability(self):
   self.assertEqual(self.generate(available=70000),())
   self.assertEqual(self.generate(vols=(self.volatility(available_at_ms=70000),)),())
