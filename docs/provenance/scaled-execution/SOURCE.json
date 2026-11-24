@@ -19,10 +19,14 @@
     "sole_simulator": "terminan.paper.PaperEngine",
     "contracts": "terminan.scale_execution",
     "math_commit": "9379384606492af33619bc9168d259917da296a0",
-    "math_publication": "PUBLISHED_9379_FRESH_REQUIRED_CI_PENDING",
+    "math_publication": "PUBLIC9379_REQUIRED34_CI_ACCEPTED_SCOPED",
     "module_sha256": "13943a61b0a66bf82b711cb7964bd80eb959ecc014338a570afa3da404bec93e",
     "existing_paper_all_bytes_recoverable_by_one_method_removal": true,
-    "registry_unchanged": true
+    "registry_unchanged": true,
+    "data_commit": "30ef77cefe5e5b9d8af8dafc6da24e587711f897",
+    "data_required_ci": "14_OF14_CURRENT30ef",
+    "functional_source_head": "a87e08d73c16dec5a91564e4598dbef4188d0303",
+    "workflow_repin_commit": "36f5317ae2c50e82b7e673cd06c414b1dfadea01"
   },
   "model": "OHLC_SCALE_SL_FIRST_ONE_TARGET_PER_BAR_NO_TICK_ORDER_V1",
   "accounting_model": "PAPER_SCALE_ACCOUNTING_V1",
