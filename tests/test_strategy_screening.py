@@ -46,6 +46,17 @@ class ResearchScreeningTests(unittest.TestCase):
   out=summarize_research_segments(xs,dimensions=('symbol','volatility_regime'),value_unit='USDT')
   self.assertEqual([(x.dimension,x.label,x.numeric.count) for x in out],[('symbol','BTCUSDT',1),('symbol','ETHUSDT',1),('volatility_regime','HIGH',2)])
   self.assertEqual(out[-1].numeric.mean,.5);self.assertEqual(out[-1].numeric.positive_fraction,.5);self.assertEqual(out[-1].value_unit,'USDT')
+  with self.subTest(original_three_axes_with_unknown_holes=True):
+   observations=(SegmentObservation(2,(('symbol','BTCUSDT'),('volatility_regime','HIGH'),('level_kind','SUPPORT'))),SegmentObservation(-1,(('symbol','ETHUSDT'),('volatility_regime','HIGH'),('level_kind','RESISTANCE'))),SegmentObservation(0,(('symbol','BTCUSDT'),)),SegmentObservation(3,()))
+   dimensions=('volatility_regime','symbol','level_kind')
+   explicit=summarize_research_segments(observations,dimensions=dimensions,value_unit='USDT')
+   self.assertEqual(explicit,summarize_research_segments(observations,value_unit='USDT'))
+   self.assertEqual([(x.dimension,x.label,x.numeric.count,x.numeric.mean,x.numeric.positive_fraction) for x in explicit],[('volatility_regime','HIGH',2,.5,.5),('volatility_regime','UNKNOWN',2,1.5,.5),('symbol','BTCUSDT',2,1.,.5),('symbol','ETHUSDT',1,-1.,0.),('symbol','UNKNOWN',1,3.,1.),('level_kind','RESISTANCE',1,-1.,0.),('level_kind','SUPPORT',1,2.,1.),('level_kind','UNKNOWN',2,1.5,.5)])
+   for dimension in dimensions:
+    group=tuple(x for x in explicit if x.dimension==dimension)
+    self.assertEqual(sum(x.numeric.count for x in group),4);self.assertEqual(sum(x.numeric.total for x in group),4.)
+   for row in explicit:
+    self.assertEqual(row.value_unit,'USDT');self.assertEqual(row.availability_basis,'CALLER_SUPPLIED_AGGREGATE');self.assertEqual(row.source_authentication,'NOT_EVALUATED');self.assertIs(row.execution_authority,False);self.assertIs(row.trading_authorized,False)
  def test_missing_segment_label_is_unknown_and_empty_is_empty(self):
   from terminan.strategy_screening import SegmentObservation,summarize_research_segments
   out=summarize_research_segments((SegmentObservation(0,()),),dimensions=('symbol',),value_unit='USDT')
