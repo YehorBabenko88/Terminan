@@ -1,0 +1,72 @@
+{
+  "schema": "terminan.original-reporting-role-counterparts.v1",
+  "base": "f6f516252b230ef7f87cd58a1bdab920796cc904",
+  "status": "PRIVATE_COUNTERPART_PROOF_ONLY_NOT_DATA_REMOVAL_OR_ROLE_ACCEPTANCE",
+  "originalSource": {
+    "repository": "YehorBabenko88/strattester",
+    "commit": "104b8474de7870d52921316d345fb5f027d8dbeb",
+    "path": "tests/research/test_statistics_reporting.py",
+    "gitBlob": "7548936243b2e32c94ff0ddb35d022afe71d1a61",
+    "sha256": "2cfddb71a8925ec5989ed666e341b760cefb60a57cef39ea8949afcc58b5473a"
+  },
+  "canonicalMethod": "tests/test_research_reporting.py::ResearchReportingTests::test_all_filled_and_three_coverage_partitions_conserve_real_trades",
+  "originalRoles": [
+    {
+      "id": "tests/research/test_statistics_reporting.py::test_primary_report_excludes_partial_history",
+      "subTestOriginalId": "tests/research/test_statistics_reporting.py::test_primary_report_excludes_partial_history",
+      "complete": {
+        "count": 1,
+        "net": 2
+      },
+      "partial": {
+        "count": 1,
+        "net": 100
+      },
+      "allFilled": {
+        "count": 2,
+        "net": 102
+      }
+    },
+    {
+      "id": "tests/research/test_statistics_reporting.py::test_volatility_breakdown_keeps_sample_counts_and_coverage_separate",
+      "subTestOriginalId": "tests/research/test_statistics_reporting.py::test_volatility_breakdown_keeps_sample_counts_and_coverage_separate",
+      "completeHIGH": {
+        "count": 1,
+        "net": 2
+      },
+      "completeLOW": {
+        "count": 1,
+        "net": -1
+      },
+      "partialHIGH": {
+        "count": 1,
+        "net": 3
+      },
+      "allFilled": {
+        "count": 3,
+        "net": 4
+      }
+    }
+  ],
+  "testModel": "EXISTING_TYPED_GENERATOR_RICH_EVALUATOR_SOLE_PAPER_ENGINE_WITH_ZERO_FEES_SLIPPAGE_EXACT_QTY1;ACTUAL_MATH9379_SUMMARY",
+  "newRuntimeAPI": false,
+  "newMathAPI": false,
+  "SimpleNamespaceBridge": false,
+  "newEngine": false,
+  "orderedInstalledIDs": {
+    "old": 341,
+    "new": 341,
+    "additionalIDs": 0,
+    "exactUnchanged": true,
+    "subtests": 2,
+    "originalCanonicalMethodBody": "EXTENDED_OLD_AST_BODY_PREFIX_RETAINED_NOT_UNCHANGED"
+  },
+  "authority": "CALLER_DECLARATIONS_ONLY_SOURCE_AUTHENTICITY_NOT_EVALUATED_FALSE_EXECUTION_AND_TRADING",
+  "retirement": {
+    "accepted": 35,
+    "remaining": 512,
+    "deduction": 0,
+    "parentFutureAcceptanceRequired": true
+  },
+  "release": "NO_GO"
+}

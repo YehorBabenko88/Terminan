@@ -130,6 +130,27 @@ class ResearchReportingTests(unittest.TestCase):
   e=self.multiple();api=self.api();rows=tuple(api.DeclaredTradeMetadata(p.entry.signal.symbol,p.entry.decision_ms,p.outcome.known_at_ms,coverage=c) for p,c in zip(e.outcomes,(api.CoverageDeclaration.COMPLETE_HISTORY,api.CoverageDeclaration.PARTIAL_HISTORY,None)))
   r=self.build(e,rows);self.assertEqual(r.all_filled.net.numeric.count,3);self.assertEqual([p.numeric.net.numeric.count for p in r.by_coverage],[1,1,1]);self.assertEqual(len({i for p in r.by_coverage for i in p.trade_ids}),3)
   self.assertEqual(sum(len(p.trade_ids) for p in r.by_volatility),3);self.assertEqual({p.label for p in r.by_volatility},{'HIGH','LOW','EXTREME'})
+  from terminan.volatility import VolatilityRegime
+  original_primary='tests/research/test_statistics_reporting.py::test_primary_report_excludes_partial_history'
+  with self.subTest(original_id=original_primary):
+   source=self.original_partition_vector((D(2),D(100)),(VolatilityRegime.HIGH,VolatilityRegime.HIGH))
+   declared=tuple(api.DeclaredTradeMetadata(pair.entry.signal.symbol,pair.entry.decision_ms,pair.outcome.known_at_ms,coverage=coverage) for pair,coverage in zip(source.outcomes,(api.CoverageDeclaration.COMPLETE_HISTORY,api.CoverageDeclaration.PARTIAL_HISTORY)))
+   report=self.build(source,declared);complete,partial,unknown=report.by_coverage
+   self.assertEqual((complete.numeric.net.numeric.count,complete.numeric.net.numeric.total),(1,2.0));self.assertEqual((partial.numeric.net.numeric.count,partial.numeric.net.numeric.total),(1,100.0))
+   self.assertEqual(tuple(t.net_pnl for t in report.trades),(D(2),D(100)));self.assertEqual((report.all_filled.net.numeric.count,report.all_filled.net.numeric.total),(2,102.0));self.assertEqual(unknown.trade_ids,())
+   self.assertEqual(complete.trade_ids,(report.trades[0].identity,));self.assertEqual(partial.trade_ids,(report.trades[1].identity,));self.assertEqual(set(complete.trade_ids)|set(partial.trade_ids),{t.identity for t in report.trades});self.assertTrue(set(complete.trade_ids).isdisjoint(partial.trade_ids))
+   self.assertEqual(report.coverage_basis,'CALLER_DECLARATIONS_ONLY');self.assertIs(report.completeness_qualified,False);self.assertIs(report.execution_authority,False);self.assertIs(report.trading_authorized,False);self.assertEqual(report.source_authentication,'NOT_EVALUATED')
+  original_volatility='tests/research/test_statistics_reporting.py::test_volatility_breakdown_keeps_sample_counts_and_coverage_separate'
+  with self.subTest(original_id=original_volatility):
+   source=self.original_partition_vector((D(2),D(-1),D(3)),(VolatilityRegime.HIGH,VolatilityRegime.LOW,VolatilityRegime.HIGH))
+   declared=tuple(api.DeclaredTradeMetadata(pair.entry.signal.symbol,pair.entry.decision_ms,pair.outcome.known_at_ms,coverage=coverage) for pair,coverage in zip(source.outcomes,(api.CoverageDeclaration.COMPLETE_HISTORY,api.CoverageDeclaration.COMPLETE_HISTORY,api.CoverageDeclaration.PARTIAL_HISTORY)))
+   report=self.build(source,declared);complete,partial,unknown=report.by_coverage;complete_vol={p.label:p for p in complete.by_volatility};partial_vol={p.label:p for p in partial.by_volatility}
+   self.assertEqual(set(complete_vol),{'HIGH','LOW'});self.assertEqual(set(partial_vol),{'HIGH'})
+   self.assertEqual((complete_vol['HIGH'].numeric.net.numeric.count,complete_vol['HIGH'].numeric.net.numeric.total),(1,2.0));self.assertEqual((complete_vol['LOW'].numeric.net.numeric.count,complete_vol['LOW'].numeric.net.numeric.total),(1,-1.0));self.assertEqual((partial_vol['HIGH'].numeric.net.numeric.count,partial_vol['HIGH'].numeric.net.numeric.total),(1,3.0))
+   self.assertEqual((complete.numeric.net.numeric.count,complete.numeric.net.numeric.total),(2,1.0));self.assertEqual((partial.numeric.net.numeric.count,partial.numeric.net.numeric.total),(1,3.0));self.assertEqual((report.all_filled.net.numeric.count,report.all_filled.net.numeric.total),(3,4.0));self.assertEqual(tuple(t.net_pnl for t in report.trades),(D(2),D(-1),D(3)))
+   self.assertEqual(complete_vol['HIGH'].trade_ids,(report.trades[0].identity,));self.assertEqual(complete_vol['LOW'].trade_ids,(report.trades[1].identity,));self.assertEqual(partial_vol['HIGH'].trade_ids,(report.trades[2].identity,));self.assertEqual(unknown.trade_ids,())
+   self.assertEqual(set(complete.trade_ids)|set(partial.trade_ids),{t.identity for t in report.trades});self.assertTrue(set(complete.trade_ids).isdisjoint(partial.trade_ids));self.assertEqual(tuple(i for p in complete.by_volatility for i in p.trade_ids),complete.trade_ids)
+   self.assertEqual(report.coverage_basis,'CALLER_DECLARATIONS_ONLY');self.assertIs(report.completeness_qualified,False);self.assertIs(report.execution_authority,False);self.assertIs(report.trading_authorized,False);self.assertEqual(report.source_authentication,'NOT_EVALUATED')
  def test_mixed_optional_units_refuse_and_uniform_units_summarize(self):
   e=self.multiple();api=self.api();rows=tuple(api.DeclaredTradeMetadata(p.entry.signal.symbol,p.entry.decision_ms,p.outcome.known_at_ms,mae=D(index+1),mae_unit='PRICE_POINTS') for index,p in enumerate(e.outcomes[:2]))
   r=self.build(e,rows);self.assertEqual((r.all_filled.mae.count,r.all_filled.mae.mean),(2,1.5))
@@ -163,3 +184,19 @@ class ResearchReportingTests(unittest.TestCase):
   with patch('history_statistics.project_decimal_observations',return_value=Foreign((1.,2.,3.))):
    with self.assertRaises(ValueError):self.build(e)
   self.assertEqual(calls,[])
+
+ def original_partition_vector(self,nets,regimes):
+  # Exact original reporting amounts from the existing sole evaluator/engine.
+  # These synthetic executions remain caller-declared and confer no authority.
+  from terminan.continuation_strategy import CandleBodyObservation,generate_continuation_entries
+  from terminan.research_entry_evaluation import evaluate_research_entries
+  from terminan.research_evaluation import EvaluationCandle,EvaluationDataset
+  f=fixtures.RichEntryTransferTests();count=len(nets)
+  entries=generate_continuation_entries('BTCUSDT',tuple(CandleBodyObservation(i*60000,(i+1)*60000,(i+1)*60000,100,101) for i in range(count)),tuple(f.vol(event_start_ms=i*60000,available_at_ms=(i+1)*60000,regime=regime) for i,regime in enumerate(regimes)),as_of_ms=count*60000)
+  targets=(D(103),D(201)) if count==2 else (D(103),D(103),D(104))
+  entries=tuple(replace(entry,signal=replace(entry.signal,stop=D(100),target=target)) for entry,target in zip(entries,targets))
+  prices=(D(103),D(201)) if count==2 else (D(103),D(100),D(104))
+  rows=(EvaluationCandle(0,60000,60000,D(101),D(101),D(101),D(101),D(1)),)+tuple(EvaluationCandle((i+1)*60000,(i+2)*60000,(i+2)*60000,D(101),max(D(101),price),min(D(101),price),price,D(1)) for i,price in enumerate(prices))
+  owner=evaluate_research_entries('volatility_continuation_v2',entries,rows,dataset=EvaluationDataset('a'*64,'BTCUSDT','USDT',0,(count+1)*60000),bar_ms=60000,folds=1,notional=D(101),fee_rate=D(0),slippage_bps=D(0))
+  self.assertEqual(tuple(pair.outcome.execution.fill.net for pair in owner.outcomes),nets)
+  return owner
