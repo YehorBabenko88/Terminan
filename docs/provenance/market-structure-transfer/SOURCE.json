@@ -1,0 +1,113 @@
+{
+  "schema": "terminan.market-structure-transfer.v1",
+  "sourceRepository": "YehorBabenko88/strattester",
+  "sourceHead": "622e99dcd169d471279b5d38204d29a01eaf8647",
+  "termBase": "66700ba2d3587eacbb66af252051fd5580fcb4d6",
+  "sources": [
+    {
+      "path": "strattester/research/smc.py",
+      "blob": "d4ad5325c5fc074ce51b35733891ac01b995a299",
+      "bytes": 5390,
+      "sha256": "de9909d17fd5df5590e1f7ea322c346879d847d95a10d86b64e3237ee6dfcf16",
+      "archive": "raw/strattester__research__smc.py.txt"
+    },
+    {
+      "path": "tests/research/test_smc_structure.py",
+      "blob": "cf8b6f8f2d2d393777b1bdbcb9f7b7f7960c6cfc",
+      "bytes": 2022,
+      "sha256": "cb2073e7a35244820cf69a11164fc76e08fa2630e177adda0de32261ecced7b6",
+      "archive": "raw/tests__research__test_smc_structure.py.txt"
+    },
+    {
+      "path": "tests/research/test_smc_timeframes.py",
+      "blob": "c105ea0d94f39973601430c41521801787450842",
+      "bytes": 1324,
+      "sha256": "2db6805b29a48c950cd89fc8af5636e448cfae734b8c410d798c3c95dd875db7",
+      "archive": "raw/tests__research__test_smc_timeframes.py.txt"
+    }
+  ],
+  "numericalOwner": {
+    "repository": "YehorBabenko88/math",
+    "sourceHead": "53fe518c012280557bc0f2b6fec9465942638d44",
+    "runtime": "Installed pure SDK under outputs/math-price-patterns-1795425058453/sdk-site",
+    "geometryAPI": "market_math.price_structure_patterns",
+    "domainAPIs": [
+      "market_math.lossless_nonnegative_binary64_valid",
+      "market_math.candle_ohlcv_valid"
+    ]
+  },
+  "analysisOwner": "terminan.market_structure",
+  "roles": [
+    {
+      "original": "market_structure",
+      "canonical": "analyze_market_structure",
+      "status": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    },
+    {
+      "original": "build_mtf_structure",
+      "canonical": "build_multi_timeframe_structure",
+      "status": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    },
+    {
+      "original": "SMCContext.bias_at",
+      "canonical": "MarketStructureContext.bias_at",
+      "status": "IMPLEMENTED_PENDING_INDEPENDENT_QA"
+    },
+    {
+      "original": "SMCContext.entry_allowed",
+      "canonical": "MarketStructureContext.alignment_at",
+      "status": "ANALYTICAL_ALIGNMENT_ONLY_NO_EXECUTION_GRANT"
+    }
+  ],
+  "preservedSemantics": [
+    "strict Math-confirmed swing geometry",
+    "latest visible event-time swing only",
+    "conservative swing known_at <= trigger event start",
+    "once-broken swing levels",
+    "sweep rejection does not consume a level",
+    "BOS versus CHOCH trend transition",
+    "latest opposite candle at/after swing and before trigger",
+    "higher-timeframe confirmed bias alignment"
+  ],
+  "causalCorrections": [
+    "explicit start/end/availability clocks; no start-plus-duration inference",
+    "all literal inputs detached before numeric owner calls",
+    "decision order by declared availability then event start",
+    "order-block candidate requires actual availability by trigger decision",
+    "MTF bias chooses maximum known clock then event clock, independent of supplied list order"
+  ],
+  "financialDomain": "Original int/float payloads preserved. Math lossless predicate plus existing strictly positive ordered OHLC policy via Decimal(str(literal)) presentation only; no arithmetic or precision recovery.",
+  "originalStateAndTimeframeTestFunctions": 7,
+  "legacyDeclaredTestFunctions": 547,
+  "remainingDeclaredLegacyTestFunctions": 516,
+  "deductedLegacyTestFunctions": 0,
+  "countUnit": "DECLARED_TEST_FUNCTIONS_NOT_FILES",
+  "oldSourcesOrConsumersRemoved": false,
+  "compatibilityAliases": false,
+  "consumerPipelines": "RETAINED_NOT_MIGRATED_BY_THIS_CHANGE",
+  "sourceAuthentication": "NOT_EVALUATED",
+  "executionAuthority": false,
+  "tradingAuthorized": false,
+  "release": "NO_GO",
+  "contextIdentityPolicy": {
+    "identity": [
+      "event_start_ms",
+      "event_end_ms",
+      "available_at_ms",
+      "timeframe",
+      "kind"
+    ],
+    "collision": "REFUSE_CONFLICTING_FULL_TYPED_EVIDENCE_BEFORE_ANY_PROJECTION",
+    "identicalDuplicates": "DETACHED_AND_DEDUPLICATED",
+    "futureRecords": "VALIDATED_WITHOUT_CUTOFF_FILTER"
+  },
+  "sameTriggerStatePolicy": "Latest known time then event time; exact clock ties preserve actual high-side then low-side transition order",
+  "sameSideClassificationConflict": "REFUSE_BOS_AND_CHOCH_FOR_ONE_SIDE_AT_IDENTICAL_EVENT_AND_KNOWN_CLOCKS",
+  "structuralTransitionOrder": {
+    "bullish_bos": 0,
+    "bullish_choch": 0,
+    "bearish_bos": 1,
+    "bearish_choch": 1
+  },
+  "lexicalBiasFallback": false
+}

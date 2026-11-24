@@ -1,0 +1,120 @@
+"""Installed frozen-reader, volatility, entry-context and profile and continuation regressions; no admission authority."""
+import os,pathlib,runpy,sys,unittest,hashlib,importlib.util,stat
+if not(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode):raise RuntimeError('ISOLATED_NO_SITE_NO_WRITE_REQUIRED')
+site=pathlib.Path(os.environ['TERMINAN_COHORT_PATH']).resolve(strict=True)
+checkout=pathlib.Path(__file__).resolve().parents[1]
+def owned(name):return name=='terminan' or name.startswith('terminan.') or name=='market_data' or name.startswith('market_data.') or name in ('market_math','market_compute_api','history_statistics')
+if any(owned(name) for name in sys.modules):raise RuntimeError('PRELOADED_SDK_REJECTED')
+if sys.pycache_prefix is None:raise RuntimeError('FRESH_EXTERNAL_CACHE_REQUIRED')
+cache=pathlib.Path(sys.pycache_prefix)
+if not cache.is_absolute() or '..' in cache.parts or cache.resolve().is_relative_to(site) or cache.resolve().is_relative_to(checkout):raise RuntimeError('FRESH_EXTERNAL_CACHE_REQUIRED')
+for parent in reversed(cache.parents):
+ info=parent.lstat()
+ if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&1024:raise RuntimeError('ORDINARY_CACHE_PARENT_REQUIRED')
+cache.mkdir();cache_identity=(cache.stat().st_dev,cache.stat().st_ino)
+def unchanged_cache():
+ info=cache.lstat()
+ if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&1024 or (info.st_dev,info.st_ino)!=cache_identity or any(cache.iterdir()):raise RuntimeError('CACHE_CHANGED')
+def bytes_snapshot():
+ paths=list((site/'terminan').rglob('*'))+list((site/'market_data').rglob('*'))+[site/name for name in ('market_math.py','market_compute_api.py','history_statistics.py')]
+ out={}
+ for path in paths:
+  info=path.lstat()
+  if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&1024:raise RuntimeError('SDK_LINK_REJECTED')
+  if stat.S_ISREG(info.st_mode):out[str(path.relative_to(site))]=hashlib.sha256(path.read_bytes()).hexdigest()
+ return out
+before=bytes_snapshot();unchanged_cache();sys.path.insert(0,str(site))
+import terminan.data,terminan.migration.candle_snapshot,terminan.migration.research_results
+case=runpy.run_path(str(pathlib.Path(__file__).with_name('test_frozen_readers.py')))['FrozenReaderTests']
+suite=unittest.defaultTestLoader.loadTestsFromTestCase(case)
+volatility=runpy.run_path(str(pathlib.Path(__file__).with_name('test_volatility.py')))
+for name in ('VolatilityTransferTests','CanonicalVolatilityBoundaryTests'):
+ suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(volatility[name]))
+entry_context=runpy.run_path(str(pathlib.Path(__file__).with_name('test_entry_context.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(entry_context['EntryContextTests']))
+profile_analysis=runpy.run_path(str(pathlib.Path(__file__).with_name('test_profile_analysis.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(profile_analysis['ProfileAnalysisTests']))
+continuation=runpy.run_path(str(pathlib.Path(__file__).with_name('test_continuation_strategy.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(continuation['ContinuationStrategyTests']))
+price_structure=runpy.run_path(str(pathlib.Path(__file__).with_name('test_price_structure.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(price_structure['PriceStructureTests']))
+market_structure=runpy.run_path(str(pathlib.Path(__file__).with_name('test_market_structure.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(market_structure['MarketStructureTests']))
+strategy_entries=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_entries.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(strategy_entries['StrategyEntryTests']))
+strategy_catalog=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_catalog.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(strategy_catalog['StrategyCatalogTests']))
+screening=runpy.run_path(str(pathlib.Path(__file__).with_name('test_strategy_screening.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(screening['ResearchScreeningTests']))
+signal_literal=runpy.run_path(str(pathlib.Path(__file__).with_name('test_signal_literal_boundary.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(signal_literal['SignalLiteralBoundaryTests']))
+sys.path.append(str(checkout/'tests'))
+evaluation=runpy.run_path(str(pathlib.Path(__file__).with_name('test_research_evaluation.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(evaluation['ResearchEvaluationTests']))
+evaluation_boundaries=runpy.run_path(str(pathlib.Path(__file__).with_name('test_research_evaluation_boundaries.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(evaluation_boundaries['EvaluationBoundaryTests']))
+history_v12=runpy.run_path(str(pathlib.Path(__file__).with_name('test_history_protocol_v12.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(history_v12['HistoryV12Tests']))
+rich_v2=runpy.run_path(str(pathlib.Path(__file__).with_name('test_rich_entry_transfer.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(rich_v2['RichEntryTransferTests']))
+report_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_research_reporting.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(report_v1['ResearchReportingTests']))
+symbol_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_report_symbol_consistency.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(symbol_v1['ReportSymbolConsistencyTests']))
+clock_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_report_fill_clock.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(clock_v1['ReportFillClockTests']))
+domain_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_report_execution_domain.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(domain_v1['ReportExecutionDomainTests']))
+scaled_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_scaled_limit_execution.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(scaled_v1['ScaledLimitExecutionTests']))
+
+independent_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_independent_signal_evaluation.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(independent_v1['IndependentSignalAccountTests']))
+
+journal_labels=runpy.run_path(str(pathlib.Path(__file__).with_name('test_journal_declared_labels.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(journal_labels['JournalDeclaredLabelTests']))
+
+ordinary_signals=runpy.run_path(str(pathlib.Path(__file__).with_name('test_signal_execution.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(ordinary_signals['SignalExecutionTests']))
+
+def _case_ids(value):
+ for test in value:
+  if isinstance(test,unittest.TestSuite):yield from _case_ids(test)
+  else:yield test.id()
+def _require_roster(actual):
+ import json
+ expected=json.loads(pathlib.Path(__file__).with_name('original_ordinary_signal_roster_v1.json').read_text(encoding='utf-8'))['case_ids']
+ if type(actual) is not tuple or len(actual)!=374 or any(type(name) is not str for name in actual) or len(set(actual))!=374 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
+case_ids=tuple(_case_ids(suite))
+_require_roster(case_ids)
+if suite.countTestCases()!=374:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+def _require_original_producer_contract(root):
+ import json,hashlib
+ raw=(root/'tests/original_producer_counterparts_v1.json').read_bytes()
+ if hashlib.sha256(raw).hexdigest()!='356df139058f03c8187c0efc4297385544c4c9188e3e803c939b5b46e1c58f86':raise RuntimeError('ORIGINAL_PRODUCER_CONTRACT_REQUIRED')
+ contract=json.loads(raw)
+ for row in contract['source_files']:
+  if hashlib.sha256((root/row['archive']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('ORIGINAL_PRODUCER_SOURCE_REQUIRED')
+ for row in contract['counterpart_files']:
+  if hashlib.sha256((root/row['path']).read_bytes()).hexdigest()!=row['sha256']:raise RuntimeError('ORIGINAL_PRODUCER_COUNTERPART_REQUIRED')
+ return {row['id']:row['counterpart'] for row in contract['roles'] if row['role']=='producer'}
+producer_contract=_require_original_producer_contract(pathlib.Path(__file__).resolve().parents[1])
+producer_labels=[]
+class _OriginalProducerResult(unittest.TextTestResult):
+ def addSubTest(self,test,subtest,error):
+  original_id=dict(subtest.params).get('original_id')
+  if original_id in producer_contract:producer_labels.append((original_id,test.id(),error is None))
+  return super().addSubTest(test,subtest,error)
+def _require_original_producer_labels(actual,expected):
+ if len(actual)!=4 or {key:method for key,method,passed in actual}!=expected or not all(passed for key,method,passed in actual):raise RuntimeError('ORIGINAL_PRODUCER_FOUR_LABELS_REQUIRED')
+result=unittest.TextTestRunner(verbosity=2,resultclass=_OriginalProducerResult).run(suite)
+_require_original_producer_labels(producer_labels,producer_contract)
+for name,module in tuple(sys.modules.items()):
+ if not owned(name):continue
+ source=pathlib.Path(module.__file__).resolve(strict=True)
+ if not source.is_relative_to(site) or source.suffix!='.py' or str(source.relative_to(site)) not in before:raise RuntimeError('INSTALLED_ORIGIN_REQUIRED')
+ expected=pathlib.Path(importlib.util.cache_from_source(str(source)))
+ if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
+unchanged_cache()
+if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==374 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))

@@ -1,19 +1,54 @@
-"""Historical untouched high/low levels, using only closed candles."""
-PERIODS={'1h':3600000,'4h':14400000,'1d':86400000,'1w':604800000}
+"""Presentation adapters for Math-owned levels and closed historical versions."""
+from .history_protocol import legacy_rollup_candles,validate_rollup_v12,_snapshot_literal,_MARKET_DATA_LEVEL_WIDTHS
 
-def untouched_levels(candles,timeframe,as_of_ms,*,tick_size=0,max_levels=200):
-    if timeframe not in PERIODS: raise ValueError('unsupported timeframe')
-    if tick_size<0 or not 1<=max_levels<=2000: raise ValueError('invalid parameters')
-    active=[]
-    for c in sorted(candles,key=lambda v:int(v['t'])):
-        t=int(c['t']); high=float(c['h']); low=float(c['l'])
-        if high<low: raise ValueError('invalid candle')
-        if t+PERIODS[timeframe]>as_of_ms or c.get('complete') is False: continue
-        active=[v for v in active if high<v['price']-tick_size if v['side']=='high'] + [v for v in active if low>v['price']+tick_size if v['side']=='low']
-        active.extend([dict(timeframe=timeframe,side='high',price=high,origin_ms=t,confirmed_ms=t+PERIODS[timeframe]),dict(timeframe=timeframe,side='low',price=low,origin_ms=t,confirmed_ms=t+PERIODS[timeframe])])
-    return active[-max_levels:]
+def market_data_level_candles(snapshot,*,trusted_fingerprint,symbol,market_type,timeframe,start_ms,end_ms,as_of_ms):
+    return legacy_rollup_candles(snapshot,trusted_fingerprint=trusted_fingerprint,symbol=symbol,market_type=market_type,timeframe=timeframe,start_ms=start_ms,end_ms=end_ms,as_of_ms=as_of_ms)
 
-def merge_levels(series,as_of_ms,*,tick_size=0):
-    levels=[]
-    for tf,rows in series.items():levels.extend(untouched_levels(rows,tf,as_of_ms,tick_size=tick_size))
-    return sorted(levels,key=lambda v:(v['price'],v['timeframe'],v['side']))
+def market_data_level_candles_v12(snapshot,*,trusted_fingerprint,selection,catalog,as_of_ms):
+    p,_=validate_rollup_v12(snapshot,trusted_fingerprint=trusted_fingerprint,selection=selection,catalog=catalog,as_of_ms=as_of_ms,options={})
+    if p['timeframe'] not in _MARKET_DATA_LEVEL_WIDTHS:raise ValueError('MATH_LEVELS_TIMEFRAME_UNSUPPORTED')
+    return [{'t':r['event_start_ms'],'h':r['high'],'l':r['low'],'complete':True} for r in p['rows']]
+
+def levels_from_market_data_series_v12(snapshot,*,trusted_fingerprint,selection,catalog,decision_ms,tick_size=0,max_levels=200):
+    p,options=validate_rollup_v12(snapshot,trusted_fingerprint=trusted_fingerprint,selection=selection,catalog=catalog,as_of_ms=None,
+        options={'decision_ms':decision_ms,'tick_size':tick_size,'max_levels':max_levels})
+    if p['operation']!='series' or p['timeframe'] not in _MARKET_DATA_LEVEL_WIDTHS:raise ValueError('HISTORY_LEVELS_SERIES_OPERATION')
+    decision=options['decision_ms'];width=_MARKET_DATA_LEVEL_WIDTHS[p['timeframe']]
+    known=[r for r in p['rows'] if r['event_end_ms']<=decision and r['available_at_ms']<=decision]
+    if any(r['event_start_ms']!=p['selection']['start_ms']+i*width for i,r in enumerate(known)):return []
+    candles=[{'t':r['event_start_ms'],'h':r['high'],'l':r['low'],'complete':True} for r in known]
+    return untouched_levels(candles,p['timeframe'],decision,tick_size=options['tick_size'],max_levels=options['max_levels'])
+
+def levels_from_market_data_series(snapshot, *, trusted_fingerprint, symbol, market_type,
+                            timeframe, start_ms, end_ms, as_of_ms, tick_size=0,
+                            max_levels=200):
+    """Calculate levels over MarketData's contiguous, independently pinned v3 rollup.
+
+    The caller authenticates the pin independently of the response.
+    """
+    snapshot=_snapshot_literal(snapshot)
+    if type(snapshot) is not dict or snapshot.get("schema") != "market_data.history.rollup.v3":
+        raise ValueError("MarketData levels series requires a v3 rollup")
+    candles = market_data_level_candles(
+        snapshot, trusted_fingerprint=trusted_fingerprint, symbol=symbol,
+        market_type=market_type, timeframe=timeframe, start_ms=start_ms,
+        end_ms=end_ms, as_of_ms=as_of_ms,
+    )
+    return untouched_levels(candles, timeframe, as_of_ms,
+                            tick_size=tick_size, max_levels=max_levels)
+
+
+def untouched_levels(candles, timeframe, as_of_ms, *, tick_size=0, max_levels=200):
+    from market_compute_api import TIMEFRAME_LEVELS_ABI, untouched_timeframe_levels
+
+    if TIMEFRAME_LEVELS_ABI != "math.market.levels.binary64.v1":
+        raise RuntimeError("unsupported Math levels ABI")
+    return untouched_timeframe_levels(candles, timeframe, as_of_ms,
+                                     tick_size=tick_size, max_levels=max_levels)
+
+
+def merge_levels(series, as_of_ms, *, tick_size=0):
+    levels = []
+    for timeframe, rows in series.items():
+        levels.extend(untouched_levels(rows, timeframe, as_of_ms, tick_size=tick_size))
+    return sorted(levels, key=lambda level: (level['price'], level['timeframe'], level['side']))

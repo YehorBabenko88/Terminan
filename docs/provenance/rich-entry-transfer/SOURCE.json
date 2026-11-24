@@ -1,0 +1,44 @@
+{
+  "schema": "terminan.rich-entry-transfer.source.v2",
+  "basePublicTerm": "e8b7785e47f4bbfbe41fc6f51d3893592a7c849d",
+  "mathOwner": "420290fa9a3d918903673d86d714feb5d9492aca",
+  "dataOwner": "104b8474de7870d52921316d345fb5f027d8dbeb",
+  "roleAudit": {
+    "summarySHA256": "48be8b26404ae8731ac696404702b06447909ffb330b0043beac0969cfe5ba75",
+    "mapSHA256": "55885bfd8c9b35f0c2adcdbc69956ab2fb44427d6da0295fcac1a6f1e123d8b4"
+  },
+  "sources": [
+    {
+      "path": "terminan/continuation_strategy.py",
+      "sha256": "849590b9ff7730436599cc32f769110739da23480af08194904eb1faca544ab7"
+    },
+    {
+      "path": "terminan/strategy_entries.py",
+      "sha256": "f9ec54059a1286f2eb1f72760ed1103c620f7ba5bc76bf445eacc3a9693b4bee"
+    },
+    {
+      "path": "terminan/strategy_catalog.py",
+      "sha256": "9ed3f4270863bbad337ec516d9a4a2f94f613da3f852429a88f1f8436500a27a"
+    },
+    {
+      "path": "terminan/research_entry_evaluation.py",
+      "sha256": "f21b7c94df0c54dd87b6a270a228859b061c8e3f425ee3586628c22ac62cc762"
+    }
+  ],
+  "retainedOriginalArchives": "ALL_EXISTING_DOCS_PROVENANCE_RAW_BYTES_UNCHANGED",
+  "oldPublicBareAPI": "REMOVED_NO_ALIAS",
+  "catalogIDs": [
+    "sweep_reclaim_v2",
+    "breakout_retest_v2",
+    "volatility_continuation_v2",
+    "profile_reclaim_v2"
+  ],
+  "versionDifferences": [
+    "all four generators now emit strategy_entries.v2",
+    "rich continuation retains actual body/selected declared volatility DTO",
+    "entry evaluator conserves full metadata using sole existing signal evaluator/PaperEngine",
+    "unique ordered decision clocks mandatory for evaluation association"
+  ],
+  "remainingDeclaredLegacyTestFunctions": 516,
+  "retirementDeduction": 0
+}

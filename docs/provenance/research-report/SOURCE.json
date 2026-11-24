@@ -1,0 +1,43 @@
+{
+  "schema": "terminan.pure-research-report.source.v1",
+  "baseTerm": "a29fa9f809f56822dd38e493159ae71374cc8d1e",
+  "MathOwner": "00189c8551ac64e455f2e18150ebd89544981d55",
+  "DataOwner": "104b8474de7870d52921316d345fb5f027d8dbeb",
+  "sources": [
+    {
+      "owner": "Data",
+      "commit": "104b8474de7870d52921316d345fb5f027d8dbeb",
+      "path": "strattester/research/reporting.py",
+      "archive": "raw/strattester__research__reporting.py.txt",
+      "bytes": 884,
+      "sha256": "251bbbe7d14e6c711abbf532afe2f8c7a03b21e9e4eb6d11fe2cc6e718622089",
+      "blob": "a03b5e159a40ecc90a323866a1fa34f56f2ffd12"
+    },
+    {
+      "owner": "Data",
+      "commit": "104b8474de7870d52921316d345fb5f027d8dbeb",
+      "path": "strattester/research/result_persistence.py",
+      "archive": "raw/strattester__research__result_persistence.py.txt",
+      "bytes": 1454,
+      "sha256": "b2a86a54f91f4b86604a9d67cda837be7aad1efe83d93699c88acf2e8598daeb",
+      "blob": "2b77c53bfc23486c8c9dc9927ba493dd38d84f8b"
+    }
+  ],
+  "canonical": {
+    "path": "terminan/research_reporting.py",
+    "sha256": "a7fb30a3549ac6e9bfa21fd674af2db75b6b362fa96c9a70b26bfdd4ece98864"
+  },
+  "units": "ALL_CALLER_DECLARED_UNIFORM_OPTIONAL_METRIC_UNITS_REQUIRED_NO_INFERENCE",
+  "coverage": "DECLARATIONS_ONLY_ALL_FILLED_COMPLETE_PARTIAL_UNCLASSIFIED_CONSERVED",
+  "holding": "MODELED_BAR_START_DURATION_NOT_AVAILABILITY",
+  "persistence": "NOT_IMPLEMENTED_ROOT_INFRA_OWNERSHIP_LATER",
+  "oldDataCallers": "UNMIGRATED_UNDELETED_NO_RETIREMENT_CLAIM",
+  "legacyRemaining": 516,
+  "retirementDeduction": 0,
+  "instrumentConsistencyFixBase": "e914be871dc3ee627ab1f9bdad235393ac3c99ad",
+  "executionBasis": "CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED",
+  "clockDomainFixBase": "5b3148bac89aa24c743c2bb94afd347ca4c4bb71",
+  "pendingExecutionDomainMathCandidate": "1b053524a111167760860f06bceae3298476a56c",
+  "fillClock": "EXACT_UTC_EPOCH_PLUS_INTEGER_MILLISECONDS_EXIT_MS",
+  "executionDomain": "CANONICAL_MATH_PAPER_EXECUTION_VALUES_VALID_AFTER_ALL_LITERAL_PREFLIGHT"
+}

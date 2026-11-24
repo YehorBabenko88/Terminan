@@ -1,5 +1,21 @@
+"""Terminan contract and pinned Strattester metadata migration regression tests.
+
+Legacy source: strattester@37ff7e9d12a4d2dccd788fc493c28557dbe8bcea
+"""
+import ast
+from dataclasses import asdict
+import hashlib
+import inspect
+import json
+from pathlib import Path
 import unittest
-from terminan.contracts import TradeEvent, align_trades, aggregate_footprint, poc_close_events
+from enum import Enum
+
+from terminan.contracts import (
+    DataRequirement, HypothesisSpec, StrategyDefinition, StrategyRegistry,
+    TradeEvent, align_trades, executable_hypotheses,
+    strategy_fingerprint,
+)
 
 class ContractTests(unittest.TestCase):
     def test_trade_validation(self):
@@ -8,12 +24,280 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(align_trades([t],150,160),[t])
         with self.assertRaises(ValueError):TradeEvent.parse({**base,'exit_ms':99})
         with self.assertRaises(ValueError):TradeEvent.parse({**base,'side':'other'})
-    def test_poc_tie_and_close(self):
-        rows=[dict(t=100,price=11,volume=5),dict(t=100,price=10,volume=5),dict(t=200,price=9,volume=8)]
-        buckets=aggregate_footprint(rows)
-        self.assertEqual(buckets[0]['poc'],10)
-        events=poc_close_events(buckets,[dict(t=100,c=11),dict(t=200,c=9)])
-        self.assertEqual([e['relation'] for e in events],['above','at'])
-    def test_no_negative_volume(self):
-        with self.assertRaises(ValueError):aggregate_footprint([dict(t=1,price=2,volume=-1)])
-if __name__=='__main__':unittest.main()
+
+    def test_trade_admission_rejects_nonfinite_and_wrong_types(self):
+        row = dict(run_id='r', strategy_id='s', symbol='BTCUSDT', trade_id='t',
+                   entry_ms=100, exit_ms=200, entry_price=10, exit_price=12,
+                   side='long', quantity=2, pnl=-4)
+        self.assertEqual(json.loads(json.dumps(asdict(TradeEvent.parse(row)),
+                                               allow_nan=False)), row)
+        for field in ('entry_price', 'exit_price', 'quantity', 'pnl'):
+            for invalid in (float('nan'), float('inf'), float('-inf'), True, '12', 10**1000):
+                with self.subTest(field=field, invalid=type(invalid)):
+                    with self.assertRaises(ValueError):
+                        TradeEvent.parse(dict(row, **{field: invalid}))
+        for field, invalid in (('entry_ms', True), ('entry_ms', -1), ('exit_ms', 200.0),
+                               ('exit_price', 0), ('symbol', 'BTC / USDT'),
+                               ('exit_price', None)):
+            with self.subTest(field=field, invalid=invalid):
+                with self.assertRaises(ValueError):
+                    TradeEvent(**dict(row, **{field: invalid}))
+        self.assertIsNone(TradeEvent.parse(dict(row, exit_ms=None, exit_price=None)).exit_ms)
+
+
+
+
+
+class StrategyMigrationTests(unittest.TestCase):
+    """Preserve Strattester registry/spec behavior without starting a worker."""
+
+    @staticmethod
+    def definition(version='1'):
+        class NoOp:
+            pass
+        return StrategyDefinition(
+            'example', version, (DataRequirement('candles', ('1m',)),), NoOp,
+        )
+
+    def test_duplicate_registration_and_fingerprint_stability(self):
+        registry = StrategyRegistry()
+        registry.register(self.definition())
+        with self.assertRaises(ValueError):
+            registry.register(self.definition())
+        initial = strategy_fingerprint(registry.discover()[0])
+        registry.set_enabled('example', '1', False)
+        self.assertEqual(initial, strategy_fingerprint(registry.discover()[0]))
+        self.assertFalse(registry.discover()[0].enabled)
+        self.assertNotEqual(initial, strategy_fingerprint(self.definition('2')))
+
+    def test_invalid_dataset_fails_closed(self):
+        with self.assertRaises(ValueError):
+            DataRequirement('future_unknown_data')
+        self.assertEqual(DataRequirement('open_interest').dataset, 'open_interest')
+
+    def test_spec_only_never_becomes_executable(self):
+        planned = HypothesisSpec('poc', 'poc', {'setup': 'retest'})
+        executable = HypothesisSpec(
+            'explicit', 'levels', {}, execution_status='EXECUTABLE',
+            signal_generator='reviewed-v1',
+        )
+        self.assertEqual(executable_hypotheses([planned, executable]), (executable,))
+        with self.assertRaises(ValueError):
+            HypothesisSpec('unsafe', 'levels', {}, execution_status='EXECUTABLE')
+
+
+class LegacyDatasetKind(str, Enum):
+    CANDLES = "candles"
+
+class Candidate:
+    def run(self, candles, checkpoint=None):
+        return []
+
+def definition(version="1"):
+    return StrategyDefinition(
+        "sample", version, (DataRequirement("candles", ("1m",)),), Candidate
+    )
+
+def original_fingerprint(definition):
+    # Direct independent copy of the original fingerprint's serialization.
+    try:
+        source = inspect.getsource(definition.implementation)
+    except (OSError, TypeError):
+        source = (
+            f"{definition.implementation.__module__}."
+            f"{definition.implementation.__qualname__}"
+        )
+    payload = {
+        "id": definition.id,
+        "version": definition.version,
+        "requirements": [
+            (r.dataset, r.timeframes, r.required) for r in definition.requirements
+        ],
+        "impl": (
+            f"{definition.implementation.__module__}."
+            f"{definition.implementation.__qualname__}"
+        ),
+        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "feature_versions": definition.feature_versions,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+class StrategyLegacyParityTests(unittest.TestCase):
+    def test_duplicate_rejected_and_order(self):
+        reg = StrategyRegistry()
+        reg.register(definition("1"))
+        reg.register(definition("2"))
+        self.assertEqual([d.version for d in reg.discover()], ["1", "2"])
+        with self.assertRaises(ValueError):
+            reg.register(definition("1"))
+
+    def test_enable_preserves_fingerprint(self):
+        reg = StrategyRegistry()
+        reg.register(definition())
+        before = strategy_fingerprint(reg.discover()[0])
+        reg.set_enabled("sample", "1", False)
+        self.assertFalse(reg.discover()[0].enabled)
+        self.assertEqual(before, strategy_fingerprint(reg.discover()[0]))
+        with self.assertRaises(KeyError):
+            reg.set_enabled("unknown", "1", True)
+
+    def test_legacy_fingerprint_wire_parity(self):
+        a = definition()
+        self.assertEqual(strategy_fingerprint(a), original_fingerprint(a))
+        self.assertNotEqual(strategy_fingerprint(a), strategy_fingerprint(definition("2")))
+        self.assertEqual(DataRequirement(LegacyDatasetKind.CANDLES).dataset, "candles")
+
+    def test_invalid_inputs_fail_closed(self):
+        with self.assertRaises(ValueError):
+            DataRequirement("secret_exchange_provider")
+        with self.assertRaises(ValueError):
+            DataRequirement("candles", ["1m"])
+        with self.assertRaises(ValueError):
+            StrategyDefinition("", "1", (), Candidate)
+        with self.assertRaises(ValueError):
+            StrategyDefinition("a", "1", (), lambda: None)
+        with self.assertRaises(ValueError):
+            StrategyDefinition("a", "1", (), Candidate, enabled=1)
+        with self.assertRaises(TypeError):
+            StrategyRegistry().register({"id": "a"})
+
+    def test_registration_never_executes_strategy(self):
+        class Dangerous:
+            def __init__(self):
+                raise AssertionError("strategy instantiated")
+        reg = StrategyRegistry()
+        reg.register(StrategyDefinition("inert", "1", (), Dangerous))
+        self.assertEqual(len(reg.discover()), 1)
+
+
+
+class SingleRegistryImportContractTests(unittest.TestCase):
+    """Prevent future PR #87/#88 conflicts without adding another registry."""
+
+    @staticmethod
+    def _sources():
+        root = Path(__file__).resolve().parents[1] / "terminan"
+        return {
+            path: ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for path in root.rglob("*.py")
+        }
+
+    def test_one_canonical_registry_definition(self):
+        sources = self._sources()
+        definitions = [
+            (path.name, node.name)
+            for path, tree in sources.items()
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+            and node.name in ("StrategyRegistry", "StrategyDefinition",
+                              "DataRequirement", "strategy_fingerprint")
+        ]
+        for name in ("StrategyRegistry", "StrategyDefinition",
+                     "DataRequirement", "strategy_fingerprint"):
+            self.assertEqual(
+                [filename for filename, found in definitions if found == name],
+                ["contracts.py"],
+                f"duplicate or missing canonical strategy symbol {name}",
+            )
+        self.assertNotIn("strategies.py", [path.name for path in sources])
+
+    def test_no_old_strategy_module_imports(self):
+        for path, tree in self._sources().items():
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        self.assertNotEqual(alias.name, "terminan.strategies",
+                                            str(path))
+                if isinstance(node, ast.ImportFrom):
+                    self.assertNotEqual(node.module, "terminan.strategies",
+                                        str(path))
+                    if node.level and node.module == "strategies":
+                        self.fail(f"obsolete relative strategies import: {path}")
+                if isinstance(node, ast.ImportFrom) and node.module == "terminan":
+                    self.assertNotIn(
+                        "strategies", [alias.name for alias in node.names],
+                        str(path),
+                    )
+
+    def test_public_registry_identity_same_contract_module(self):
+        import terminan.contracts as api
+        self.assertIs(StrategyRegistry, api.StrategyRegistry)
+        self.assertIs(StrategyDefinition, api.StrategyDefinition)
+        self.assertIs(DataRequirement, api.DataRequirement)
+        self.assertIs(strategy_fingerprint, api.strategy_fingerprint)
+
+
+class FourModuleBoundaryTests(unittest.TestCase):
+    """Terminan is a consumer; Bybit/PG bootstrap control belongs elsewhere."""
+
+    def test_no_independent_bybit_transport_or_postgres_provisioning(self):
+        root = Path(__file__).resolve().parents[1] / "terminan"
+        forbidden_modules = (
+            "pybit", "bybit", "websockets", "websocket",
+            "ccxt", "asyncpg",
+        )
+        forbidden_calls = {
+            "initdb", "pg_ctl", "createdb", "create_database",
+            "create_cluster", "launch_bybit",
+        }
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    names = ([alias.name for alias in node.names]
+                             if isinstance(node, ast.Import) else
+                             [node.module or ""])
+                    for name in names:
+                        self.assertFalse(
+                            any(name == bad or name.startswith(bad + ".")
+                                for bad in forbidden_modules),
+                            f"forbidden provider import {name} in {path}",
+                        )
+                if isinstance(node, ast.Call):
+                    called = node.func
+                    function = (called.id if isinstance(called, ast.Name)
+                                else called.attr if isinstance(called, ast.Attribute)
+                                else "")
+                    self.assertNotIn(function, forbidden_calls, str(path))
+
+    def test_active_market_data_never_falls_back_to_sql(self):
+        from unittest.mock import patch
+        from terminan import data
+        with patch.dict('os.environ',{},clear=True), patch('sqlite3.connect',side_effect=AssertionError('SQL fallback forbidden')):
+            self.assertEqual(data.market_data_candles('BTCUSDT'),[])
+            self.assertEqual(data.footprint('BTCUSDT'),[])
+
+    def test_math_sdk_is_optional_and_no_strategy_code_lives_in_math(self):
+        from terminan.paper import PaperEngine
+        self.assertEqual(PaperEngine.__module__, "terminan.paper")
+        self.assertFalse(PaperEngine().enabled)
+        from terminan import paper
+        source = inspect.getsource(paper)
+        self.assertIn("from market_compute_api import compute_batch", source)
+        self.assertNotIn("def volume_profile_poc(", source)
+        self.assertNotIn("class Bybit", source)
+
+class RemovedFootprintRuntimeTests(unittest.TestCase):
+    def test_unused_numerical_contracts_are_absent_without_aliases(self):
+        import terminan.contracts as api
+        for name in ('aggregate_footprint','poc_close_events'):
+            self.assertFalse(hasattr(api,name),name)
+        for name in ('TradeEvent','align_trades','StrategyRegistry','strategy_fingerprint','HypothesisSpec','executable_hypotheses'):
+            self.assertTrue(hasattr(api,name),name)
+
+    def test_historical_bytes_and_remaining_declarations_are_preserved(self):
+        import terminan.contracts as api
+        root=Path(__file__).resolve().parents[1]
+        folder=root/'docs/migration/unused-contracts-20261120'
+        proof=json.loads((folder/'provenance.json').read_bytes())
+        self.assertEqual(proof['source_head'],'d9929da9b6779b583116419f7616522ff193e9c5')
+        self.assertEqual(proof['raw_snapshots'],{"contracts.py.source.txt":"c0580982c13d1b5442fabcf4862b5e021362c9b38d5a3fb6caba9e37046f0a0b","historical-six-methods.source.txt":"898791b2cac93373d411fc5c3901858812db5cb3ae8f8db67f6ba23b88adb305","test_contracts.py.source.txt":"3e718a7ed297540d56d97fc13e7950f36a9f9e5614e7e5e7ee3d1c7a38dfc50f"})
+        for name,digest in proof['raw_snapshots'].items():
+            self.assertEqual(hashlib.sha256((folder/name).read_bytes()).hexdigest(),digest)
+        current=Path(api.__file__).read_text(encoding='utf8');tree=ast.parse(current)
+        declarations={node.name:hashlib.sha256(ast.get_source_segment(current,node).encode()).hexdigest() for node in tree.body if isinstance(node,(ast.FunctionDef,ast.ClassDef))}
+        self.assertEqual(declarations,proof['retained_declarations_sha256'])
+        self.assertEqual(len(proof['historical_methods']),6)
+        original=ast.parse((folder/'contracts.py.source.txt').read_bytes())
+        original.body=[node for node in original.body if not (isinstance(node,ast.FunctionDef) and node.name in ('aggregate_footprint','poc_close_events')) and not (isinstance(node,ast.ImportFrom) and node.module=='decimal')]
+        self.assertEqual(ast.dump(tree,include_attributes=False),ast.dump(original,include_attributes=False))

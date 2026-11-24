@@ -1,0 +1,19 @@
+# Canonical offline signal replay
+
+The existing PaperEngine executes both poc_next_minute version2 and ohlc_signal version1. No second simulator is installed. All financial arithmetic belongs to market_math (Math de8194f71311a6d7dddb69be9de812030ed1f13f). Run python -m terminan.research_replay with one JSON request on stdin. This command creates no listener, collector or child process. TERMINAN_PAPER_LEDGER is the existing optional dedicated receipt database; without it the result is returned without persistence.
+
+Request schema: terminan.paper.signal-replay.v1. Required top-level fields: schema, run_id, strategy, source, parameters, signal, bars. Strategy is {"id":"ohlc_signal","version":"1"}. Source contains snapshot_sha256 (64 lowercase hex), as_of_ms, available_from_ms, units {"price":"quote/base","volume":"base"}. These are caller-declared constraints, not authenticated history or coverage evidence. Decisions and bars before availability, unclosed/future bars, gaps and malformed final rows are refused before database creation. Maximum 4MiB, 20000 bars; bar_ms is required (1..2678400000).
+
+Signal fields: symbol, decision_ms, side (long/short), entry_kind (market/limit), entry_price (null for market; decimal string for limit), stop and target (decimal strings). Each bar contains start_ms and decimal-string open/high/low/close, optional volume. Parameters optionally include notional, fee_rate and slippage_bps as decimal strings and ambiguity_policy (SL_FIRST default, TP_FIRST explicitly optimistic). Market decisions may enter at their first eligible bar; limit orders cannot use the decision bar. Only closed continuous aligned OHLC is admitted.
+
+SL_FIRST is a conservative continuous-OHLC model. Actual tick ordering remains UNKNOWN. On an intrabar entry, target needs a post-entry close cross unless the explicitly optimistic policy is selected. The model does not certify exchange fills. Result schema terminan.paper.signal-result.v1 always reports OFFLINE_UNATTESTED and false execution/trading authority. Historical Strattester binary64 fills are not claimed identical to the new Decimal policy or corrected no-lookahead model.
+
+Existing paper replay/event/ACK/result active schemas are v2. The old strategy ID is accepted only by explicit read-only historical decoding. migration.paper_receipts verifies a caller-pinned frozen source, exports bounded historical event windows, and restores into a separately fresh owned database. It never rewrites original v1 tables or receipts. Live WAL/hot-sidecar sources are refused; provide a separately qualified frozen backup. Old stream-key reuse is rejected before DDL.
+
+## Evidence and remaining source work
+
+86 scoped paper/history/restore/replay/private-client tests passed under Python3.11 and3.12 with audit-denied child launches, os.system and socket creation. Nineteen capability fixture methods passed under the same restrictions by directly driving inert fake coroutines; independent event-loop concurrency execution was not run. Mandatory HTTP/process-crash tests remain enabled and were not run in this security-restricted phase. Native installation/lifecycle qualification remains NO_GO.
+
+The source map strattester-execution-owner-map.json records 69 original files and479 symbols at13998cf87139330dd0406fed00acd148e045e6c4. Scale-out execution, learning/replay integration, pattern evaluation, frozen research-result importer and retained Unified lab_paper_pipeline consumers are source work still pending. Existing originals remain preserved; this migration does not authorize their deletion or historical-data conversion.
+
+Limit availability means the first aligned bar strictly after the decision bar: (decision_ms // bar_ms + 1) * bar_ms. A decision at60001 with60000ms bars admits120000, and never uses the60000 bar wicks.

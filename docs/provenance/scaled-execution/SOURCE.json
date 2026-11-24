@@ -1,0 +1,81 @@
+{
+  "schema": "terminan.scaled-execution.transfer.v1",
+  "legacy_source": {
+    "repository": "YehorBabenko88/strattester",
+    "commit": "104b8474de7870d52921316d345fb5f027d8dbeb",
+    "files": {
+      "strattester/research/execution.py": "99c1a3a7907b0481c0f2a4f239fb6808f137834b39fffaf7885ef60f66246832",
+      "tests/research/test_scale_execution.py": "c4b2c3dd70f42a8f7e0926d8e1f4c8599fcd3531a39f92af8f3306e9d4839d96"
+    }
+  },
+  "renames": {
+    "ScaleSignal": "ScaleExecutionPlan",
+    "ExecutionFill": "ScaleEntryFill",
+    "ExecutionExit": "ScaleExitFill",
+    "ScaleTrade": "ScaleExecution",
+    "simulate_scale_trade": "PaperEngine.execute_scale_plan"
+  },
+  "canonical": {
+    "sole_simulator": "terminan.paper.PaperEngine",
+    "contracts": "terminan.scale_execution",
+    "math_commit": "9379384606492af33619bc9168d259917da296a0",
+    "math_publication": "PUBLIC9379_REQUIRED34_CI_ACCEPTED_SCOPED",
+    "module_sha256": "13943a61b0a66bf82b711cb7964bd80eb959ecc014338a570afa3da404bec93e",
+    "existing_paper_all_bytes_recoverable_by_one_method_removal": true,
+    "registry_unchanged": true,
+    "data_commit": "cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3",
+    "data_required_ci": "14_OF14_CURRENT_cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3_ACCEPTED_SCOPED",
+    "functional_source_head": "a87e08d73c16dec5a91564e4598dbef4188d0303",
+    "workflow_repin_commit": "36f5317ae2c50e82b7e673cd06c414b1dfadea01",
+    "data_required_ci_evidence": "outputs/hosted-data-cef-1795485808902/receipt.json",
+    "workflow_repin_commit_scope": "INITIAL_MATH9379_DATA30ef_REPIN_HISTORICAL",
+    "final_data_repin_base": "f5e3a0bacad7b1bec7b0ca3cb72a1d0a148caddd",
+    "final_data_repin_ci": "CURRENT_ENCLOSING_HEAD_CI_PENDING",
+    "previous_data_repin": {
+      "head": "f6f516252b230ef7f87cd58a1bdab920796cc904",
+      "base": "26af145a1c53d85f607fc18c4fd200f0a42b0f73",
+      "data_commit": "da9e782470d1237122c99994c042c2834b026062",
+      "data_required_ci": "14_OF14_CURRENT_da9e782470d1237122c99994c042c2834b026062_ACCEPTED_SCOPED",
+      "data_required_ci_evidence": "outputs/hosted-datada9-1795482205614/receipt.json",
+      "scope": "HISTORICAL_DA9_METADATA_REPIN_RETAINED_IN_PUBLIC_F5"
+    }
+  },
+  "model": "OHLC_SCALE_SL_FIRST_ONE_TARGET_PER_BAR_NO_TICK_ORDER_V1",
+  "accounting_model": "PAPER_SCALE_ACCOUNTING_V1",
+  "differences_from_legacy": [
+    "strict exact Decimal fraction sums, no binary64 tolerance",
+    "partial entry-bar target requires close proof after intrabar entry",
+    "at most one target per bar, stop before target, break-even applies next bar",
+    "final target closes entire exact remainder and cancels pending entry legs",
+    "EOD closes every remaining positive quantity, no epsilon discard",
+    "execution-entry basis stays unchanged on partial exits, separate from rounded ledger cost",
+    "late entries affect remaining cost and basis only; prior realized results retained"
+  ],
+  "original_role_tests": 3,
+  "canonical_tests": 17,
+  "installed_roster": {
+    "old_prefix": 324,
+    "new_unique": 17,
+    "total": 341
+  },
+  "retirement": {
+    "status": "ACCEPTED_FOUR_DISTINCT_ORIGINAL_ROLES_BY_PARENT_AFTER_EXACT_DATA_CI",
+    "accepted_original_obligations": 35,
+    "remaining_legacy_obligations": 512,
+    "deduction": 4,
+    "scope": "THREE_SCALE_EXECUTION_ROLES_AND_ONE_MONTE_CARLO_ROLE",
+    "acceptance_evidence": "outputs/qa-parent-data-eol-1795481603444/accepted-four-role-transition.json"
+  },
+  "authority": false,
+  "trading_authorized": false,
+  "release": "NO_GO",
+  "retirement_scope": "HISTORICAL_ACCEPTED_FOUR_ROLE_EVENT_NOT_CURRENT_GLOBAL_COUNTER",
+  "current_global_retirement": {
+    "accepted_original_obligations": 37,
+    "remaining_legacy_obligations": 510,
+    "last_accepted_deduction": 2,
+    "scope": "REPORTING_COVERAGE_AND_VOLATILITY_TWO_ROLES_ADDED_AFTER_PREVIOUS35",
+    "acceptance_evidence": "outputs/qa-parent-data-fixture-1795485709205/accepted-reporting-two-transition.json",
+    "previous_four_role_acceptance_evidence": "outputs/qa-parent-data-eol-1795481603444/accepted-four-role-transition.json"
+  }
+}

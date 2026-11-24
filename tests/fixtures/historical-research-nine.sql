@@ -1,0 +1,5 @@
+CREATE TABLE research_results(run_id TEXT NOT NULL,symbol TEXT NOT NULL,strategy_id TEXT NOT NULL,strategy_version TEXT NOT NULL,created_at REAL NOT NULL,metrics TEXT NOT NULL,job_id TEXT,lease_token INTEGER NOT NULL DEFAULT 0,node_generation INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(run_id,symbol,strategy_id,strategy_version));
+CREATE TABLE staged_research_results(stage_id TEXT PRIMARY KEY,run_id TEXT NOT NULL,symbol TEXT NOT NULL,strategy_id TEXT NOT NULL,strategy_version TEXT NOT NULL,created_at REAL NOT NULL,metrics TEXT NOT NULL,job_id TEXT,lease_token INTEGER NOT NULL DEFAULT 0,node_generation INTEGER NOT NULL DEFAULT 0);
+INSERT INTO research_results VALUES('run-a','BTCUSDT','historical.alpha','1',123.5,'{"net": 1.20, "legacy": NaN}',NULL,0,0);
+INSERT INTO research_results VALUES('run-b','ETHUSDT','historical.beta','2',-1e999,'not-json: original metrics TEXT','job',7,2);
+INSERT INTO staged_research_results VALUES('stage-a','run-c','SOLUSDT','historical.gamma','3',125.5,'{"staged": true}','job',8,3);

@@ -1,0 +1,55 @@
+{
+  "schema": "terminan.price-structure-transfer.v1",
+  "sourceRepository": "YehorBabenko88/strattester",
+  "sourceHead": "622e99dcd169d471279b5d38204d29a01eaf8647",
+  "sources": [
+    {
+      "path": "strattester/research/smc.py",
+      "blob": "d4ad5325c5fc074ce51b35733891ac01b995a299",
+      "bytes": 5390,
+      "sha256": "de9909d17fd5df5590e1f7ea322c346879d847d95a10d86b64e3237ee6dfcf16",
+      "archive": "raw/strattester__research__smc.py.txt"
+    },
+    {
+      "path": "tests/research/test_levels_smc.py",
+      "blob": "1a194f2d3687ff53d3ae64fd2db37484f0002928",
+      "bytes": 1033,
+      "sha256": "ba1190bd3b8caef0fbf698f6a37fa402ed561da6899e5969f6fdafe311a2dadf",
+      "archive": "raw/tests__research__test_levels_smc.py.txt"
+    },
+    {
+      "path": "tests/research/test_smc_structure.py",
+      "blob": "cf8b6f8f2d2d393777b1bdbcb9f7b7f7960c6cfc",
+      "bytes": 2022,
+      "sha256": "cb2073e7a35244820cf69a11164fc76e08fa2630e177adda0de32261ecced7b6",
+      "archive": "raw/tests__research__test_smc_structure.py.txt"
+    },
+    {
+      "path": "tests/research/test_smc_timeframes.py",
+      "blob": "c105ea0d94f39973601430c41521801787450842",
+      "bytes": 1324,
+      "sha256": "2db6805b29a48c950cd89fc8af5636e448cfae734b8c410d798c3c95dd875db7",
+      "archive": "raw/tests__research__test_smc_timeframes.py.txt"
+    }
+  ],
+  "numericalOwner": {
+    "repository": "YehorBabenko88/math",
+    "sourceHead": "53fe518c012280557bc0f2b6fec9465942638d44",
+    "api": "market_math.price_structure_patterns",
+    "publicationRequiredBeforeConsumer": true
+  },
+  "analysisOwner": "terminan.price_structure.analyze_price_structure",
+  "mapping": {
+    "confirmed_swings": "HIGH_SWING/LOW_SWING",
+    "fair_value_gaps": "UPWARD_GAP/DOWNWARD_GAP"
+  },
+  "availability": "Detached literal input snapshot; maximum actual caller-declared availability across full numeric dependency interval; no inferred bar end",
+  "retiredRoles": 0,
+  "remainingDeclaredLegacyTestFunctions": 516,
+  "notTransferred": [
+    "Trend/BOS/CHOCH/sweep/order-block policy",
+    "Multi-timeframe structure/context",
+    "Old Data consumer pipelines"
+  ],
+  "release": "NO_GO"
+}

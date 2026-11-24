@@ -1,0 +1,12 @@
+include tests/fixtures/canonical-paper-vectors.json
+include docs/canonical-analytics-plan-20261120.md
+include docs/canonical-cutover-map.json
+include requirements-test.lock
+include docs/canonical-analytics-migration.md
+include tests/run_safe_tests.py
+include tests/check_installed_market_data_levels.py
+recursive-include tests/fixtures *.json
+include docs/canonical-signal-replay.md
+include docs/strattester-execution-owner-map.json
+recursive-include tests/fixtures *.sql
+include docs/frozen-research-restore.md

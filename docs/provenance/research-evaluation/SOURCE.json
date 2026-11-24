@@ -1,0 +1,35 @@
+{
+  "schema": "terminan.research-evaluation.proposed.v1",
+  "base": "f5c8852fccdecbe6746a7881925e3800a18d1e49",
+  "mathHead": "420290fa9a3d918903673d86d714feb5d9492aca",
+  "mathRuntime": "a4535057944b53e81aa074daabd2fc92be3b8798",
+  "mathRaw3": [
+    {
+      "name": "market_math.py",
+      "sha256": "6510a0b97b7184d668060c9c2a54fefe6ea422a238b7cc8fbad9a41c281c396b",
+      "raw420a453SDK": true
+    },
+    {
+      "name": "market_compute_api.py",
+      "sha256": "0fa992f10bd4b1d827d1d90bc8503528673a311163418db9f21abc1b0ea6b438",
+      "raw420a453SDK": true
+    },
+    {
+      "name": "history_statistics.py",
+      "sha256": "1c477f1e3275953a962d3692995d0baf1c5694026b6f2d72fdb6f1c2ac9a04c9",
+      "raw420a453SDK": true
+    }
+  ],
+  "mathWheelSHA256": "0a54aaa4bf7829f7261ab42aa8f8982d257d3dfb0dca14fb98c33d8d0efb0a30",
+  "originalAcceptanceTests": 12,
+  "additionalBoundaryTests": 10,
+  "pureRegressions": 59,
+  "declaredLegacyFunctionsRemaining": 516,
+  "retirementDeduction": 0,
+  "sourceAuthentication": "NOT_EVALUATED",
+  "executionAuthority": false,
+  "tradingAuthorized": false,
+  "OOS": false,
+  "PIT": false,
+  "fullSourceOrWheel": "NOT_RUN_PENDING_SEMANTIC_QA"
+}

@@ -1,0 +1,25 @@
+{
+  "source_head": "b5ca6363be1f530fbbb4c44fdc1e8f747aaef87d",
+  "original_remaining": 518,
+  "count_deduction": 0,
+  "math_head": "7ed299b6480b2cb683ee91bd162ed9d76e99aa7f",
+  "term_base": "a2f63228aeb7436721eaf3fe6251c94ab7e5e087",
+  "members": [
+    {
+      "original": "strattester/research/trade_context.py",
+      "source_head": "b5ca6363be1f530fbbb4c44fdc1e8f747aaef87d",
+      "git_blob": "88b7ea6fd32d5ab4f6e9d6a63dc09e88a067964e",
+      "sha256": "90b654beefe2beb2e0974272c1afb8389bffde7be10b7dea66d3cac7064d6bf2",
+      "bytes": 975,
+      "archive": "raw/strattester__research__trade_context.py.txt"
+    },
+    {
+      "original": "tests/research/test_trade_context.py",
+      "source_head": "b5ca6363be1f530fbbb4c44fdc1e8f747aaef87d",
+      "git_blob": "282d16346a5acdf6e050c573f8bfd726771976e4",
+      "sha256": "a7574a02f2afe23b0790ccf696a267a952f40789abd22afe4c1895773b7b535e",
+      "bytes": 1194,
+      "archive": "raw/tests__research__test_trade_context.py.txt"
+    }
+  ]
+}

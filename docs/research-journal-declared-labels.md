@@ -1,0 +1,7 @@
+# Caller-declared journal labels on collected report trades
+
+The original in-memory journal metadata role is represented by existing ReportTrade.declaration, not PaperJournal event streams or durable storage. DeclaredTradeMetadata now accepts keyword-only declared_volatility and declared_poc_mode (plain bounded uppercase tokens or None), alongside existing coverage. They are posthoc caller declarations with known-at/cutoff constraints; neither changes observed volatility grouping nor proves profile/POC provenance, completeness, execution origin or trading authority.
+
+Both missing labels retain existing report canonical hash/schema and prior-field no-label golden projection. The DTO has two additional None fields: full DTO object byte identity is NOT claimed. The immutable83f golden fixture and core/rich full goldens are unchanged. If either label is present, both fields are encoded (including None), and the closed input/report schema is selected separately for single-active versus independent hypothetical accounts. No execution or evaluation is repeated by collection.
+
+Only research_reporting.py changes runtime. PaperEngine/PaperFill/PaperJournal/PaperReplayLedger/event protocols are unchanged. No persistence, storage service, DB test or authority grant is introduced. This private candidate does not retire the Data journal role until independent QA/publication/fresh CI and explicit original-role acceptance. Counter at implementation start41/506.

@@ -1,0 +1,19 @@
+{
+  "repository": "YehorBabenko88/strattester",
+  "revision": "622e99dcd169d471279b5d38204d29a01eaf8647",
+  "path": "strattester/strategies/builtin/research_scalp.py",
+  "git_blob": "47ee2fb1611ee21cb85f8d4f8204f6ec25d6dd2f",
+  "sha256": "32a0bf1d43b710dcff70d8f3572543b293dcf1151012c0d75e42de7fd8edee17",
+  "old_to_new": {
+    "SCALP_LEVEL_IMPULSE": "level_impulse",
+    "SCALP_LEVEL_IMPULSE_DELTA": "level_impulse_delta",
+    "SCALP_SWEEP_RECLAIM": "sweep_reclaim",
+    "SCALP_FAILED_BREAKOUT": "failed_breakout",
+    "SCALP_BREAKOUT_RETEST_VOLUME": "breakout_retest",
+    "SCALP_VOL_EXPANSION_CONTINUATION": "volatility_continuation",
+    "SCALP_POC_RECLAIM": "profile_reclaim",
+    "SCALP_OI_DELTA_IMPULSE": "open_interest_delta_impulse"
+  },
+  "remaining_declared_legacy_test_functions": 516,
+  "retirement": "NOT_YET: old entry_screening and pattern_evaluation consumers remain; no role deduction"
+}
