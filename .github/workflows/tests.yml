@@ -56,7 +56,7 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/strattester
-          ref: cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3
+          ref: 3bc0c2423d47725123dc95de994cbda192825da2
           path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -133,7 +133,7 @@ jobs:
           GIT_CONFIG_VALUE_1: lf
         with:
           repository: YehorBabenko88/strattester
-          ref: cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3
+          ref: 3bc0c2423d47725123dc95de994cbda192825da2
           path: upstream/market-data-sdk
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -159,7 +159,7 @@ jobs:
           python -m pip wheel --no-deps --wheel-dir dist/market_data ./upstream/market-data-sdk
           python tests/check_wheel_git_bytes.py --repo . --sha "$TERMINAN_TEST_SHA" --wheel-dir dist/terminan --out dist/terminan-proof.json
           python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha 50048413605389a024dfef60e98f70126d788671 --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
-          python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3 --wheel-dir dist/market_data --out dist/market-data-proof.json
+          python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha 3bc0c2423d47725123dc95de994cbda192825da2 --wheel-dir dist/market_data --out dist/market-data-proof.json
       - name: Install wheel outside source checkout
         shell: bash
         run: |

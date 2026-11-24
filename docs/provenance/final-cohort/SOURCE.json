@@ -1,0 +1,113 @@
+{
+  "schema": "terminan.final-cohort.source.v1",
+  "status": "FROZEN_METADATA_ONLY_FINAL_COHORT_PENDING_DELTA_REVIEW_PUBLICATION_AND_EXACT_HEAD_CI",
+  "enclosing_source_head": "ENCLOSING_GIT_HEAD_NOT_EMBEDDED_SELF_SHA",
+  "functional_base": {
+    "head": "754e99bbb1cbecb2fd2d7766cbae39802d6b4831",
+    "base": "47e40e503f9fd405f8e69165a62a4ee3ab6eb27d",
+    "source_files": 309,
+    "runtime_payloads": 79,
+    "installed_roster": 367,
+    "old358_ordered_prefix": true,
+    "appended_unique_tests": 9,
+    "author_qualification": {
+      "selected51_source_and_actual_three_wheel_bothPy": true,
+      "actual_collected367_bothPy": true,
+      "full367_run": false,
+      "evidence": {
+        "path": "outputs/terminan-journal-declared-labels-1795494284083/receipt.json",
+        "sha256": "41a82358960771556be66e1c2b6fda2f53b063872292a18830017dd3bc4d3e1d"
+      }
+    },
+    "independent_qualification": {
+      "status": "ACCEPTED_FUNCTIONAL_754_FULL367_SOURCE_AND_ACTUAL_THREE_WHEEL_BOTH_PY",
+      "head": "754e99bbb1cbecb2fd2d7766cbae39802d6b4831",
+      "tests_each_mode": 367,
+      "modes": [
+        "source311",
+        "source312",
+        "actual_three_wheel311",
+        "actual_three_wheel312"
+      ],
+      "evidence": {
+        "path": "outputs/qa-independent-journal-labels-1795494768931/receipt.json",
+        "sha256": "ef698aeafa172e8f0b3feb9d5949069e3c0900c944a619e319ff1bb43cf8a27a"
+      }
+    }
+  },
+  "cohort": {
+    "Data": {
+      "head": "3bc0c2423d47725123dc95de994cbda192825da2",
+      "source_files": 552,
+      "runtime_payloads": 49,
+      "required_CI": {
+        "jobs": 14,
+        "accepted": true,
+        "evidence": {
+          "path": "outputs/hosted-data3bc-1795494513038/receipt.json",
+          "sha256": "b43bc893b0439dc176cbcfddfdd003a75dc7870aee648c4e8b048d52decc8e50"
+        }
+      }
+    },
+    "Math": {
+      "head": "50048413605389a024dfef60e98f70126d788671",
+      "source_files": 1013,
+      "runtime_payloads": 3,
+      "required_CI": {
+        "jobs": 34,
+        "accepted": true,
+        "evidence": {
+          "path": "outputs/hosted-math500-1795490866593/receipt.json",
+          "sha256": "c54f15cf31a88d428eb1aa056388dcfb19a04abac0d9c8ed9df9830527d0f563"
+        }
+      }
+    },
+    "Term": {
+      "head": "ENCLOSING_GIT_HEAD_NOT_EMBEDDED_SELF_SHA",
+      "functional_build_head": "754e99bbb1cbecb2fd2d7766cbae39802d6b4831",
+      "retained_actual_wheel": {
+        "path": "C:/Users/Administrator/Documents/Codex/2026-11-19/files-pasted-by-the-user-unified/outputs/terminan-journal-declared-labels-1795494284083/raw-build/dist/unified_terminan-0.1.0-py3-none-any.whl",
+        "sha256": "8722a2f04b15c0761d969b0ebf50ab7c88364fd8e3cedd23411bc61978d7199a",
+        "payloads": 79,
+        "members": 84,
+        "new_metadata_head_rebuild": false
+      }
+    }
+  },
+  "compatibility": {
+    "all_runtime_tests367_roster_unchanged_by_repin": true,
+    "core_rich_full_goldens_unchanged": true,
+    "no_label_report": "PRIOR_FIELDS_PROJECTION_CANONICAL_INPUT_SCHEMA_HASH_PRESERVED_NOT_FULL_DTO_BYTE_IDENTITY",
+    "historical_provenance": "IMMUTABLE_POINT_IN_TIME_RECORDS_NOT_REWRITTEN"
+  },
+  "retirement": {
+    "accepted": 43,
+    "remaining": 504,
+    "evidence": {
+      "path": "outputs/resume-current-evidence-1795491836567/accepted-screening-two-transition.json",
+      "sha256": "1033610461a897749e7d83eb68ce33c3c83c3b95bf779b646519dca81f94f7a5"
+    },
+    "journal_role": "NOT_RETIRED",
+    "delta": 0
+  },
+  "current_enclosing_head_CI": "PENDING_UNPUBLISHED_NO_754_FUNCTIONAL_EVIDENCE_PROMOTION",
+  "authority": {
+    "source_authentication": "NOT_EVALUATED",
+    "execution_authority": false,
+    "trading_authorized": false,
+    "release": "NO_GO"
+  },
+  "metadata_repin": {
+    "base_head": "754e99bbb1cbecb2fd2d7766cbae39802d6b4831",
+    "changed_existing_paths": [
+      ".github/workflows/tests.yml"
+    ],
+    "new_paths": [
+      "docs/provenance/final-cohort/SOURCE.json"
+    ],
+    "runtime_payloads_unchanged": 79,
+    "all_tests_and367_roster_unchanged": true,
+    "historical_docs_unchanged": true,
+    "independent_delta_review": "PENDING"
+  }
+}
