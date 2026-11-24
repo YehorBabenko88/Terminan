@@ -33,6 +33,8 @@ class DeclaredTradeMetadata:
     mfe_unit:str|None=None
     r_multiple:Decimal|None=None
     r_multiple_unit:str|None=None
+    declared_volatility:str|None=field(default=None,kw_only=True)
+    declared_poc_mode:str|None=field(default=None,kw_only=True)
     availability_basis:str=field(default='CALLER_DECLARED_POSTHOC',init=False)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     execution_authority:bool=field(default=False,init=False)
@@ -175,7 +177,9 @@ def _encoded(value):
     if kind is Decimal:return {'decimal':str(value)}
     if kind is datetime:return {'modeled_utc':value.isoformat()}
     if any(kind is enum for enum in _ENUMS):return {'enum':kind.__name__,'value':value.value}
-    if any(kind is record for record in _RECORDS):return {'record':kind.__name__,'fields':{f.name:_encoded(getattr(value,f.name)) for f in fields(kind)}}
+    if any(kind is record for record in _RECORDS):
+        omitted=('declared_volatility','declared_poc_mode') if kind is DeclaredTradeMetadata and value.declared_volatility is None and value.declared_poc_mode is None else ()
+        return {'record':kind.__name__,'fields':{f.name:_encoded(getattr(value,f.name)) for f in fields(kind) if f.name not in omitted}}
     if any(kind is record for record in _NUMERIC):return {'numeric_record':kind.__name__,'values':[_encoded(v) for v in value]}
     if kind is MappingProxyType:return {key:_encoded(leaf) for key,leaf in value.items()}
     if kind is tuple:return [_encoded(leaf) for leaf in value]
@@ -279,6 +283,8 @@ def _admit(source,declarations,amount_unit,cutoff):
         if key in metadata or key not in fills:raise ValueError('REPORT_DUPLICATE_OR_UNUSED_DECLARATION_KEY')
         if not fills[key].outcome.known_at_ms<=known<=cutoff:raise ValueError('REPORT_POSTHOC_DECLARATION_AVAILABILITY')
         if type(row.availability_basis) is not str or row.availability_basis!='CALLER_DECLARED_POSTHOC' or row.coverage is not None and type(row.coverage) is not CoverageDeclaration:raise ValueError('REPORT_DECLARATION_NOT_COVERAGE_AUTHORITY')
+        for label in (row.declared_volatility,row.declared_poc_mode):
+            if label is not None and (type(label) is not str or re.fullmatch('[A-Z][A-Z0-9_]{0,63}',label) is None):raise ValueError('REPORT_LITERAL_DECLARED_LABEL_REQUIRED')
         for name in units:
             value=getattr(row,name);unit=getattr(row,name+'_unit')
             if value is None:
@@ -318,6 +324,9 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
     independent=_account_pair(source)
     cutoff=source.evaluation.dataset.as_of_ms if cutoff is None else cutoff;evaluation._clock(cutoff)
     filled,declared,units=_admit(source,declarations,value_unit,cutoff)
+    labeled=any(row.declared_volatility is not None or row.declared_poc_mode is not None for row in declarations)
+    input_schema=('terminan.research-report.inputs.independent-signals.declared-labels.v1' if independent else 'terminan.research-report.inputs.declared-labels.v1') if labeled else ('terminan.research-report.inputs.v2' if independent else 'terminan.research-report.inputs.v1')
+    report_schema=('terminan.research-performance-report.independent-signals.declared-labels.v1' if independent else 'terminan.research-performance-report.declared-labels.v1') if labeled else ('terminan.research-performance-report.independent-signals.v2' if independent else 'terminan.research-performance-report.v1')
     if type(numeric.SCREENING_NUMERIC_ABI) is not str or numeric.SCREENING_NUMERIC_ABI!='math.numeric.screening.ordered-binary64.v1' or numeric.NumericTradeObservation._fields!=('gross_pnl','net_pnl','fees','mae','mfe','r_multiple','holding_ms'):raise RuntimeError('REPORT_UNSUPPORTED_MATH_ABI')
     import market_math as execution_owner
     predicate=getattr(execution_owner,'paper_execution_values_valid',None)
@@ -328,7 +337,7 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
     for pair in filled:
         execution=pair.outcome.execution;fill=execution.fill
         if predicate(fill.entry,fill.exit,execution.quantity,fill.fees) is not True:raise ValueError('REPORT_MATH_EXECUTION_DOMAIN_REFUSED')
-    canonical=json.dumps({'schema':'terminan.research-report.inputs.v2' if independent else 'terminan.research-report.inputs.v1','evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY','execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED' if independent else 'CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED','execution_domain_policy':'MATH_PAPER_EXECUTION_VALUES_V1_DECLARATIONS_ONLY'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
+    canonical=json.dumps({'schema':input_schema,'evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY','execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED' if independent else 'CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED','execution_domain_policy':'MATH_PAPER_EXECUTION_VALUES_V1_DECLARATIONS_ONLY'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
     if len(canonical)>8388608:raise ValueError('REPORT_CANONICAL_BYTE_BUDGET')
     trades=[];observations=[]
     # One explicit owner conversion per complete scalar batch. No PnL summation
@@ -363,4 +372,4 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
         partitions.append(CoverageReportPartition(label,tuple(trades[i].identity for i in indices),summary(indices),volatility(indices)))
     partition_ids=tuple(identity for part in partitions for identity in part.trade_ids)
     if len(partition_ids)!=len(trades) or set(partition_ids)!={t.identity for t in trades}:raise ValueError('REPORT_COVERAGE_TRADE_CONSERVATION')
-    return ResearchPerformanceReport(hashlib.sha256(canonical).hexdigest(),source,cutoff,units,control,trades,summary(all_indices),tuple(partitions),volatility(all_indices),**({'schema':'terminan.research-performance-report.independent-signals.v2','execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED'} if independent else {}))
+    return ResearchPerformanceReport(hashlib.sha256(canonical).hexdigest(),source,cutoff,units,control,trades,summary(all_indices),tuple(partitions),volatility(all_indices),schema=report_schema,**({'execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED'} if independent else {}))

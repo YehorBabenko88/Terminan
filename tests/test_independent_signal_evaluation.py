@@ -12,7 +12,10 @@ import history_statistics,market_math
 import test_rich_entry_transfer as fixtures
 
 def encoded(value):
- if dataclasses.is_dataclass(value):return {'type':type(value).__name__,'fields':{f.name:encoded(getattr(value,f.name)) for f in dataclasses.fields(value)}}
+ if dataclasses.is_dataclass(value):
+  # Prior-field no-label projection, NOT full DTO byte identity: two optional fields now exist.
+  omitted=('declared_volatility','declared_poc_mode') if type(value) is reports.DeclaredTradeMetadata and value.declared_volatility is None and value.declared_poc_mode is None else ()
+  return {'type':type(value).__name__,'fields':{f.name:encoded(getattr(value,f.name)) for f in dataclasses.fields(value) if f.name not in omitted}}
  if isinstance(value,enum.Enum):return {'enum':type(value).__name__,'value':value.value}
  if type(value) is D:return {'decimal':str(value)}
  if type(value) is datetime:return {'utc':value.isoformat()}
@@ -47,6 +50,9 @@ class IndependentSignalAccountTests(unittest.TestCase):
   import pathlib
   expected=json.loads((pathlib.Path(__file__).parent/'fixtures/independent_accounts/default83f.json').read_text(encoding='utf-8'))
   self.assertEqual(self.default_snapshots(),expected['sha256'])
+  source=self.rich_evaluate();report=self.report(source)
+  self.assertTrue(all(t.declaration.declared_volatility is None and t.declaration.declared_poc_mode is None for t in report.trades))
+  self.assertEqual(tuple(f.name for f in dataclasses.fields(reports.DeclaredTradeMetadata) if f.name.startswith('declared_')),('declared_volatility','declared_poc_mode'))
  def test_overlap_independent_two_net10_default_one_net5(self):
   mode=self.model();old=self.evaluate();new=self.evaluate(account_model=mode)
   self.assertEqual([o.disposition.value for o in old.outcomes],['FILLED','POSITION_OCCUPIED']);self.assertEqual(old.numeric.numeric.total,5.)
