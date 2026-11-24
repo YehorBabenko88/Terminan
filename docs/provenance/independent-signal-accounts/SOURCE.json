@@ -36,8 +36,18 @@
   },
   "dependencies": {
     "Data": "cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3",
-    "Math": "9379384606492af33619bc9168d259917da296a0",
-    "math_stats_sha256": "eef7dd8c252e68783d60b6236a437942df99995fae714a9fa0ca117b58e54cef"
+    "Math": "50048413605389a024dfef60e98f70126d788671",
+    "math_stats_sha256": "eef7dd8c252e68783d60b6236a437942df99995fae714a9fa0ca117b58e54cef",
+    "math_required_ci": {
+      "head": "50048413605389a024dfef60e98f70126d788671",
+      "status": "ACCEPTED_REQUIRED34_HOSTED_CUSTODY_SCOPED_NOT_GLOBAL_RELEASE",
+      "required_jobs": 34,
+      "success": 34,
+      "official_artifacts": 38,
+      "evidence": "outputs/hosted-math500-1795490866593/receipt.json",
+      "evidence_sha256": "c54f15cf31a88d428eb1aa056388dcfb19a04abac0d9c8ed9df9830527d0f563",
+      "hosted_sdk_wheel_containers_provided": 0
+    }
   },
   "authority": {
     "source_authentication": "NOT_EVALUATED",
@@ -54,8 +64,20 @@
   },
   "qualification": {
     "local_scope": "AUTHOR_PURE_SOURCE_AND_OFFLINE_ACTUAL_WHEEL",
-    "independent_review": "PENDING",
+    "independent_review": "BASE_3EA_FUNCTIONAL_ACCEPTED_FINAL_METADATA_DELTA_PENDING",
     "current_head_ci": "PENDING_UNPUBLISHED",
-    "publication": "NOT_AUTHORIZED_HERE"
+    "publication": "NOT_AUTHORIZED_HERE",
+    "independent_review_evidence": {
+      "head": "3ea47461d768cb22ff29c61a722c09937eba4c30",
+      "path": "outputs/qa-independent-term-accounts-1795490013682/receipt.json",
+      "sha256": "43f362b4723eaeb4b716764b6f00c4d2e5abea62af14e589ff2f71a3737174e7"
+    },
+    "final_math_repin": {
+      "base_head": "3ea47461d768cb22ff29c61a722c09937eba4c30",
+      "math_commit": "50048413605389a024dfef60e98f70126d788671",
+      "scope": "FOUR_WORKFLOW_REFS_AND_NEW_FEATURE_PROVENANCE_ONLY",
+      "runtime_and_tests": "UNCHANGED_FROM_3EA",
+      "current_enclosing_head_ci": "PENDING_UNPUBLISHED_NO_SELF_SHA_GUESS"
+    }
   }
 }
