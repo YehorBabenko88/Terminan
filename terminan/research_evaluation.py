@@ -35,6 +35,17 @@ class EvaluationDataset:
     execution_authority:bool=field(default=False,init=False)
     trading_authorized:bool=field(default=False,init=False)
 
+class EvaluationAccountModel(str,Enum):
+    FOLD_OCCUPANCY_V1='FOLD_OCCUPANCY_V1'
+    INDEPENDENT_PER_SIGNAL_V1='INDEPENDENT_PER_SIGNAL_V1'
+
+def _account_model(value):
+    # Capture literal policy by member identity before any external callback.
+    if type(value) is not EvaluationAccountModel:raise ValueError('EVALUATION_CLOSED_ACCOUNT_MODEL')
+    if value is EvaluationAccountModel.FOLD_OCCUPANCY_V1:return 'FOLD_OCCUPANCY_V1'
+    if value is EvaluationAccountModel.INDEPENDENT_PER_SIGNAL_V1:return 'INDEPENDENT_PER_SIGNAL_V1'
+    raise ValueError('EVALUATION_CLOSED_ACCOUNT_MODEL')
+
 class EvaluationDisposition(str,Enum):
     FILLED='FILLED'
     NOT_FILLED='NOT_FILLED'
@@ -66,7 +77,7 @@ class ResearchEvaluation:
     numeric:object
     bootstrap:object
     verdict:object
-    policy:str=field(default='CANDLE_INDEX_INDEPENDENT_ACCOUNTS_V1',init=False)
+    policy:str=field(default='CANDLE_INDEX_INDEPENDENT_ACCOUNTS_V1',kw_only=True)
     numeric_policy:str=field(default='DECIMAL_TO_BINARY64_V1_DESCRIPTIVE_ONLY',init=False)
     availability_basis:str=field(default='CALLER_DECLARED_ALL_EXAMINED_DEPENDENCIES_MAX',init=False)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
@@ -134,7 +145,9 @@ def _capture(pattern,signals,candles,dataset,policy):
         windows.append((start,end,start+embargo,tuple(r for r in subset if r.event_start_ms>=start+embargo)))
     return pattern,tuple(captured),tuple(rows),detached,tuple(windows)
 
-def evaluate_research_signals(pattern,signals,candles,*,dataset,bar_ms,notional=Decimal(100),fee_rate=Decimal('0.0006'),slippage_bps=Decimal(2),folds=5,embargo_ms=0,ambiguity_policy='SL_FIRST',min_folds=3,min_samples=60,min_profitable_fraction=.60,min_expectancy=0.0,min_profit_factor=1.05,max_loss_fold_fraction=.50):
+def evaluate_research_signals(pattern,signals,candles,*,dataset,bar_ms,notional=Decimal(100),fee_rate=Decimal('0.0006'),slippage_bps=Decimal(2),folds=5,embargo_ms=0,ambiguity_policy='SL_FIRST',min_folds=3,min_samples=60,min_profitable_fraction=.60,min_expectancy=0.0,min_profit_factor=1.05,max_loss_fold_fraction=.50,account_model=EvaluationAccountModel.FOLD_OCCUPANCY_V1):
+    model=_account_model(account_model)
+    independent=model=='INDEPENDENT_PER_SIGNAL_V1'
     policy=(bar_ms,folds,embargo_ms,ambiguity_policy,notional,fee_rate,slippage_bps,min_folds,min_samples,min_profitable_fraction,min_expectancy,min_profit_factor,max_loss_fold_fraction)
     pattern,signals,rows,dataset,windows=_capture(pattern,signals,candles,dataset,policy)
     # All leaves/flags and policies have been detached before the FIRST Math call.
@@ -148,6 +161,8 @@ def evaluate_research_signals(pattern,signals,candles,*,dataset,bar_ms,notional=
         if type(value) is tuple:return [encoded(v) for v in value]
         return value
     canonical={'schema':'terminan.research.evaluation.inputs.v1','pattern':pattern,'dataset':(dataset.source_sha256,dataset.symbol,dataset.value_unit,dataset.available_from_ms,dataset.as_of_ms),'candles':tuple((r.event_start_ms,r.event_end_ms,r.available_at_ms,r.open,r.high,r.low,r.close,r.volume) for r in rows),'signals':tuple((s.symbol,s.decision_ms,s.side,s.entry_kind,s.entry_price,s.stop,s.target) for s in signals),'policy':policy,'fold_policy':'CANDLE_INDEX_INDEPENDENT_ACCOUNTS_V1','market_policy':'FIRST_START_GE_DECISION','limit_policy':'STRICT_NEXT_BOUNDARY','occupied_policy':'DECISION_GE_RELEASE_ALLOWED','pending_policy':'UNTIL_FOLD_END_AND_ALL_PAGE_AVAILABILITY','availability_policy':'ALL_EXAMINED_DEPENDENCIES_MAX','numeric_policy':'DECIMAL_TO_BINARY64_V1_DESCRIPTIVE_ONLY','bootstrap':(500,17,.95),'math_abi':'PROFIT_LOSS_SUMMARY_V1'}
+    if independent:
+        canonical.update(schema='terminan.research.evaluation.inputs.v2',account_model=model,fold_policy='CANDLE_INDEX_INDEPENDENT_SIGNAL_ACCOUNTS_V2',occupied_policy='NO_CROSS_SIGNAL_OCCUPANCY',pending_policy='SIGNAL_LOCAL_UNTIL_FOLD_END_AND_ALL_PAGE_AVAILABILITY',account_state='FRESH_SOLE_PAPER_ENGINE_NO_LEDGER_OR_ENVIRONMENT',pooled_basis='SIGNAL_ORDER_DESCRIPTIVE_NOT_SHARED_PORTFOLIO',bootstrap_qualification='OVERLAPPING_HYPOTHESES_NOT_IID_EVIDENCE')
     raw=json.dumps({k:encoded(v) for k,v in canonical.items()},sort_keys=True,separators=(',',':'),allow_nan=False).encode('ascii')
     if len(raw)>8388608:raise ValueError('EVALUATION_CANONICAL_BYTE_BUDGET')
     fingerprint=hashlib.sha256(raw).hexdigest()
@@ -159,17 +174,28 @@ def evaluate_research_signals(pattern,signals,candles,*,dataset,bar_ms,notional=
         validate_signal_batch(signal,bars,bar_ms=bar_ms,as_of_ms=dataset.as_of_ms,available_from_ms=dataset.available_from_ms,ambiguity_policy=ambiguity_policy)
     # Validate all screening numeric policy even for an empty evaluation.
     screen_research_pattern(pattern,(),min_folds=min_folds,min_samples=min_samples,min_profitable_fraction=min_profitable_fraction,min_expectancy=min_expectancy,min_profit_factor=min_profit_factor,max_loss_fold_fraction=max_loss_fold_fraction)
-    engines=tuple(PaperEngine(notional=notional,fee_rate=fee_rate,slippage_bps=slippage_bps) for _ in windows)
+    if independent:
+        # Same owner policy domain even when there are no eligible accounts.
+        owner.paper_position_size(notional,Decimal(1))
+        owner.paper_entry_fee(notional,fee_rate)
+        owner.adverse_execution_price(Decimal(1),'long',slippage_bps,True)
+    engines=() if independent else tuple(PaperEngine(notional=notional,fee_rate=fee_rate,slippage_bps=slippage_bps) for _ in windows)
     outcomes=[];fold_results=[];fold_metrics=[];pooled=[]
     for i,(start,end,test_start,subset) in enumerate(windows):
-        engine=engines[i];engine.enabled=True;release=None;values=[]
+        engine=None if independent else engines[i]
+        if engine is not None:engine.enabled=True
+        release=None;values=[]
         foldbars=tuple(ResearchBar(r.event_start_ms,r.open,r.high,r.low,r.close,r.volume) for r in subset)
         for signal in signals:
             if not start<=signal.decision_ms<end:continue
             if signal.decision_ms<test_start or not subset:
                 outcomes.append(EvaluationOutcome(signal,EvaluationDisposition.OUTSIDE_TEST_WINDOW,i,None));continue
-            if release is not None and signal.decision_ms<release:
+            if not independent and release is not None and signal.decision_ms<release:
                 outcomes.append(EvaluationOutcome(signal,EvaluationDisposition.POSITION_OCCUPIED,i,release));continue
+            if independent:
+                # A local hypothetical account; never a replay wrapper or ledger.
+                engine=PaperEngine(notional=notional,fee_rate=fee_rate,slippage_bps=slippage_bps)
+                engine.enabled=True
             try:
                 execution=engine.execute_signal(signal,foldbars,bar_ms=bar_ms,as_of_ms=dataset.as_of_ms,available_from_ms=dataset.available_from_ms,ambiguity_policy=ambiguity_policy)
             except SignalNotFilled as exc:
@@ -194,4 +220,4 @@ def evaluate_research_signals(pattern,signals,candles,*,dataset,bar_ms,notional=
     verdict=screen_research_pattern(pattern,tuple(fold_metrics),min_folds=min_folds,min_samples=min_samples,min_profitable_fraction=min_profitable_fraction,min_expectancy=min_expectancy,min_profit_factor=min_profit_factor,max_loss_fold_fraction=max_loss_fold_fraction)
     if verdict.status is ScreeningStatus.KEEP and bootstrap is not None and bootstrap.lower<=0:
         verdict=replace(verdict,status=ScreeningStatus.NEEDS_MORE_DATA,reasons=verdict.reasons+('BOOTSTRAP_CROSSES_ZERO',))
-    return ResearchEvaluation(fingerprint,dataset,tuple(fold_results),tuple(outcomes),numeric,bootstrap,verdict)
+    return ResearchEvaluation(fingerprint,dataset,tuple(fold_results),tuple(outcomes),numeric,bootstrap,verdict,**({'policy':'CANDLE_INDEX_INDEPENDENT_SIGNAL_ACCOUNTS_V2'} if independent else {}))

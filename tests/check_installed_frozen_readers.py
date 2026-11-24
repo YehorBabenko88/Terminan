@@ -68,17 +68,20 @@ suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(domain_v1['Repor
 scaled_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_scaled_limit_execution.py')))
 suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(scaled_v1['ScaledLimitExecutionTests']))
 
+independent_v1=runpy.run_path(str(pathlib.Path(__file__).with_name('test_independent_signal_evaluation.py')))
+suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(independent_v1['IndependentSignalAccountTests']))
+
 def _case_ids(value):
  for test in value:
   if isinstance(test,unittest.TestSuite):yield from _case_ids(test)
   else:yield test.id()
 def _require_roster(actual):
  import json
- expected=json.loads(pathlib.Path(__file__).with_name('scaled_execution_roster_v1.json').read_text(encoding='utf-8'))['case_ids']
- if type(actual) is not tuple or len(actual)!=341 or any(type(name) is not str for name in actual) or len(set(actual))!=341 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
+ expected=json.loads(pathlib.Path(__file__).with_name('independent_signal_accounts_roster_v1.json').read_text(encoding='utf-8'))['case_ids']
+ if type(actual) is not tuple or len(actual)!=358 or any(type(name) is not str for name in actual) or len(set(actual))!=358 or list(actual)!=expected:raise RuntimeError('EXACT_UNIQUE_ORDERED_ROSTER_REQUIRED')
 case_ids=tuple(_case_ids(suite))
 _require_roster(case_ids)
-if suite.countTestCases()!=341:raise RuntimeError('EXACT_ROSTER_REQUIRED')
+if suite.countTestCases()!=358:raise RuntimeError('EXACT_ROSTER_REQUIRED')
 result=unittest.TextTestRunner(verbosity=2).run(suite)
 for name,module in tuple(sys.modules.items()):
  if not owned(name):continue
@@ -88,4 +91,4 @@ for name,module in tuple(sys.modules.items()):
  if pathlib.Path(module.__cached__)!=expected or not expected.is_relative_to(cache):raise RuntimeError('CACHED_ORIGIN_REJECTED')
 unchanged_cache()
 if bytes_snapshot()!=before:raise RuntimeError('SDK_BYTES_CHANGED')
-raise SystemExit(not(result.wasSuccessful() and result.testsRun==341 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))
+raise SystemExit(not(result.wasSuccessful() and result.testsRun==358 and not result.skipped and not result.expectedFailures and not result.unexpectedSuccesses))

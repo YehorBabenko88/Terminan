@@ -26,7 +26,7 @@ class ResearchEntryEvaluation:
     entries:tuple[ResearchEntry,...]
     evaluation:evaluator.ResearchEvaluation
     outcomes:tuple[EntryEvaluationOutcome,...]
-    version:str=field(default='research_entry_evaluation.v2',init=False)
+    version:str=field(default='research_entry_evaluation.v2',kw_only=True)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     execution_authority:bool=field(default=False,init=False)
     trading_authorized:bool=field(default=False,init=False)
@@ -168,16 +168,18 @@ def _encoded(value):
     if kind is tuple:return [_encoded(item) for item in value]
     return value
 
-def evaluate_research_entries(pattern,entries,candles,*,dataset,bar_ms,notional=Decimal(100),fee_rate=Decimal('0.0006'),slippage_bps=Decimal(2),folds=5,embargo_ms=0,ambiguity_policy='SL_FIRST',min_folds=3,min_samples=60,min_profitable_fraction=.60,min_expectancy=0.0,min_profit_factor=1.05,max_loss_fold_fraction=.50):
+def evaluate_research_entries(pattern,entries,candles,*,dataset,bar_ms,notional=Decimal(100),fee_rate=Decimal('0.0006'),slippage_bps=Decimal(2),folds=5,embargo_ms=0,ambiguity_policy='SL_FIRST',min_folds=3,min_samples=60,min_profitable_fraction=.60,min_expectancy=0.0,min_profit_factor=1.05,max_loss_fold_fraction=.50,account_model=evaluator.EvaluationAccountModel.FOLD_OCCUPANCY_V1):
+    model=evaluator._account_model(account_model)
+    independent=model=='INDEPENDENT_PER_SIGNAL_V1'
     pattern=evaluator._text(pattern,'[a-z0-9_]{1,64}')
     entries=_capture_entries(entries);_admit(entries,pattern)
     policy=(bar_ms,folds,embargo_ms,ambiguity_policy,notional,fee_rate,slippage_bps,min_folds,min_samples,min_profitable_fraction,min_expectancy,min_profit_factor,max_loss_fold_fraction)
     _,signals,rows,dataset,_=evaluator._capture(pattern,tuple(e.signal for e in entries),candles,dataset,policy)
     # The complete rich graph AND evaluator leaves/policies are detached before
     # the first evaluation/numeric callback. No caller mapping remains live.
-    canonical=json.dumps({'schema':'terminan.rich-entry-evaluation.inputs.v2','entries':_encoded(entries)},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
+    canonical=json.dumps({'schema':'terminan.rich-entry-evaluation.inputs.v3','entries':_encoded(entries),'account_model':model} if independent else {'schema':'terminan.rich-entry-evaluation.inputs.v2','entries':_encoded(entries)},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
     if len(canonical)>8388608:raise ValueError('ENTRY_EVALUATION_CANONICAL_BYTE_BUDGET')
-    result=evaluator.evaluate_research_signals(pattern,signals,rows,dataset=dataset,bar_ms=bar_ms,notional=notional,fee_rate=fee_rate,slippage_bps=slippage_bps,folds=folds,embargo_ms=embargo_ms,ambiguity_policy=ambiguity_policy,min_folds=min_folds,min_samples=min_samples,min_profitable_fraction=min_profitable_fraction,min_expectancy=min_expectancy,min_profit_factor=min_profit_factor,max_loss_fold_fraction=max_loss_fold_fraction)
+    result=evaluator.evaluate_research_signals(pattern,signals,rows,dataset=dataset,bar_ms=bar_ms,notional=notional,fee_rate=fee_rate,slippage_bps=slippage_bps,folds=folds,embargo_ms=embargo_ms,ambiguity_policy=ambiguity_policy,min_folds=min_folds,min_samples=min_samples,min_profitable_fraction=min_profitable_fraction,min_expectancy=min_expectancy,min_profit_factor=min_profit_factor,max_loss_fold_fraction=max_loss_fold_fraction,account_model=account_model)
     if type(result) is not evaluator.ResearchEvaluation or type(result.outcomes) is not tuple or len(result.outcomes)!=len(entries):raise ValueError('ENTRY_EVALUATION_OUTCOME_CONSERVATION')
     by_clock={entry.decision_ms:entry for entry in entries};out=[];seen=set()
     for outcome in result.outcomes:
@@ -187,4 +189,4 @@ def evaluate_research_entries(pattern,entries,candles,*,dataset,bar_ms,notional=
         seen.add(clock);out.append(EntryEvaluationOutcome(by_clock[clock],outcome))
     if seen!=set(by_clock):raise ValueError('ENTRY_EVALUATION_OUTCOME_CONSERVATION')
     fingerprint=hashlib.sha256(canonical+b'\0'+result.input_sha256.encode('ascii')).hexdigest()
-    return ResearchEntryEvaluation(fingerprint,entries,result,tuple(out))
+    return ResearchEntryEvaluation(fingerprint,entries,result,tuple(out),**({'version':'research_entry_evaluation.v3'} if independent else {}))

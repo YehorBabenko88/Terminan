@@ -82,13 +82,13 @@ class ResearchPerformanceReport:
     all_filled:numeric.NumericTradeSummary
     by_coverage:tuple[CoverageReportPartition,...]
     by_volatility:tuple[VolatilityReportPartition,...]
-    schema:str=field(default='terminan.research-performance-report.v1',init=False)
+    schema:str=field(default='terminan.research-performance-report.v1',kw_only=True)
     math_abi:str=field(default='math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1',init=False)
     numeric_policy:str=field(default='DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING',init=False)
     holding_basis:str=field(default='MODELED_BAR_START_DURATION',init=False)
     coverage_basis:str=field(default='CALLER_DECLARATIONS_ONLY',init=False)
     metric_basis:str=field(default='POSTHOC_CALLER_DECLARATIONS_NOT_INFERRED_EXCURSIONS',init=False)
-    execution_basis:str=field(default='CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED',init=False)
+    execution_basis:str=field(default='CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED',kw_only=True)
     execution_domain_policy:str=field(default='MATH_PAPER_EXECUTION_VALUES_V1_DECLARATIONS_ONLY',init=False)
     source_authentication:str=field(default='NOT_EVALUATED',init=False)
     completeness_qualified:bool=field(default=False,init=False)
@@ -210,8 +210,17 @@ def _instrument_preflight(source,symbol):
         entry(pair.entry);outcome(pair.outcome)
 
 
+def _account_pair(source):
+    # Structural caller declarations only: an opaque digest cannot attest execution.
+    if type(source) is not rich.ResearchEntryEvaluation or type(source.evaluation) is not evaluation.ResearchEvaluation:raise ValueError('REPORT_TYPED_RICH_EVALUATION_REQUIRED')
+    version,policy=source.version,source.evaluation.policy
+    if type(version) is not str or type(policy) is not str:raise ValueError('REPORT_CLOSED_ACCOUNT_PAIR')
+    if version=='research_entry_evaluation.v2' and policy=='CANDLE_INDEX_INDEPENDENT_ACCOUNTS_V1':return False
+    if version=='research_entry_evaluation.v3' and policy=='CANDLE_INDEX_INDEPENDENT_SIGNAL_ACCOUNTS_V2':return True
+    raise ValueError('REPORT_CLOSED_ACCOUNT_PAIR')
+
 def _admit(source,declarations,amount_unit,cutoff):
-    if type(source) is not rich.ResearchEntryEvaluation or source.version!='research_entry_evaluation.v2':raise ValueError('REPORT_TYPED_RICH_EVALUATION_REQUIRED')
+    independent=_account_pair(source)
     evaluation._text(source.input_sha256,'[a-f0-9]{64}')
     owner=source.evaluation
     if type(owner) is not evaluation.ResearchEvaluation or type(owner.dataset) is not evaluation.EvaluationDataset:raise ValueError('REPORT_TYPED_EVALUATION_DATASET')
@@ -234,6 +243,7 @@ def _admit(source,declarations,amount_unit,cutoff):
     by_clock={e.decision_ms:e for e in source.entries};underlying={};pairs={};filled=[]
     for outcome in owner.outcomes:
         if type(outcome) is not evaluation.EvaluationOutcome or type(outcome.signal) is not rich.ResearchSignal or type(outcome.disposition) is not evaluation.EvaluationDisposition:raise ValueError('REPORT_TYPED_OUTCOME')
+        if independent and outcome.disposition is evaluation.EvaluationDisposition.POSITION_OCCUPIED:raise ValueError('REPORT_INDEPENDENT_OCCUPANCY_REFUSED')
         clock=evaluation._clock(outcome.signal.decision_ms)
         if clock>cutoff or outcome.known_at_ms is not None and evaluation._clock(outcome.known_at_ms)>cutoff:raise ValueError('REPORT_ALL_OUTCOME_CLOCKS_WITHIN_CUTOFF')
         if outcome.fold_index is not None and (type(outcome.fold_index) is not int or not 0<=outcome.fold_index<len(owner.folds)):raise ValueError('REPORT_LITERAL_OUTCOME_FOLD_INDEX')
@@ -305,6 +315,7 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
     _unit(value_unit)
     if type(control) is not MappingProxyType:raise ValueError('REPORT_LITERAL_CONTROL_METADATA')
     if type(source) is not rich.ResearchEntryEvaluation or type(source.evaluation) is not evaluation.ResearchEvaluation or type(source.evaluation.dataset) is not evaluation.EvaluationDataset:raise ValueError('REPORT_TYPED_RICH_EVALUATION_REQUIRED')
+    independent=_account_pair(source)
     cutoff=source.evaluation.dataset.as_of_ms if cutoff is None else cutoff;evaluation._clock(cutoff)
     filled,declared,units=_admit(source,declarations,value_unit,cutoff)
     if type(numeric.SCREENING_NUMERIC_ABI) is not str or numeric.SCREENING_NUMERIC_ABI!='math.numeric.screening.ordered-binary64.v1' or numeric.NumericTradeObservation._fields!=('gross_pnl','net_pnl','fees','mae','mfe','r_multiple','holding_ms'):raise RuntimeError('REPORT_UNSUPPORTED_MATH_ABI')
@@ -317,7 +328,7 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
     for pair in filled:
         execution=pair.outcome.execution;fill=execution.fill
         if predicate(fill.entry,fill.exit,execution.quantity,fill.fees) is not True:raise ValueError('REPORT_MATH_EXECUTION_DOMAIN_REFUSED')
-    canonical=json.dumps({'schema':'terminan.research-report.inputs.v1','evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY','execution_basis':'CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED','execution_domain_policy':'MATH_PAPER_EXECUTION_VALUES_V1_DECLARATIONS_ONLY'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
+    canonical=json.dumps({'schema':'terminan.research-report.inputs.v2' if independent else 'terminan.research-report.inputs.v1','evaluation':_encoded(source),'declarations':_encoded(tuple(sorted(declarations,key=lambda row:(row.symbol,row.decision_ms)))),'value_unit':value_unit,'report_as_of_ms':cutoff,'metadata':_encoded(control),'math_abi':'math.numeric.screening.ordered-binary64.v1/declared-trade-summary.v1','numeric_policy':'DECIMAL_TO_BINARY64_V1_ORDERED_DESCRIPTIVE_NOT_LEDGER_ACCOUNTING','holding_basis':'MODELED_BAR_START_DURATION','coverage_basis':'CALLER_DECLARATIONS_ONLY','execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED' if independent else 'CALLER_SUPPLIED_MODELED_EXECUTIONS_NOT_REEXECUTED','execution_domain_policy':'MATH_PAPER_EXECUTION_VALUES_V1_DECLARATIONS_ONLY'},sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode('ascii')
     if len(canonical)>8388608:raise ValueError('REPORT_CANONICAL_BYTE_BUDGET')
     trades=[];observations=[]
     # One explicit owner conversion per complete scalar batch. No PnL summation
@@ -352,4 +363,4 @@ def build_research_report(source,trade_metadata=(),*,value_unit,report_as_of_ms=
         partitions.append(CoverageReportPartition(label,tuple(trades[i].identity for i in indices),summary(indices),volatility(indices)))
     partition_ids=tuple(identity for part in partitions for identity in part.trade_ids)
     if len(partition_ids)!=len(trades) or set(partition_ids)!={t.identity for t in trades}:raise ValueError('REPORT_COVERAGE_TRADE_CONSERVATION')
-    return ResearchPerformanceReport(hashlib.sha256(canonical).hexdigest(),source,cutoff,units,control,trades,summary(all_indices),tuple(partitions),volatility(all_indices))
+    return ResearchPerformanceReport(hashlib.sha256(canonical).hexdigest(),source,cutoff,units,control,trades,summary(all_indices),tuple(partitions),volatility(all_indices),**({'schema':'terminan.research-performance-report.independent-signals.v2','execution_basis':'CALLER_DECLARED_INDEPENDENT_HYPOTHESES_SIGNAL_ORDER_NOT_PORTFOLIO_NOT_REEXECUTED'} if independent else {}))

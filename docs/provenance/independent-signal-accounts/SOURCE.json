@@ -1,0 +1,61 @@
+{
+  "schema": "terminan.independent-signal-accounts.source.v1",
+  "base_public_head": "83f2f50cc8a94d9bffa9fbdf14c3cc229f4c1984",
+  "design": "outputs/terminan-independent-account-plan-1795487370823",
+  "runtime_scope": [
+    "terminan/research_evaluation.py",
+    "terminan/research_entry_evaluation.py",
+    "terminan/research_reporting.py"
+  ],
+  "account_models": {
+    "default": "FOLD_OCCUPANCY_V1",
+    "opt_in": "INDEPENDENT_PER_SIGNAL_V1",
+    "admission": "EXACT_ENUM_MEMBER_IDENTITY_CAPTURED_BEFORE_CALLBACKS"
+  },
+  "implementation": {
+    "engine": "EXISTING_SOLE_PAPER_ENGINE_FRESH_PER_ELIGIBLE_SIGNAL",
+    "ledger": "NO_ENVIRONMENT_LEDGER_OR_REPLAY_WRAPPER",
+    "arithmetic": "EXISTING_CANONICAL_MATH_AND_ENGINE",
+    "availability": "MAX_ALL_EXAMINED_DEPENDENCY_CANDLES",
+    "pending": "SIGNAL_LOCAL_FOLD_END_AND_PAGE_AVAILABILITY",
+    "pooling": "DESCRIPTIVE_SIGNAL_ORDER_NOT_SHARED_PORTFOLIO",
+    "bootstrap": "EXISTING_IID_DESCRIPTION_NOT_OVERLAP_INDEPENDENCE_PROOF",
+    "report_admission": "CLOSED_DECLARED_VERSION_POLICY_PAIRS_NOT_EXECUTION_ATTESTATION"
+  },
+  "default_compatibility": {
+    "canonical_maps": "UNCHANGED_V1_CORE_V2_RICH_V1_REPORT",
+    "golden_fixture": "tests/fixtures/independent_accounts/default83f.json",
+    "engine_policy": "UNCHANGED_FOLD_OCCUPANCY",
+    "original_test_ids": 341
+  },
+  "installed_roster": {
+    "file": "tests/independent_signal_accounts_roster_v1.json",
+    "original_ordered_prefix": 341,
+    "appended": 17,
+    "total": 358
+  },
+  "dependencies": {
+    "Data": "cef6365fb9241a62e9ffc3ddb610d2a8575fd6e3",
+    "Math": "9379384606492af33619bc9168d259917da296a0",
+    "math_stats_sha256": "eef7dd8c252e68783d60b6236a437942df99995fae714a9fa0ca117b58e54cef"
+  },
+  "authority": {
+    "source_authentication": "NOT_EVALUATED",
+    "execution_authority": false,
+    "trading_authorized": false,
+    "point_in_time_qualified": false,
+    "out_of_sample_qualified": false
+  },
+  "retirement": {
+    "accepted": 37,
+    "remaining": 510,
+    "delta": 0,
+    "pattern2": "NOT_RETIRED_PENDING_FUNCTIONAL_INDEPENDENT_QA_AND_CURRENT_CI"
+  },
+  "qualification": {
+    "local_scope": "AUTHOR_PURE_SOURCE_AND_OFFLINE_ACTUAL_WHEEL",
+    "independent_review": "PENDING",
+    "current_head_ci": "PENDING_UNPUBLISHED",
+    "publication": "NOT_AUTHORIZED_HERE"
+  }
+}
