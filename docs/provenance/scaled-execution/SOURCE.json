@@ -23,10 +23,14 @@
     "module_sha256": "13943a61b0a66bf82b711cb7964bd80eb959ecc014338a570afa3da404bec93e",
     "existing_paper_all_bytes_recoverable_by_one_method_removal": true,
     "registry_unchanged": true,
-    "data_commit": "30ef77cefe5e5b9d8af8dafc6da24e587711f897",
-    "data_required_ci": "14_OF14_CURRENT30ef",
+    "data_commit": "da9e782470d1237122c99994c042c2834b026062",
+    "data_required_ci": "14_OF14_CURRENT_da9e782470d1237122c99994c042c2834b026062_ACCEPTED_SCOPED",
     "functional_source_head": "a87e08d73c16dec5a91564e4598dbef4188d0303",
-    "workflow_repin_commit": "36f5317ae2c50e82b7e673cd06c414b1dfadea01"
+    "workflow_repin_commit": "36f5317ae2c50e82b7e673cd06c414b1dfadea01",
+    "data_required_ci_evidence": "outputs/hosted-datada9-1795482205614/receipt.json",
+    "workflow_repin_commit_scope": "INITIAL_MATH9379_DATA30ef_REPIN_HISTORICAL",
+    "final_data_repin_base": "26af145a1c53d85f607fc18c4fd200f0a42b0f73",
+    "final_data_repin_ci": "CURRENT_ENCLOSING_HEAD_CI_PENDING"
   },
   "model": "OHLC_SCALE_SL_FIRST_ONE_TARGET_PER_BAR_NO_TICK_ORDER_V1",
   "accounting_model": "PAPER_SCALE_ACCOUNTING_V1",
@@ -47,9 +51,12 @@
     "total": 341
   },
   "retirement": {
-    "status": "NOT_YET_RETIRED_IN_DATA",
-    "remaining_legacy_obligations": 516,
-    "deduction": 0
+    "status": "ACCEPTED_FOUR_DISTINCT_ORIGINAL_ROLES_BY_PARENT_AFTER_EXACT_DATA_CI",
+    "accepted_original_obligations": 35,
+    "remaining_legacy_obligations": 512,
+    "deduction": 4,
+    "scope": "THREE_SCALE_EXECUTION_ROLES_AND_ONE_MONTE_CARLO_ROLE",
+    "acceptance_evidence": "outputs/qa-parent-data-eol-1795481603444/accepted-four-role-transition.json"
   },
   "authority": false,
   "trading_authorized": false,
