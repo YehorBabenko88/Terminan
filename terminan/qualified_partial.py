@@ -58,7 +58,28 @@ def _source(value):
 
 
 def validate_partial(envelope, symbol, limit, *, now_ms=None):
-    """Return detached, display-only immutable-receipt data or fail closed.
+    """Legacy v1.1 read receipt, retained for exact producer regression parity."""
+    return _validate_page(envelope, symbol, limit, version="v1", now_ms=now_ms)
+
+
+def validate_qualified_v2(envelope, symbol, limit, *, now_ms=None):
+    """Consume B-owned qualified v2 DTO; no raw-v1 downgrade on failure."""
+    return _validate_page(envelope, symbol, limit, version="v2", now_ms=now_ms)
+
+
+_V2_KEYS = frozenset({
+    "schema", "api_version", "producer", "read_only", "symbol", "timeframe",
+    "limit", "status", "reason", "record_integrity",
+    "source_declared_quality", "quality_attestation", "source_authenticity",
+    "exchange_completeness", "coverage", "freshness_utc_ms",
+    "source_revision", "producer_epoch", "dataset_fingerprint",
+    "rows", "immutable", "storage_immutability",
+    "execution_authority", "trading_authorized", "paper_admitted"
+})
+
+
+def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
+    """Return detached, display-only receipt, with one Math/record validator.
 
     This validates BOTH the page digest and every constituent record digest.
     Freshness is based on source-event time; local reception time is not proof.
@@ -75,20 +96,45 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
     if type(envelope) is not dict:
         raise ValueError("ENVELOPE_REQUIRED")
     try:
-        if (envelope.get("api_version") != {"major": 1, "minor": 1}
-                or envelope.get("producer") != "market_data"
-                or envelope.get("read_only") is not True
-                or envelope.get("status") != "PARTIAL"
-                or envelope.get("reason") != "EXCHANGE_COMPLETENESS_UNATTESTED"
-                or envelope.get("data_quality_status") != "PARTIAL"
-                or envelope.get("representation") != "historical_aggregate"
-                or envelope.get("symbol") != symbol
-                or envelope.get("timeframe") != "1m"
-                or type(envelope.get("limit")) is not int
-                or envelope["limit"] != limit
-                or envelope.get("immutable") is not True
-                or not _nontrading(envelope)):
-            raise ValueError("ENVELOPE_NOT_PARTIAL")
+        if version == "v1":
+            if (envelope.get("api_version") != {"major": 1, "minor": 1}
+                    or envelope.get("producer") != "market_data"
+                    or envelope.get("read_only") is not True
+                    or envelope.get("status") != "PARTIAL"
+                    or envelope.get("reason") != "EXCHANGE_COMPLETENESS_UNATTESTED"
+                    or envelope.get("data_quality_status") != "PARTIAL"
+                    or envelope.get("representation") != "historical_aggregate"
+                    or envelope.get("symbol") != symbol
+                    or envelope.get("timeframe") != "1m"
+                    or type(envelope.get("limit")) is not int
+                    or envelope["limit"] != limit
+                    or envelope.get("immutable") is not True
+                    or not _nontrading(envelope)):
+                raise ValueError("ENVELOPE_NOT_PARTIAL")
+        elif version == "v2":
+            if (set(envelope) != _V2_KEYS
+                    or envelope.get("schema") != "market_data.qualified-read-envelope.v1"
+                    or envelope.get("api_version") != {"major": 2, "minor": 0}
+                    or envelope.get("producer") != "market_data"
+                    or envelope.get("read_only") is not True
+                    or envelope.get("status") != "PARTIAL"
+                    or envelope.get("reason") != "EXCHANGE_COMPLETENESS_UNATTESTED"
+                    or envelope.get("record_integrity") != "VERIFIED"
+                    or envelope.get("source_declared_quality") != ["GOOD"]
+                    or envelope.get("source_authenticity") != "NOT_INDEPENDENTLY_ATTESTED"
+                    or envelope.get("quality_attestation") != "NOT_INDEPENDENTLY_ATTESTED"
+                    or envelope.get("storage_immutability") != "NOT_ATTESTED"
+                    or envelope.get("exchange_completeness") != "NOT_ATTESTED"
+                    or envelope.get("immutable") is not False
+                    or envelope.get("paper_admitted") is not False
+                    or envelope.get("symbol") != symbol
+                    or envelope.get("timeframe") != "1m"
+                    or type(envelope.get("limit")) is not int
+                    or envelope["limit"] != limit
+                    or not _nontrading(envelope)):
+                raise ValueError("QUALIFIED_V2_NOT_PARTIAL")
+        else:
+            raise ValueError("UNSUPPORTED_QUALIFIED_VERSION")
         rows = envelope.get("rows")
         if type(rows) is not list or not 1 <= len(rows) <= limit:
             raise ValueError("BOUNDED_ROWS_REQUIRED")
@@ -101,10 +147,12 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
         }:
             raise ValueError("COVERAGE_REQUIRED")
         starts = []
-        source_id = _source(envelope.get("source"))
-        epochs = envelope.get("producer_epochs")
-        if type(epochs) is not list or epochs != [source_id[2]]:
-            raise ValueError("EPOCH_SET_REQUIRED")
+        source_id = _source(envelope.get("source") if version == "v1"
+                            else rows[0].get("source"))
+        if version == "v1":
+            epochs = envelope.get("producer_epochs")
+            if type(epochs) is not list or epochs != [source_id[2]]:
+                raise ValueError("EPOCH_SET_REQUIRED")
         if envelope.get("source_revision") != source_id[1] or envelope.get("producer_epoch") != source_id[2]:
             raise ValueError("SOURCE_PIN_MISMATCH")
         for row in rows:
@@ -164,9 +212,16 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
                 or envelope["freshness_utc_ms"] != watermark
                 or now_ms - watermark > 120000):
             raise ValueError("SOURCE_STALE")
-        if (type(envelope.get("next_before_ms")) is not int
-                or envelope["next_before_ms"] != ordered[0]
-                or type(envelope.get("dataset_fingerprint")) is not str
+        if version == "v1":
+            if (type(envelope.get("next_before_ms")) is not int
+                    or envelope["next_before_ms"] != ordered[0]):
+                raise ValueError("V1_CURSOR_INVALID")
+        else:
+            if starts != ordered:
+                raise ValueError("V2_CANONICAL_ROW_ORDER_REQUIRED")
+            if any(row["ingestion_ms"] > now_ms for row in rows):
+                raise ValueError("V2_FUTURE_INGESTION")
+        if (type(envelope.get("dataset_fingerprint")) is not str
                 or not _SHA64.fullmatch(envelope["dataset_fingerprint"])
                 or _digest(rows) != envelope["dataset_fingerprint"]):
             raise ValueError("PAGE_INTEGRITY_FAILED")
