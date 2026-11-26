@@ -241,6 +241,22 @@ class QualifiedV2DtoTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_qualified_v2(item, "BTCUSDT", 3, now_ms=self.now)
 
+    def test_v2_rejects_bool_as_int_even_with_matching_hashes(self):
+        changes = [
+            lambda p: p.update(api_version={"major": True, "minor": False}),
+            lambda p: p["rows"][0].update(api_version={"major": True, "minor": True}),
+            lambda p: p["coverage"].update(missing_minutes=False),
+            lambda p: p["coverage"].update(observed_minutes=3.0),
+            lambda p: p["rows"][0]["coverage"].update(expected_minutes=True),
+            lambda p: p["rows"][0]["coverage"].update(missing_minutes=False),
+        ]
+        for mutate in changes:
+            payload = copy.deepcopy(self.page)
+            mutate(payload)
+            rehash(payload)
+            with self.subTest(change=str(mutate)), self.assertRaises(ValueError):
+                validate_qualified_v2(payload, "BTCUSDT", 3, now_ms=self.now)
+
     def test_v2_rejects_rehashed_record_mutation_reorder_and_future(self):
         page = copy.deepcopy(self.page)
         page["rows"][0]["candle"]["high"] = 0
