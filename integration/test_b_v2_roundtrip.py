@@ -6,6 +6,7 @@ It does NOT demonstrate PostgreSQL custody, source authenticity, or permission
 to execute paper/real orders.
 """
 import copy
+import json
 import os
 import sys
 import threading
@@ -24,6 +25,7 @@ from market_data.provenance import minute_record, producer
 from market_data import history_api
 from market_data_v2 import read_api
 from terminan import data
+from terminan.qualified_partial import _V2_KEYS
 
 
 def record_fixture(now_ms):
@@ -82,6 +84,16 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=3)
+
+    def test_b_published_json_schema_keys_match_closed_d_consumer(self):
+        path = os.path.join(os.environ["ROUND3_GRID_SOURCE"],
+                            "docs", "contracts",
+                            "qualified-read-envelope-v1.schema.json")
+        with open(path, encoding="utf-8") as source:
+            schema = json.load(source)
+        self.assertEqual(schema["additionalProperties"], False)
+        self.assertEqual(set(schema["properties"]), _V2_KEYS)
+        self.assertEqual(read_api.ROUTE, "/internal/v2/candles/qualified")
 
     def test_real_v2_handler_uses_same_managed_listener_and_math_rows(self):
         rows = [record_fixture(int(time.time() * 1000))]
