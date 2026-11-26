@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from .liquidity import large_levels
-from market_math import book_summary_metrics
+from market_math import book_summary_metrics, tick_distance
 
 @dataclass(frozen=True)
 class BookSummary:
@@ -23,9 +23,10 @@ def summarize_book(book,tick_size,level_price=None,*,max_walls=3):
         return BookSummary(book.symbol,None,None,None,Decimal(0),Decimal(0),(),False)
     if max(book.bids)>=min(book.asks):
         return BookSummary(book.symbol,None,None,None,Decimal(0),Decimal(0),(),False)
-    bid,ask,spread,bid_notional,ask_notional=book_summary_metrics(book.bids,book.asks,tick_size)
+    bid,ask,spread_price,bid_notional,ask_notional=book_summary_metrics(book.bids,book.asks,tick_size)
     if bid is None or ask is None:
         return BookSummary(book.symbol,None,None,None,Decimal(0),Decimal(0),(),False)
+    spread_ticks=tick_distance(ask,bid,tick_size)
     walls=large_levels(book,level_price,tick_size) if level_price is not None else []
-    return BookSummary(book.symbol,bid,ask,spread,bid_notional,
+    return BookSummary(book.symbol,bid,ask,spread_ticks,bid_notional,
                        ask_notional,tuple(walls[:max_walls]),True)
