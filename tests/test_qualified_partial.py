@@ -394,6 +394,85 @@ class PartialReadRuntimeTests(unittest.TestCase):
 
 
 
+    def test_qualified_v2_transport_accepts_bounded_footprint_sized_json_only(self):
+        """Transport size differs from semantic qualification; no false 16KiB EOF."""
+        payload = {"transport_fixture": "x" * 20_000}
+        raw = json.dumps(payload).encode("utf-8")
+        self.assertGreater(len(raw), data._MARKET_DATA_MAX_JSON)
+        self.assertLess(len(raw), data._QUALIFIED_V2_MAX_JSON)
+        path = "/internal/v2/candles/qualified?symbol=BTCUSDT&limit=5"
+
+        class Response:
+            status = 200
+            def getheader(self, field):
+                if field == "Content-Type":
+                    return "application/json"
+                if field == "Content-Length":
+                    return str(len(raw))
+                return None
+            def read(self, n=-1):
+                return raw[:n]
+
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                pass
+            def request(self, *args, **kwargs):
+                pass
+            def getresponse(self):
+                return Response()
+            def close(self):
+                pass
+
+        with mock.patch("terminan.data.http.client.HTTPConnection", Connection):
+            # Only a managed capability path may read the large response.
+            result = data._market_data_http_get(
+                29001, path, headers={"Authorization": "Bearer " + self.cap["token"]})
+            self.assertEqual(result, payload)
+            for candidate, kwargs in (
+                (path, {}),
+                ("/internal/v1/candles?symbol=BTCUSDT&limit=5",
+                 {"headers": {"Authorization": "Bearer " + self.cap["token"]}}),
+                ("/internal/v2/candles/qualified?symbol=BTCUSDT&limit=6",
+                 {"headers": {"Authorization": "Bearer " + self.cap["token"]}}),
+            ):
+                with self.subTest(path=candidate), self.assertRaisesRegex(
+                        ValueError, "response size exceeded"):
+                    data._market_data_http_get(29001, candidate, **kwargs)
+
+    def test_qualified_v2_transport_rejects_over_budget_without_body_read(self):
+        path = "/internal/v2/candles/qualified?symbol=BTCUSDT&limit=5"
+        for length in (str(data._QUALIFIED_V2_MAX_JSON + 1), "-1", "1e10", "x"):
+            class Response:
+                status = 200
+                def getheader(self, field):
+                    if field == "Content-Type":
+                        return "application/json"
+                    if field == "Content-Length":
+                        return length
+                    return None
+                def read(self, n=-1):
+                    self.__class__.read_called = True
+                    raise AssertionError("UNAUTHORIZED_OVERSIZED_BODY_READ")
+
+            class Connection:
+                def __init__(self, *args, **kwargs):
+                    pass
+                def request(self, *args, **kwargs):
+                    pass
+                def getresponse(self):
+                    return Response()
+                def close(self):
+                    pass
+
+            Response.read_called = False
+            with mock.patch("terminan.data.http.client.HTTPConnection", Connection):
+                with self.subTest(length=length), self.assertRaisesRegex(
+                        ValueError, "response size exceeded"):
+                    data._market_data_http_get(
+                        29001, path,
+                        headers={"Authorization": "Bearer " + self.cap["token"]})
+            self.assertFalse(Response.read_called)
+
     def test_legacy_grid_http_is_verifiable_but_never_downgrades_chart(self):
         """Real v1 handler is still testable, never accepted as v2 chart route."""
         from market_data import history_api
