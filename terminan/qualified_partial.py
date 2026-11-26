@@ -20,6 +20,20 @@ _SHA40 = re.compile(r"[a-f0-9]{40}\Z")
 _SHA64 = re.compile(r"[a-f0-9]{64}\Z")
 _SYMBOL = re.compile(r"[A-Z0-9]{2,30}\Z")
 _MAX_TIME = 2**53 - 1
+_RECORD_KEYS = frozenset({
+    "api_version", "producer", "source", "symbol", "timeframe",
+    "start_ms", "end_ms", "source_event_start_ms", "source_event_end_ms",
+    "ingestion_ms", "representation", "execution_authority",
+    "quality_status", "quality_reasons", "coverage", "source_identity_verified",
+    "status", "reason", "candle", "levels", "dataset_fingerprint"
+})
+_SOURCE_KEYS = frozenset({
+    "identity", "source_revision", "epoch", "market_type", "representation"
+})
+_CANDLE_KEYS = frozenset({
+    "open", "high", "low", "close", "buy_volume", "sell_volume",
+    "delta", "trade_count", "poc_price"
+})
 
 
 def _canonical(value):
@@ -48,7 +62,9 @@ def _nontrading(value):
 
 
 def _source(value):
-    if type(value) is not dict or type(value.get("identity")) is not str or not 1 <= len(value["identity"]) <= 256:
+    if (type(value) is not dict or set(value) != _SOURCE_KEYS
+            or type(value.get("identity")) is not str
+            or not 1 <= len(value["identity"]) <= 256):
         raise ValueError("SOURCE_IDENTITY_REQUIRED")
     if type(value.get("source_revision")) is not str or not _SHA40.fullmatch(value["source_revision"]):
         raise ValueError("SOURCE_REVISION_REQUIRED")
@@ -166,6 +182,7 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
             raise ValueError("SOURCE_PIN_MISMATCH")
         for row in rows:
             if (type(row) is not dict
+                    or set(row) != _RECORD_KEYS
                     or not _version(row.get("api_version"), 1, 1)
                     or row.get("producer") != "market_data"
                     or row.get("symbol") != symbol
@@ -179,6 +196,8 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
                     or not _nontrading(row)
                     or _source(row.get("source")) != source_id):
                 raise ValueError("RECORD_SOURCE_REQUIRED")
+            if len(_canonical(row)) > 1048576:
+                raise ValueError("RECORD_BYTE_BOUND_REQUIRED")
             if (type(row.get("dataset_fingerprint")) is not str
                     or not _SHA64.fullmatch(row["dataset_fingerprint"])
                     or _digest({k: v for k, v in row.items()
@@ -203,7 +222,10 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
                     or local_cover["observed_minutes"] != 1
                     or local_cover["missing_minutes"] != 0):
                 raise ValueError("RECORD_COVERAGE_NOT_ATTESTED")
-            if type(row.get("candle")) is not dict or type(row.get("levels")) is not list:
+            if (type(row.get("candle")) is not dict
+                    or set(row["candle"]) != _CANDLE_KEYS
+                    or type(row.get("levels")) is not list
+                    or not 0 < len(row["levels"]) <= 4096):
                 raise ValueError("RECORD_PAYLOAD_REQUIRED")
             # Math owns financial numeric validation. Non-admitted raw rows are
             # retained for DISPLAY only; this adapter does not compute candles.
