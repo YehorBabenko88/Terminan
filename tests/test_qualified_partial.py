@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer
 from unittest import mock
 
 from terminan import data
-from terminan.qualified_partial import validate_partial, chart_rows, _digest
+from terminan.qualified_partial import validate_partial, validate_qualified_v2, chart_rows, _digest
 from market_data.provenance import minute_record, producer
 from market_data.provenance_gateway import read_snapshot
 
@@ -50,6 +50,34 @@ def fixture(now, *, count=1):
         return read_snapshot(initial, "BTCUSDT", count, None,
                              lambda *args: records)
 
+
+
+def fixture_v2(now, *, count=1):
+    """Exact B v2 DTO shape with real canonical producer rows; no PG witness."""
+    old = fixture(now, count=count)
+    assert old["status"] == "PARTIAL"
+    rows = sorted(copy.deepcopy(old["rows"]), key=lambda item: item["start_ms"])
+    return {
+        "schema": "market_data.qualified-read-envelope.v1",
+        "api_version": {"major": 2, "minor": 0},
+        "producer": "market_data", "read_only": True,
+        "symbol": "BTCUSDT", "timeframe": "1m", "limit": count,
+        "status": "PARTIAL", "reason": "EXCHANGE_COMPLETENESS_UNATTESTED",
+        "record_integrity": "VERIFIED",
+        "source_declared_quality": ["GOOD"],
+        "quality_attestation": "NOT_INDEPENDENTLY_ATTESTED",
+        "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+        "exchange_completeness": "NOT_ATTESTED",
+        "coverage": old["coverage"],
+        "freshness_utc_ms": old["freshness_utc_ms"],
+        "source_revision": rows[0]["source"]["source_revision"],
+        "producer_epoch": rows[0]["source"]["epoch"],
+        "dataset_fingerprint": _digest(rows),
+        "rows": rows, "immutable": False,
+        "storage_immutability": "NOT_ATTESTED",
+        "execution_authority": False, "trading_authorized": False,
+        "paper_admitted": False,
+    }
 
 
 def rehash(page):
@@ -197,7 +225,7 @@ class PartialReadRuntimeTests(unittest.TestCase):
     def test_managed_authenticated_chart_with_read_receipt(self):
         data._private_market_data_client = self.client
         now = int(time.time() * 1000)
-        page = fixture(now, count=1)
+        page = fixture_v2(now, count=1)
         with mock.patch.object(data, "_market_data_http_get", return_value=page) as call:
             result = data.qualified_market_data_chart("BTCUSDT", limit=1)
         self.assertEqual(result["status"], "PARTIAL")
@@ -209,13 +237,13 @@ class PartialReadRuntimeTests(unittest.TestCase):
         self.assertFalse(result["trading_authorized"])
         self.assertEqual(result["rows"][0]["poc"], 2)
         self.assertEqual(call.call_args.args, (29001,
-             "/internal/v1/candles?symbol=BTCUSDT&limit=1"))
+             "/internal/v2/candles/qualified?symbol=BTCUSDT&limit=1"))
         self.assertEqual(call.call_args.kwargs["headers"]["Authorization"],
                          "Bearer " + self.cap["token"])
 
     def test_revocation_after_transport_discards_data(self):
         data._private_market_data_client = self.client
-        page = fixture(int(time.time() * 1000))
+        page = fixture_v2(int(time.time() * 1000))
         def revoked(*_args, **_kwargs):
             self.admission.current = False
             return page
@@ -225,7 +253,7 @@ class PartialReadRuntimeTests(unittest.TestCase):
 
     def test_unqualified_and_unavailable_cannot_enable_paper(self):
         data._private_market_data_client = self.client
-        page = fixture(int(time.time() * 1000))
+        page = fixture_v2(int(time.time() * 1000))
         for change in ({"status": "UNAVAILABLE"}, {"status": "STALE"},
                        {"execution_authority": True}):
             modified = {**page, **change}
@@ -317,7 +345,7 @@ class PartialReadRuntimeTests(unittest.TestCase):
     def test_http_receipt_is_readonly_no_order_or_execution_authority(self):
         from terminan.server import Handler
         data._private_market_data_client = self.client
-        page = fixture(int(time.time() * 1000), count=5)
+        page = fixture_v2(int(time.time() * 1000), count=5)
         with mock.patch.object(data, "_market_data_http_get", return_value=page), (
              mock.patch.object(Handler, "log_message", return_value=None)):
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
