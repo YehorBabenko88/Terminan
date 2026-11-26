@@ -51,6 +51,16 @@ def fixture(now, *, count=1):
                              lambda *args: records)
 
 
+
+def rehash(page):
+    for item in page["rows"]:
+        item["dataset_fingerprint"] = _digest({
+            k: v for k, v in item.items() if k != "dataset_fingerprint"
+        })
+    page["dataset_fingerprint"] = _digest(page["rows"])
+    return page
+
+
 class PartialReadFixtureTests(unittest.TestCase):
     def setUp(self):
         self.now = int(time.time() * 1000)
@@ -81,11 +91,7 @@ class PartialReadFixtureTests(unittest.TestCase):
         mutants.append(a)
         a = copy.deepcopy(self.page)
         a["rows"][0]["candle"]["close"] = 123
-        a["rows"][0]["dataset_fingerprint"] = _digest({
-            k: v for k, v in a["rows"][0].items() if k != "dataset_fingerprint"
-        })
-        a["dataset_fingerprint"] = _digest(a["rows"])
-        mutants.append(a)  # Forged checksums cannot override Math OHLC domain
+        mutants.append(rehash(a))  # Forged checksums cannot override Math OHLC domain
         for item in mutants:
             with self.subTest(mutant=item["dataset_fingerprint"]):
                 with self.assertRaises(ValueError):
@@ -95,10 +101,14 @@ class PartialReadFixtureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_partial(self.page, "BTCUSDT", 2, now_ms=self.now + 180001)
         a = copy.deepcopy(self.page)
-        a["rows"][1]["start_ms"] += 60000
+        a["rows"][1]["start_ms"] -= 60000
+        a["rows"][1]["end_ms"] -= 60000
+        a["rows"][1]["source_event_start_ms"] -= 60000
+        a["rows"][1]["source_event_end_ms"] -= 60000
+        a["coverage"]["expected_minutes"] = 3
         a["coverage"]["missing_minutes"] = 1
         with self.assertRaises(ValueError):
-            validate_partial(a, "BTCUSDT", 2, now_ms=self.now)
+            validate_partial(rehash(a), "BTCUSDT", 2, now_ms=self.now)
         a = copy.deepcopy(self.page)
         a["rows"][1] = copy.deepcopy(a["rows"][0])
         a["dataset_fingerprint"] = _digest(a["rows"])
@@ -128,6 +138,8 @@ class PartialReadFixtureTests(unittest.TestCase):
         for mutate in mutations:
             page = copy.deepcopy(self.page)
             mutate(page)
+            # Recompute both fingerprints to exercise policy beyond hash checks.
+            rehash(page)
             with self.subTest(change=str(mutate)):
                 with self.assertRaises(ValueError):
                     validate_partial(page, "BTCUSDT", 2, now_ms=self.now)
@@ -215,7 +227,7 @@ class PartialReadRuntimeTests(unittest.TestCase):
     def test_http_receipt_is_readonly_no_order_or_execution_authority(self):
         from terminan.server import Handler
         data._private_market_data_client = self.client
-        page = fixture(int(time.time() * 1000))
+        page = fixture(int(time.time() * 1000), count=5)
         with mock.patch.object(data, "_market_data_http_get", return_value=page), (
              mock.patch.object(Handler, "log_message", return_value=None)):
             server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -233,8 +245,12 @@ class PartialReadRuntimeTests(unittest.TestCase):
                     result = json.loads(response.read())
                 finally:
                     connection.close()
-                self.assertEqual(result["status"], "UNAVAILABLE")  # Default 5, fixture 1: refuse page substitution
+                self.assertEqual(result["status"], "PARTIAL")
+                self.assertEqual(len(result["rows"]), 5)
+                self.assertEqual(result["dataset_fingerprint"], page["dataset_fingerprint"])
+                self.assertFalse(result["exchange_completeness_attested"])
                 self.assertFalse(result["paper_admitted"])
+                self.assertFalse(result["trading_authorized"])
             finally:
                 server.shutdown()
                 server.server_close()
