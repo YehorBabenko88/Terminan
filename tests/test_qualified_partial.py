@@ -257,6 +257,19 @@ class QualifiedV2DtoTests(unittest.TestCase):
             with self.subTest(change=str(mutate)), self.assertRaises(ValueError):
                 validate_qualified_v2(payload, "BTCUSDT", 3, now_ms=self.now)
 
+    def test_v2_rejects_extra_source_and_candle_fields_after_rehash(self):
+        changes = [
+            lambda p: p["rows"][0].update(unsafe_extra=True),
+            lambda p: p["rows"][0]["source"].update(authenticated=True),
+            lambda p: p["rows"][0]["candle"].update(extra_notional=1),
+        ]
+        for mutate in changes:
+            page = copy.deepcopy(self.page)
+            mutate(page)
+            rehash(page)
+            with self.subTest(change=str(mutate)), self.assertRaises(ValueError):
+                validate_qualified_v2(page, "BTCUSDT", 3, now_ms=self.now)
+
     def test_v2_rejects_rehashed_record_mutation_reorder_and_future(self):
         page = copy.deepcopy(self.page)
         page["rows"][0]["candle"]["high"] = 0
