@@ -12,6 +12,7 @@ import json
 import re
 import time
 import uuid
+from types import MappingProxyType
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_ROWS = 1000
@@ -170,7 +171,7 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
                 or _digest(rows) != envelope["dataset_fingerprint"]):
             raise ValueError("PAGE_INTEGRITY_FAILED")
         # Do not return mutable nested objects received from untrusted JSON.
-        observations = tuple(copy.deepcopy(row) for row in sorted(rows, key=lambda r: r["start_ms"]))
+        observations = tuple(_freeze(copy.deepcopy(row)) for row in sorted(rows, key=lambda r: r["start_ms"]))
         return {
             "status": "PARTIAL", "reason": "EXCHANGE_COMPLETENESS_UNATTESTED",
             "source_authentication": "MANAGED_TRANSPORT_ONLY_EXTERNAL_NOT_ATTESTED",
@@ -185,6 +186,18 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
         }
     except (KeyError, TypeError, ValueError, OverflowError, RecursionError):
         raise ValueError("QUALIFIED_PARTIAL_UNAVAILABLE") from None
+
+
+
+def _freeze(value):
+    """Freeze every mutable container after validation, not just the row list."""
+    if type(value) is dict:
+        return MappingProxyType({key: _freeze(child) for key, child in value.items()})
+    if type(value) is list:
+        return tuple(_freeze(child) for child in value)
+    if type(value) is tuple:
+        return tuple(_freeze(child) for child in value)
+    return value
 
 
 def chart_rows(validated_receipt):
