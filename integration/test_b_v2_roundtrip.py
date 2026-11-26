@@ -149,5 +149,84 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertFalse(refused["execution_authority"])
 
 
+    def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
+        """Real loopback Grid Handler restart, not an in-memory HTTP mock.
+
+        This deliberately does not simulate Consul/OS process quiescence; it
+        proves D cannot use the old bearer and port as a v1 fallback after
+        source loss, nor treat a replacement process as the same owner.
+        """
+        original_server = self.server
+        original_thread = self.thread
+        old_capability = dict(self.cap)
+        old_client = data._private_market_data_client
+        original_server.shutdown()
+        original_server.server_close()
+        original_thread.join(timeout=3)
+        self.assertFalse(original_thread.is_alive())
+
+        # First control: stopped B listener must not yield cached PARTIAL.
+        stopped = data.qualified_market_data_chart("BTCUSDT", 1)
+        self.assertEqual(stopped["status"], "UNAVAILABLE")
+        self.assertEqual(stopped["rows"], [])
+        self.assertFalse(stopped["paper_admitted"])
+        self.assertFalse(stopped["execution_authority"])
+
+        from unittest.mock import patch as _patch
+        replacement = ThreadingHTTPServer(("127.0.0.1", 0), read_api.Handler)
+        replacement.daemon_threads = True
+        new_token = "e" * 64
+        replacement.module_identity = {"instance_token": new_token}
+        replacement.startup_admission = self.admission
+        replacement_thread = threading.Thread(
+            target=replacement.serve_forever, daemon=True)
+        replacement_thread.start()
+        try:
+            # Even if old and new Grid code have the same Git source commit,
+            # process-local tokens and lease epochs must NOT be reused.
+            self.assertNotEqual(new_token, old_capability["token"])
+            self.assertNotEqual(replacement.server_port, 0)
+            row = record_fixture(int(time.time() * 1000))
+            with _patch.object(history_api, "immutable_minutes",
+                               return_value=[row]):
+                # Move the OLD client to the new listener's port, keeping its
+                # original bearer: a live Grid handler must reject it.
+                old_at_new_port = dict(old_capability,
+                                       port=replacement.server_port)
+                data._private_market_data_client = data.MarketDataReadClient(
+                    old_at_new_port, self.admission, "d-round3")
+                refused = data.qualified_market_data_chart("BTCUSDT", 1)
+                self.assertEqual(refused["status"], "UNAVAILABLE")
+                self.assertFalse(refused["paper_admitted"])
+                self.assertEqual(refused["rows"], [])
+                self.assertFalse(refused["execution_authority"])
+
+                # A fresh Root-issued replacement capability is distinct,
+                # chart-only and does not authorize paper or real trading.
+                new_capability = dict(old_capability,
+                                      port=replacement.server_port,
+                                      token=new_token, epoch="d" * 32)
+                data._private_market_data_client = data.MarketDataReadClient(
+                    new_capability, self.admission, "d-round3")
+                fresh = data.qualified_market_data_chart("BTCUSDT", 1)
+                self.assertEqual(fresh["status"], "PARTIAL")
+                self.assertEqual(fresh["record_integrity"], "VERIFIED")
+                self.assertFalse(fresh["paper_admitted"])
+                self.assertFalse(fresh["trading_authorized"])
+                self.assertFalse(fresh["execution_authority"])
+
+            # A revoked source admission refuses even the new bearer/epoch.
+            self.admission.current = False
+            revoked = data.qualified_market_data_chart("BTCUSDT", 1)
+            self.assertEqual(revoked["status"], "UNAVAILABLE")
+            self.assertFalse(revoked["paper_admitted"])
+            self.assertEqual(revoked["rows"], [])
+        finally:
+            data._private_market_data_client = old_client
+            replacement.shutdown()
+            replacement.server_close()
+            replacement_thread.join(timeout=3)
+
+
 if __name__ == "__main__":
     unittest.main()
