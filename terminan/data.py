@@ -145,6 +145,10 @@ def footprint(symbol, limit=500):
 _MARKET_DATA_CAPS_PATH = "/internal/v1/capabilities"
 _MARKET_DATA_HEALTH_PATH = "/internal/v1/health"
 _MARKET_DATA_MAX_JSON = 16384
+# B's canonical v2 limits each record to 1 MiB; chart reads at most 5.
+# Keep a bounded transport budget for a valid 5-row footprint receipt.
+# This is not a general increase for legacy/unmanaged probe endpoints.
+_QUALIFIED_V2_MAX_JSON = 5 * 1_048_576 + 65_536
 
 
 def _market_data_internal_get(port,path):
@@ -169,8 +173,19 @@ def _market_data_http_get(port, path, *, headers=None):
         media_type = (response.getheader("Content-Type") or "").split(";", 1)[0]
         if media_type.strip().lower() != "application/json":
             raise ValueError("market-data content type mismatch")
-        raw = response.read(_MARKET_DATA_MAX_JSON + 1)
-        if len(raw) > _MARKET_DATA_MAX_JSON:
+        # The strict private client owns the v2 route; this parser cannot
+        # turn an arbitrary path into a credentialed capability.
+        qualified_v2 = re.fullmatch(
+            r"/internal/v2/candles/qualified\\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
+            path) is not None and headers is not None
+        budget = _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON
+        advertised = response.getheader("Content-Length")
+        if advertised is not None:
+            if (re.fullmatch(r"[0-9]{1,10}", advertised) is None
+                    or int(advertised) > budget):
+                raise ValueError("market-data response size exceeded")
+        raw = response.read(budget + 1)
+        if len(raw) > budget:
             raise ValueError("market-data response size exceeded")
         def unique_pairs(pairs):
             obj = {}
