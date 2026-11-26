@@ -72,6 +72,10 @@ class PartialReadFixtureTests(unittest.TestCase):
         self.assertEqual(result["status"], "PARTIAL")
         self.assertEqual(result["source_authentication"],
                          "MANAGED_TRANSPORT_ONLY_EXTERNAL_NOT_ATTESTED")
+        self.assertEqual(result["record_integrity"], "VERIFIED")
+        self.assertEqual(result["source_authenticity"], "NOT_INDEPENDENTLY_ATTESTED")
+        self.assertEqual(result["quality_attestation"], "NOT_INDEPENDENTLY_ATTESTED")
+        self.assertEqual(result["storage_immutability"], "NOT_ATTESTED")
         self.assertEqual(result["coverage"]["missing_minutes"], 0)
         self.assertFalse(result["paper_admitted"])
         self.assertFalse(result["trading_authorized"])
@@ -193,6 +197,9 @@ class PartialReadRuntimeTests(unittest.TestCase):
             result = data.qualified_market_data_chart("BTCUSDT", limit=1)
         self.assertEqual(result["status"], "PARTIAL")
         self.assertFalse(result["exchange_completeness_attested"])
+        self.assertEqual(result["record_integrity"], "VERIFIED")
+        self.assertEqual(result["storage_immutability"], "NOT_ATTESTED")
+        self.assertEqual(result["source_authenticity"], "NOT_INDEPENDENTLY_ATTESTED")
         self.assertFalse(result["paper_admitted"])
         self.assertFalse(result["trading_authorized"])
         self.assertEqual(result["rows"][0]["poc"], 2)
@@ -223,6 +230,28 @@ class PartialReadRuntimeTests(unittest.TestCase):
             self.assertEqual(response["status"], "UNAVAILABLE")
             self.assertFalse(response["paper_admitted"])
             self.assertFalse(response["execution_authority"])
+
+
+    def test_market_data_http_rejects_duplicate_json_keys(self):
+        raw = b'{"producer":"market_data","execution_authority":true,"execution_authority":false}'
+        class Response:
+            status = 200
+            def getheader(self, field):
+                return "application/json" if field == "Content-Type" else None
+            def read(self, n=-1):
+                return raw
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                pass
+            def request(self, *args, **kwargs):
+                pass
+            def getresponse(self):
+                return Response()
+            def close(self):
+                pass
+        with mock.patch("terminan.data.http.client.HTTPConnection", Connection):
+            with self.assertRaisesRegex(ValueError, "duplicate market-data JSON key"):
+                data._market_data_http_get(29001, "/internal/v1/candles?symbol=BTCUSDT&limit=1")
 
     def test_http_receipt_is_readonly_no_order_or_execution_authority(self):
         from terminan.server import Handler
