@@ -158,7 +158,7 @@ jobs:
           python -m pip wheel --no-deps --wheel-dir dist/math ./upstream/math-sdk
           python -m pip wheel --no-deps --wheel-dir dist/market_data ./upstream/market-data-sdk
           mkdir -p dist/sdist
-          python -c "from setuptools import build_meta; build_meta.build_sdist('dist/sdist')"
+          python -m pip download --no-deps --no-binary :all: --no-cache-dir --dest dist/sdist .
           python tests/check_archive_artifact_exclusion.py --wheel-dir dist/terminan --sdist-dir dist/sdist
           python tests/check_wheel_git_bytes.py --repo . --sha "$TERMINAN_TEST_SHA" --wheel-dir dist/terminan --out dist/terminan-proof.json
           python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha 9e6acbd9e12a91189f57234828e31640983af553 --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
