@@ -77,3 +77,29 @@ class MetaBookSpreadParityTests(unittest.TestCase):
         source = inspect.getsource(target.summarize_book)
         self.assertIn("tick_distance(ask,bid,tick_size)", source)
         self.assertNotIn("/tick_size", source)
+
+
+class MetaBookFlowBridgePropagationTests(unittest.TestCase):
+    def test_corrected_spread_ticks_is_presented_without_new_math(self):
+        import asyncio
+        from terminan.analytics.flow_bridge import FlowBridge
+        tick = Decimal("0.1")
+        summary = summarize_book(book(
+            {Decimal("100"): Decimal("2")},
+            {Decimal("100.5"): Decimal("3")}), tick)
+        flow = FlowBridge()
+        tape = SimpleNamespace(trades_per_second=2, trusted=True)
+        asyncio.run(flow.update("BTCUSDT",
+                                {"poc": "100", "delta": "1", "trusted": True}, tape))
+        flow.trade_observed("BTCUSDT")
+        flow.book_observed("BTCUSDT", summary)
+        snapshot = flow.snapshot()
+        self.assertEqual(len(snapshot), 1)
+        self.assertEqual(snapshot[0].quality, "PROVISIONAL")
+        self.assertEqual(snapshot[0].spread, "5")
+        self.assertNotEqual(snapshot[0].imbalance, "—")
+        flow.invalidate(["BTCUSDT"])
+        invalid = flow.snapshot()[0]
+        self.assertEqual(invalid.quality, "UNVERIFIED")
+        self.assertEqual(invalid.spread, "—")
+        self.assertEqual(invalid.imbalance, "—")
