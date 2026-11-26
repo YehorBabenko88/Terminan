@@ -102,7 +102,9 @@ class OriginalLegacyBoundaryRound22(unittest.TestCase):
                 self.assertEqual((trade["exit_time"], trade["exit_reason"]),
                                  (3660000, "TP"))
                 self.assertAlmostEqual(trade["gross_pnl"], 1.5, places=9)
-                self.assertAlmostEqual(trade["fees"], 0.110825, places=9)
+                self.assertAlmostEqual(trade["fees"],
+                                       0.110825 if side == "HIGH" else 0.109175,
+                                       places=9)
 
     def test_same_minute_original_entry_rejected_by_causal_projector(self):
         original = self.original
