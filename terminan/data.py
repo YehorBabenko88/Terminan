@@ -251,6 +251,10 @@ def qualified_market_data_chart(symbol, limit=5):
     unavailable = {
         "status": "UNAVAILABLE", "reason": "QUALIFIED_PARTIAL_SOURCE_UNAVAILABLE",
         "read_only": True, "source_authentication": "NOT_EVALUATED",
+        "record_integrity": "NOT_EVALUATED",
+        "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+        "quality_attestation": "NOT_INDEPENDENTLY_ATTESTED",
+        "storage_immutability": "NOT_ATTESTED",
         "exchange_completeness_attested": False, "paper_admitted": False,
         "execution_authority": False, "trading_authorized": False,
         "rows": [],
@@ -265,6 +269,10 @@ def qualified_market_data_chart(symbol, limit=5):
         return {
             "status": checked["status"], "reason": checked["reason"],
             "read_only": True, "source_authentication": checked["source_authentication"],
+            "record_integrity": checked["record_integrity"],
+            "source_authenticity": checked["source_authenticity"],
+            "quality_attestation": checked["quality_attestation"],
+            "storage_immutability": checked["storage_immutability"],
             "exchange_completeness_attested": False, "data_quality_status": "PARTIAL",
             "paper_admitted": False, "execution_authority": False,
             "trading_authorized": False, "coverage": checked["coverage"],
