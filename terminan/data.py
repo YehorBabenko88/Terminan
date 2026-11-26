@@ -236,3 +236,42 @@ def market_data_source_status():
         # This UI is read-only: do not leak exception text, configured ports,
         # credentials or internal source paths in an API response.
         return unavailable
+
+
+def qualified_market_data_chart(symbol, limit=5):
+    """Managed Grid PARTIAL receipts only; existing unqualified reads stay closed.
+
+    The result is an observation display, never PaperEngine's authorization.
+    Legacy MARKET_DATA_API_PORT is deliberately not a substitute for the
+    Unified-admitted private read capability.
+    """
+    validate(symbol)
+    if type(limit) is not int or not 1 <= limit <= 5:
+        raise ValueError("QUALIFIED_CHART_BOUNDED_LIMIT_REQUIRED")
+    unavailable = {
+        "status": "UNAVAILABLE", "reason": "QUALIFIED_PARTIAL_SOURCE_UNAVAILABLE",
+        "read_only": True, "source_authentication": "NOT_EVALUATED",
+        "exchange_completeness_attested": False, "paper_admitted": False,
+        "execution_authority": False, "trading_authorized": False,
+        "rows": [],
+    }
+    client = _private_market_data_client
+    if type(client) is not MarketDataReadClient:
+        return unavailable
+    try:
+        from .qualified_partial import validate_partial, chart_rows
+        envelope = client.get(f"/internal/v1/candles?symbol={symbol}&limit={limit}")
+        checked = validate_partial(envelope, symbol, limit)
+        return {
+            "status": checked["status"], "reason": checked["reason"],
+            "read_only": True, "source_authentication": checked["source_authentication"],
+            "exchange_completeness_attested": False, "data_quality_status": "PARTIAL",
+            "paper_admitted": False, "execution_authority": False,
+            "trading_authorized": False, "coverage": checked["coverage"],
+            "freshness_utc_ms": checked["freshness_utc_ms"],
+            "dataset_fingerprint": checked["dataset_fingerprint"],
+            "rows": chart_rows(checked),
+        }
+    except Exception:
+        # Do not expose source tokens, exceptions or transport details in UI.
+        return unavailable
