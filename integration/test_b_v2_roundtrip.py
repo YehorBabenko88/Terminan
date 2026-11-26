@@ -158,6 +158,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         """
         original_server = self.server
         original_thread = self.thread
+        old_port = original_server.server_port
         old_capability = dict(self.cap)
         old_client = data._private_market_data_client
         original_server.shutdown()
@@ -173,7 +174,11 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertFalse(stopped["execution_authority"])
 
         from unittest.mock import patch as _patch
-        replacement = ThreadingHTTPServer(("127.0.0.1", 0), read_api.Handler)
+        # Rebind the SAME port: a stale D client can still reach a healthy
+        # replacement listener, so port closure alone cannot establish epoch
+        # revocation. The fresh Grid process-local bearer is the HTTP fence.
+        replacement = ThreadingHTTPServer(("127.0.0.1", old_port),
+                                           read_api.Handler)
         replacement.daemon_threads = True
         new_token = "e" * 64
         replacement.module_identity = {"instance_token": new_token}
@@ -185,26 +190,25 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
             # Even if old and new Grid code have the same Git source commit,
             # process-local tokens and lease epochs must NOT be reused.
             self.assertNotEqual(new_token, old_capability["token"])
-            self.assertNotEqual(replacement.server_port, 0)
+            self.assertEqual(replacement.server_port, old_port)
             row = record_fixture(int(time.time() * 1000))
             with _patch.object(history_api, "immutable_minutes",
-                               return_value=[row]):
-                # Move the OLD client to the new listener's port, keeping its
-                # original bearer: a live Grid handler must reject it.
-                old_at_new_port = dict(old_capability,
-                                       port=replacement.server_port)
-                data._private_market_data_client = data.MarketDataReadClient(
-                    old_at_new_port, self.admission, "d-round3")
+                               return_value=[row]) as sql_reader:
+                # The ORIGINAL D client still points at the SAME live port
+                # with a stale bearer/epoch. Grid must reject the request
+                # BEFORE accessing the underlying canonical SQL reader.
+                data._private_market_data_client = old_client
                 refused = data.qualified_market_data_chart("BTCUSDT", 1)
                 self.assertEqual(refused["status"], "UNAVAILABLE")
                 self.assertFalse(refused["paper_admitted"])
                 self.assertEqual(refused["rows"], [])
                 self.assertFalse(refused["execution_authority"])
+                sql_reader.assert_not_called()
 
-                # A fresh Root-issued replacement capability is distinct,
-                # chart-only and does not authorize paper or real trading.
+                # A fresh test capability for the replacement listener is
+                # distinct, chart-only, and never authorizes trading.
                 new_capability = dict(old_capability,
-                                      port=replacement.server_port,
+                                      port=old_port,
                                       token=new_token, epoch="d" * 32)
                 data._private_market_data_client = data.MarketDataReadClient(
                     new_capability, self.admission, "d-round3")
