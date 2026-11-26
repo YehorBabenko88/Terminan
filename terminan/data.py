@@ -32,7 +32,8 @@ class MarketDataReadClient:
     def __repr__(self):return '<MarketDataReadClient private read-only capability>'
     def get(self,path):
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
-                and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -246,7 +247,7 @@ def market_data_source_status():
 
 
 def qualified_market_data_chart(symbol, limit=5):
-    """Managed Grid PARTIAL receipts only; existing unqualified reads stay closed.
+    """Managed canonical Grid v2 PARTIAL receipts only; no v1 downgrade.
 
     The result is an observation display, never PaperEngine's authorization.
     Legacy MARKET_DATA_API_PORT is deliberately not a substitute for the
@@ -270,9 +271,10 @@ def qualified_market_data_chart(symbol, limit=5):
     if type(client) is not MarketDataReadClient:
         return unavailable
     try:
-        from .qualified_partial import validate_partial, chart_rows
-        envelope = client.get(f"/internal/v1/candles?symbol={symbol}&limit={limit}")
-        checked = validate_partial(envelope, symbol, limit)
+        from .qualified_partial import validate_qualified_v2, chart_rows
+        # Qualified chart never downgrades to the legacy v1 reader.
+        envelope = client.get(f"/internal/v2/candles/qualified?symbol={symbol}&limit={limit}")
+        checked = validate_qualified_v2(envelope, symbol, limit)
         return {
             "status": checked["status"], "reason": checked["reason"],
             "read_only": True, "source_authentication": checked["source_authentication"],
