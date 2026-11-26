@@ -176,7 +176,7 @@ def _market_data_http_get(port, path, *, headers=None):
         # The strict private client owns the v2 route; this parser cannot
         # turn an arbitrary path into a credentialed capability.
         qualified_v2 = re.fullmatch(
-            r"/internal/v2/candles/qualified\\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
+            r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
             path) is not None and headers is not None
         budget = _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON
         advertised = response.getheader("Content-Length")
