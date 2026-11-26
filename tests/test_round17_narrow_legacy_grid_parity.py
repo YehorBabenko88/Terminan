@@ -16,7 +16,7 @@ from typing import Dict,List,Optional,Tuple
 import unittest
 
 from terminan.legacy_level_base_research import propose_legacy_level_base
-from terminan.research_signals import ResearchBar
+from terminan.research_signals import ResearchBar,ResearchSignal
 from terminan.paper import PaperEngine
 
 _SOURCE=Path(__file__).resolve().parent/'fixtures'/'d_round13_strattester'/'legacy_grid.py'
@@ -79,25 +79,31 @@ class LegacyLevelConstrainedRound17(unittest.TestCase):
                 candidate=propose_legacy_level_base(
                     'BTCUSDT',variant,D(str(level)),0,first,
                     bar_ms=60000,as_of_ms=180000)
-                self.assertEqual(candidate.signal.side,
+                self.assertEqual(candidate.side,
                                  'long' if variant=='HIGH_BASE' else 'short')
                 self.assertFalse(candidate.trading_authorized)
+                self.assertEqual(candidate.observed_at_ms,120000)
+                self.assertFalse(hasattr(candidate,'signal'))
                 self.assertFalse(candidate.execution_authority)
                 self.assertEqual(candidate.equivalence_scope,
-                                 'EXACT_OPEN_TRIGGER_NO_INTRABAR_EXIT_V1')
-                self.assertAlmostEqual(float(candidate.signal.entry_price),
+                                 'RETROSPECTIVE_EXACT_OPEN_NO_ENTRY_BAR_EXIT_V2')
+                self.assertAlmostEqual(float(candidate.entry_price),
                                        historical.entry_price,places=9)
-                self.assertAlmostEqual(float(candidate.signal.stop),
+                self.assertAlmostEqual(float(candidate.stop),
                                        historical.stop_loss,places=9)
-                self.assertAlmostEqual(float(candidate.signal.target),
+                self.assertAlmostEqual(float(candidate.target),
                                        historical.take_profit,places=9)
+                # RETROSPECTIVE comparison ONLY: test constructs the historical
+                # hypothetical pre-open signal. Production MUST NOT emit it.
                 # Offline model is the ONE existing canonical PaperEngine.
                 engine=PaperEngine(notional=D('100'),fee_rate=D('0.00055'),
                                    slippage_bps=D('0'))
                 self.assertFalse(engine.enabled)
                 engine.enabled=True
                 result=engine.execute_signal(
-                    candidate.signal,tuple(_bar(*v) for v in rows),
+                    ResearchSignal('BTCUSDT',0,candidate.side,'limit',
+                                   candidate.entry_price,candidate.stop,candidate.target),
+                    tuple(_bar(*v) for v in rows),
                     bar_ms=60000,as_of_ms=180000,
                     ambiguity_policy='SL_FIRST')
                 self.assertEqual((result.entry_ms,result.exit_ms),
@@ -161,7 +167,10 @@ class LegacyLevelConstrainedRound17(unittest.TestCase):
             _bar(60000,99.5,100,99,99.7),
             bar_ms=60000,as_of_ms=120000)
         self.assertEqual(item.source_authentication,'NOT_EVALUATED')
-        self.assertEqual(item.signal.entry_kind,'limit')
+        self.assertEqual(item.observed_at_ms,120000)
+        self.assertFalse(hasattr(item,'signal'))
+        self.assertFalse(hasattr(item,'decision_ms'))
+        self.assertEqual(item.availability_basis,'FULL_ENTRY_BAR_CLOSE_DECLARED_NOT_AUTHENTICATED')
         self.assertFalse(PaperEngine().enabled)
         self.assertFalse(item.trading_authorized)
         # No quote book exists in an OHLC; spread, L2, tick path and live
