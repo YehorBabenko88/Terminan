@@ -288,12 +288,8 @@ class PartialReadRuntimeTests(unittest.TestCase):
 
 
 
-    def test_managed_grid_http_to_terminan_chart_end_to_end_without_database(self):
-        """Real Grid HTTP handler -> bearer capability -> Math -> chart DTO.
-
-        The only replacement is the Grid database reader: an exact canonical
-        minute_record fixture. Not a PostgreSQL/production completeness proof.
-        """
+    def test_legacy_grid_http_is_verifiable_but_never_downgrades_chart(self):
+        """Real v1 handler is still testable, never accepted as v2 chart route."""
         from market_data import history_api
         page = fixture(int(time.time() * 1000), count=5)
         self.assertEqual(page["status"], "PARTIAL")
@@ -310,32 +306,28 @@ class PartialReadRuntimeTests(unittest.TestCase):
                     self.cap["port"] = grid.server_port
                     data._private_market_data_client = data.MarketDataReadClient(
                         self.cap, self.admission, "round2")
-                    result = data.qualified_market_data_chart("BTCUSDT")
-                    self.assertEqual(result["status"], "PARTIAL")
-                    self.assertEqual(result["record_integrity"], "VERIFIED")
-                    self.assertEqual(result["source_authenticity"], "NOT_INDEPENDENTLY_ATTESTED")
-                    self.assertEqual(result["storage_immutability"], "NOT_ATTESTED")
-                    self.assertEqual(result["dataset_fingerprint"], page["dataset_fingerprint"])
-                    self.assertEqual(len(result["rows"]), 5)
-                    self.assertFalse(result["paper_admitted"])
-                    self.assertFalse(result["trading_authorized"])
+                    route = "/internal/v1/candles?symbol=BTCUSDT&limit=5"
+                    raw = data._private_market_data_client.get(route)
+                    checked = validate_partial(raw, "BTCUSDT", 5)
+                    self.assertEqual(checked["status"], "PARTIAL")
+                    self.assertEqual(len(chart_rows(checked)), 5)
+                    self.assertFalse(checked["paper_admitted"])
 
-                    # Grid's exact managed identity must be checked by its handler.
+                    # Chart is locked to qualified v2 and MUST NOT fall back.
+                    chart = data.qualified_market_data_chart("BTCUSDT")
+                    self.assertEqual(chart["status"], "UNAVAILABLE")
+                    self.assertEqual(chart["rows"], [])
+                    self.assertFalse(chart["paper_admitted"])
+
                     wrong = {**self.cap, "token": "d" * 64}
-                    data._private_market_data_client = data.MarketDataReadClient(
+                    unauthorized = data.MarketDataReadClient(
                         wrong, self.admission, "round2")
-                    denied = data.qualified_market_data_chart("BTCUSDT")
-                    self.assertEqual(denied["status"], "UNAVAILABLE")
-                    self.assertEqual(denied["rows"], [])
+                    with self.assertRaises(ValueError):
+                        unauthorized.get(route)
 
-                    # Source admission revocation must block even correct token.
-                    data._private_market_data_client = data.MarketDataReadClient(
-                        self.cap, self.admission, "round2")
                     self.admission.current = False
-                    revoked = data.qualified_market_data_chart("BTCUSDT")
-                    self.assertEqual(revoked["status"], "UNAVAILABLE")
-                    self.assertFalse(revoked["paper_admitted"])
-                    self.assertFalse(revoked["execution_authority"])
+                    with self.assertRaises(ValueError):
+                        data._private_market_data_client.get(route)
         finally:
             grid.shutdown()
             grid.server_close()
