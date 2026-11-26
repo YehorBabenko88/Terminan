@@ -157,6 +157,12 @@ jobs:
           python -m pip wheel --no-deps --wheel-dir dist/terminan .
           python -m pip wheel --no-deps --wheel-dir dist/math ./upstream/math-sdk
           python -m pip wheel --no-deps --wheel-dir dist/market_data ./upstream/market-data-sdk
+          mkdir -p dist/sdist
+          # Python 3.12 runners do not preinstall setuptools. Use the exact
+          # pyproject build-backend range, never an unbounded fallback.
+          python -m pip install --no-deps --only-binary=:all: "setuptools>=75,<83" "wheel"
+          python -c "from setuptools import build_meta; build_meta.build_sdist('dist/sdist')"
+          python tests/check_archive_artifact_exclusion.py --wheel-dir dist/terminan --sdist-dir dist/sdist
           python tests/check_wheel_git_bytes.py --repo . --sha "$TERMINAN_TEST_SHA" --wheel-dir dist/terminan --out dist/terminan-proof.json
           python tests/check_wheel_git_bytes.py --repo upstream/math-sdk --sha 9e6acbd9e12a91189f57234828e31640983af553 --wheel-dir dist/math --source-prefix python/ --out dist/math-proof.json
           python tests/check_wheel_git_bytes.py --repo upstream/market-data-sdk --sha 3850995a6c28ed29b05cef4ba067e587d5033453 --wheel-dir dist/market_data --out dist/market-data-proof.json

@@ -72,3 +72,13 @@ def research_strategy(strategy_id):
     for definition in research_strategy_catalog():
         if definition.id==strategy_id:return definition
     raise ValueError('RESEARCH_STRATEGY_UNKNOWN_ID')
+
+
+def historical_strategy_specifications():
+    """Read-only original non-scalp specifications; separate from 8 generators.
+
+    This archival query does not import legacy code, execute strategies or
+    grant data authenticity, historical completeness or trading authority.
+    """
+    from .historical_research_specifications import historical_research_specifications
+    return historical_research_specifications()

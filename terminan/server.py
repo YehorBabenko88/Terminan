@@ -136,6 +136,7 @@ class Handler(BaseHTTPRequestHandler):
                     result={"symbol":symbol,"events":[],"state":"SOURCE_ADAPTER_NOT_CONNECTED"}
                 elif url.path == "/api/market-data/candles": result = data.market_data_candles(symbol)
                 elif url.path == "/api/market-data/footprint": result = data.footprint(symbol)
+                elif url.path == "/api/market-data/qualified": result = data.qualified_market_data_chart(symbol)
                 elif url.path == "/api/market-data/source": result = data.market_data_source_status()
                 elif url.path == "/api/status": result = {"mode":"READ_ONLY","market_data":bool(data._market_data_port()),"market_data_source":data.market_data_source_status(),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
                 else: return self.send_error(404)

@@ -32,7 +32,8 @@ class MarketDataReadClient:
     def __repr__(self):return '<MarketDataReadClient private read-only capability>'
     def get(self,path):
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
-                and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -144,6 +145,10 @@ def footprint(symbol, limit=500):
 _MARKET_DATA_CAPS_PATH = "/internal/v1/capabilities"
 _MARKET_DATA_HEALTH_PATH = "/internal/v1/health"
 _MARKET_DATA_MAX_JSON = 16384
+# B's canonical v2 limits each record to 1 MiB; chart reads at most 5.
+# Keep a bounded transport budget for a valid 5-row footprint receipt.
+# This is not a general increase for legacy/unmanaged probe endpoints.
+_QUALIFIED_V2_MAX_JSON = 5 * 1_048_576 + 65_536
 
 
 def _market_data_internal_get(port,path):
@@ -168,10 +173,28 @@ def _market_data_http_get(port, path, *, headers=None):
         media_type = (response.getheader("Content-Type") or "").split(";", 1)[0]
         if media_type.strip().lower() != "application/json":
             raise ValueError("market-data content type mismatch")
-        raw = response.read(_MARKET_DATA_MAX_JSON + 1)
-        if len(raw) > _MARKET_DATA_MAX_JSON:
+        # The strict private client owns the v2 route; this parser cannot
+        # turn an arbitrary path into a credentialed capability.
+        qualified_v2 = re.fullmatch(
+            r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
+            path) is not None and headers is not None
+        budget = _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON
+        advertised = response.getheader("Content-Length")
+        if advertised is not None:
+            if (re.fullmatch(r"[0-9]{1,10}", advertised) is None
+                    or int(advertised) > budget):
+                raise ValueError("market-data response size exceeded")
+        raw = response.read(budget + 1)
+        if len(raw) > budget:
             raise ValueError("market-data response size exceeded")
-        return json.loads(raw.decode("utf-8"),
+        def unique_pairs(pairs):
+            obj = {}
+            for key, value in pairs:
+                if key in obj:
+                    raise ValueError("duplicate market-data JSON key")
+                obj[key] = value
+            return obj
+        return json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs,
                           parse_constant=lambda _value: (_ for _ in ()).throw(
                               ValueError("nonfinite market-data response")))
     finally:
@@ -235,4 +258,52 @@ def market_data_source_status():
     except Exception:
         # This UI is read-only: do not leak exception text, configured ports,
         # credentials or internal source paths in an API response.
+        return unavailable
+
+
+def qualified_market_data_chart(symbol, limit=5):
+    """Managed canonical Grid v2 PARTIAL receipts only; no v1 downgrade.
+
+    The result is an observation display, never PaperEngine's authorization.
+    Legacy MARKET_DATA_API_PORT is deliberately not a substitute for the
+    Unified-admitted private read capability.
+    """
+    validate(symbol)
+    if type(limit) is not int or not 1 <= limit <= 5:
+        raise ValueError("QUALIFIED_CHART_BOUNDED_LIMIT_REQUIRED")
+    unavailable = {
+        "status": "UNAVAILABLE", "reason": "QUALIFIED_PARTIAL_SOURCE_UNAVAILABLE",
+        "read_only": True, "source_authentication": "NOT_EVALUATED",
+        "record_integrity": "NOT_EVALUATED",
+        "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+        "quality_attestation": "NOT_INDEPENDENTLY_ATTESTED",
+        "storage_immutability": "NOT_ATTESTED",
+        "exchange_completeness_attested": False, "paper_admitted": False,
+        "execution_authority": False, "trading_authorized": False,
+        "rows": [],
+    }
+    client = _private_market_data_client
+    if type(client) is not MarketDataReadClient:
+        return unavailable
+    try:
+        from .qualified_partial import validate_qualified_v2, chart_rows
+        # Qualified chart never downgrades to the legacy v1 reader.
+        envelope = client.get(f"/internal/v2/candles/qualified?symbol={symbol}&limit={limit}")
+        checked = validate_qualified_v2(envelope, symbol, limit)
+        return {
+            "status": checked["status"], "reason": checked["reason"],
+            "read_only": True, "source_authentication": checked["source_authentication"],
+            "record_integrity": checked["record_integrity"],
+            "source_authenticity": checked["source_authenticity"],
+            "quality_attestation": checked["quality_attestation"],
+            "storage_immutability": checked["storage_immutability"],
+            "exchange_completeness_attested": False, "data_quality_status": "PARTIAL",
+            "paper_admitted": False, "execution_authority": False,
+            "trading_authorized": False, "coverage": checked["coverage"],
+            "freshness_utc_ms": checked["freshness_utc_ms"],
+            "dataset_fingerprint": checked["dataset_fingerprint"],
+            "rows": chart_rows(checked),
+        }
+    except Exception:
+        # Do not expose source tokens, exceptions or transport details in UI.
         return unavailable

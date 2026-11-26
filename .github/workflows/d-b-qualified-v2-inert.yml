@@ -1,0 +1,56 @@
+name: d-b-qualified-v2-inert
+on:
+  pull_request:
+concurrency:
+  group: d-b-qualified-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+env:
+  TERMINAN_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  GRID_V2_SHA: 1e9be8ef70ef4502168d58dd399b44541b9c447f
+  MATH_SHA: 9e6acbd9e12a91189f57234828e31640983af553
+  PYTHONDONTWRITEBYTECODE: '1'
+jobs:
+  managed-v2-roundtrip:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - name: Checkout exact Terminan candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.TERMINAN_TEST_SHA }}
+          persist-credentials: false
+      - name: Checkout pinned B Grid qualified v2 candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/bybit-cluster-grid
+          ref: ${{ env.GRID_V2_SHA }}
+          path: upstream/grid
+          persist-credentials: false
+      - name: Checkout canonical Math
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: ${{ env.MATH_SHA }}
+          path: upstream/math
+          persist-credentials: false
+      - name: Pin every checked out source to exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TERMINAN_TEST_SHA"
+          test "$(git -C upstream/grid rev-parse HEAD)" = "$GRID_V2_SHA"
+          test "$(git -C upstream/math rev-parse HEAD)" = "$MATH_SHA"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Inert managed Grid v2 HTTP to Terminan receipt
+        env:
+          ROUND3_GRID_SOURCE: ${{ github.workspace }}/upstream/grid
+          ROUND3_MATH_SOURCE: ${{ github.workspace }}/upstream/math/python
+        run: python -B -m unittest discover -s integration -p test_b_v2_roundtrip.py -v
