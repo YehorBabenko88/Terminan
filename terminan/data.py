@@ -171,7 +171,14 @@ def _market_data_http_get(port, path, *, headers=None):
         raw = response.read(_MARKET_DATA_MAX_JSON + 1)
         if len(raw) > _MARKET_DATA_MAX_JSON:
             raise ValueError("market-data response size exceeded")
-        return json.loads(raw.decode("utf-8"),
+        def unique_pairs(pairs):
+            obj = {}
+            for key, value in pairs:
+                if key in obj:
+                    raise ValueError("duplicate market-data JSON key")
+                obj[key] = value
+            return obj
+        return json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs,
                           parse_constant=lambda _value: (_ for _ in ()).throw(
                               ValueError("nonfinite market-data response")))
     finally:
