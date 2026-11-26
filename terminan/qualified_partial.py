@@ -174,6 +174,9 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
         return {
             "status": "PARTIAL", "reason": "EXCHANGE_COMPLETENESS_UNATTESTED",
             "source_authentication": "MANAGED_TRANSPORT_ONLY_EXTERNAL_NOT_ATTESTED",
+            "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+            "quality_attestation": "NOT_INDEPENDENTLY_ATTESTED",
+            "storage_immutability": "NOT_ATTESTED", "record_integrity": "VERIFIED",
             "data_quality_status": "PARTIAL", "chart_read_only": True,
             "paper_admitted": False, "execution_authority": False,
             "trading_authorized": False, "dataset_fingerprint": envelope["dataset_fingerprint"],
