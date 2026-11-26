@@ -188,6 +188,83 @@ class PartialReadFixtureTests(unittest.TestCase):
         self.assertFalse(result["execution_authority"])
 
 
+
+
+class QualifiedV2DtoTests(unittest.TestCase):
+    """Consumer contract for B-owned managed v2; no second Math kernel."""
+
+    def setUp(self):
+        self.now = int(time.time() * 1000)
+        self.page = fixture_v2(self.now, count=3)
+
+    def test_v2_positive_rows_integrity_origin_and_no_paper_grant(self):
+        checked = validate_qualified_v2(self.page, "BTCUSDT", 3, now_ms=self.now)
+        self.assertEqual(checked["status"], "PARTIAL")
+        self.assertEqual(checked["record_integrity"], "VERIFIED")
+        self.assertEqual(checked["source_authenticity"], "NOT_INDEPENDENTLY_ATTESTED")
+        self.assertEqual(checked["storage_immutability"], "NOT_ATTESTED")
+        self.assertEqual(checked["quality_attestation"], "NOT_INDEPENDENTLY_ATTESTED")
+        self.assertEqual(len(chart_rows(checked)), 3)
+        self.assertFalse(checked["paper_admitted"])
+        self.assertFalse(checked["trading_authorized"])
+        self.assertFalse(checked["execution_authority"])
+        with self.assertRaises(TypeError):
+            checked["rows"][0]["candle"]["open"] = 1
+
+    def test_v2_rejects_all_status_authority_attestation_promotions(self):
+        changes = [
+            lambda p: p.update(api_version={"major": 1, "minor": 1}),
+            lambda p: p.update(schema="market_data.qualified-read-envelope.v2"),
+            lambda p: p.update(status="AVAILABLE"),
+            lambda p: p.update(reason="COMPLETE"),
+            lambda p: p.update(paper_admitted=True),
+            lambda p: p.update(trading_authorized=True),
+            lambda p: p.update(execution_authority=True),
+            lambda p: p.update(immutable=True),
+            lambda p: p.update(storage_immutability="ROLE_AND_TRIGGER_GUARDED_LAB_ONLY"),
+            lambda p: p.update(record_integrity="NOT_ESTABLISHED"),
+            lambda p: p.update(quality_attestation="VERIFIED"),
+            lambda p: p.update(source_authenticity="EXCHANGE_VERIFIED"),
+            lambda p: p.update(exchange_completeness="COMPLETE"),
+            lambda p: p.update(source_declared_quality=["GOOD", "UNKNOWN"]),
+            lambda p: p.update(limit=True),
+            lambda p: p.update(limit=4),
+            lambda p: p.update(read_only=False),
+            lambda p: p.update(debug="secret"),
+            lambda p: p.update(producer="bybit-cluster-grid"),
+            lambda p: p.update(symbol="ETHUSDT"),
+        ]
+        for mutate in changes:
+            item = copy.deepcopy(self.page)
+            mutate(item)
+            with self.subTest(mutate=str(mutate)):
+                with self.assertRaises(ValueError):
+                    validate_qualified_v2(item, "BTCUSDT", 3, now_ms=self.now)
+
+    def test_v2_rejects_rehashed_record_mutation_reorder_and_future(self):
+        page = copy.deepcopy(self.page)
+        page["rows"][0]["candle"]["high"] = 0
+        rehash(page)
+        with self.assertRaises(ValueError):
+            validate_qualified_v2(page, "BTCUSDT", 3, now_ms=self.now)
+        page = copy.deepcopy(self.page)
+        page["rows"].reverse()
+        rehash(page)
+        with self.assertRaises(ValueError):
+            validate_qualified_v2(page, "BTCUSDT", 3, now_ms=self.now)
+        page = copy.deepcopy(self.page)
+        page["rows"][0]["ingestion_ms"] = self.now + 1
+        rehash(page)
+        with self.assertRaises(ValueError):
+            validate_qualified_v2(page, "BTCUSDT", 3, now_ms=self.now)
+        with self.assertRaises(ValueError):
+            validate_qualified_v2(self.page, "BTCUSDT", 3,
+                                  now_ms=self.now + 180001)
+        with self.assertRaises(ValueError):
+            validate_qualified_v2(fixture(self.now, count=3), "BTCUSDT", 3,
+                                  now_ms=self.now)
+
+
 class Admission:
     def __init__(self):
         self.current = True
