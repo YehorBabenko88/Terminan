@@ -258,6 +258,62 @@ class PartialReadRuntimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate market-data JSON key"):
                 data._market_data_http_get(29001, "/internal/v1/candles?symbol=BTCUSDT&limit=1")
 
+
+
+    def test_managed_grid_http_to_terminan_chart_end_to_end_without_database(self):
+        """Real Grid HTTP handler -> bearer capability -> Math -> chart DTO.
+
+        The only replacement is the Grid database reader: an exact canonical
+        minute_record fixture. Not a PostgreSQL/production completeness proof.
+        """
+        from market_data import history_api
+        page = fixture(int(time.time() * 1000), count=5)
+        self.assertEqual(page["status"], "PARTIAL")
+        grid = ThreadingHTTPServer(("127.0.0.1", 0), history_api.Handler)
+        grid.daemon_threads = True
+        grid.module_identity = {"instance_token": self.cap["token"]}
+        grid.startup_admission = self.admission
+        worker = threading.Thread(target=grid.serve_forever, daemon=True)
+        try:
+            with mock.patch.object(history_api, "immutable_minutes",
+                                   side_effect=lambda symbol, limit, cursor: page["rows"]):
+                with mock.patch.dict(os.environ, {"MARKET_DATA_PROVENANCE_READ": "1"}):
+                    worker.start()
+                    self.cap["port"] = grid.server_port
+                    data._private_market_data_client = data.MarketDataReadClient(
+                        self.cap, self.admission, "round2")
+                    result = data.qualified_market_data_chart("BTCUSDT")
+                    self.assertEqual(result["status"], "PARTIAL")
+                    self.assertEqual(result["record_integrity"], "VERIFIED")
+                    self.assertEqual(result["source_authenticity"], "NOT_INDEPENDENTLY_ATTESTED")
+                    self.assertEqual(result["storage_immutability"], "NOT_ATTESTED")
+                    self.assertEqual(result["dataset_fingerprint"], page["dataset_fingerprint"])
+                    self.assertEqual(len(result["rows"]), 5)
+                    self.assertFalse(result["paper_admitted"])
+                    self.assertFalse(result["trading_authorized"])
+
+                    # Grid's exact managed identity must be checked by its handler.
+                    wrong = {**self.cap, "token": "d" * 64}
+                    data._private_market_data_client = data.MarketDataReadClient(
+                        wrong, self.admission, "round2")
+                    denied = data.qualified_market_data_chart("BTCUSDT")
+                    self.assertEqual(denied["status"], "UNAVAILABLE")
+                    self.assertEqual(denied["rows"], [])
+
+                    # Source admission revocation must block even correct token.
+                    data._private_market_data_client = data.MarketDataReadClient(
+                        self.cap, self.admission, "round2")
+                    self.admission.current = False
+                    revoked = data.qualified_market_data_chart("BTCUSDT")
+                    self.assertEqual(revoked["status"], "UNAVAILABLE")
+                    self.assertFalse(revoked["paper_admitted"])
+                    self.assertFalse(revoked["execution_authority"])
+        finally:
+            grid.shutdown()
+            grid.server_close()
+            if worker.is_alive():
+                worker.join(timeout=3)
+
     def test_http_receipt_is_readonly_no_order_or_execution_authority(self):
         from terminan.server import Handler
         data._private_market_data_client = self.client
