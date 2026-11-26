@@ -53,3 +53,27 @@ no \`ResearchSignal\` or earlier decision clock in production; all historical
 hypotheses remain SPEC_ONLY.
 
 CODE NO_GO / PRODUCTION NO_GO.
+
+
+## Correction from independent local pip reproduction
+The intermediate isolated \`pip download --no-binary :all: .\` invocation
+can complete successfully **without saving any local-project sdist**.
+A local pip 25.1.1 reproduction with installed setuptools emitted
+"Successfully downloaded" but produced an EMPTY destination directory.
+This was detected BEFORE claiming that new HEAD's tests had passed.
+The hard exactly-one-sdist archive scanner would fail, but the invocation
+is not suitable. Replace the command immediately with an explicit
+\`setuptools.build_meta.build_sdist\` call AFTER installing the existing
+strict \`pyproject.toml\` backend range to this ephemeral CI job:
+
+\`\`\`
+python -m pip install --no-deps --only-binary=:all: "setuptools>=75,<83" "wheel"
+python -c "from setuptools import build_meta; build_meta.build_sdist('dist/sdist')"
+python tests/check_archive_artifact_exclusion.py --wheel-dir dist/terminan --sdist-dir dist/sdist
+\`\`\`
+
+This does not add or import a production dependency: the CI job's Python
+environment is disposable. The declared backend constraint is used, no
+non-binary build dependencies and no runtime dependency resolution allowed.
+Source wheel/sdist archive checks remain required; no PASS is asserted for
+this latest revision before its exact workflow logs are inspected.
