@@ -84,6 +84,11 @@ class PartialReadFixtureTests(unittest.TestCase):
         self.assertEqual(chart[0]["o"], 2)
         self.assertLess(chart[0]["t"], chart[1]["t"])
         self.assertEqual(chart[1]["poc"], 2)
+        with self.assertRaises(TypeError):
+            result["rows"][0]["candle"]["close"] = 999
+        with self.assertRaises(AttributeError):
+            result["rows"][0]["levels"].append({"forged": True})
+
 
     def test_row_or_page_tamper_is_detected(self):
         mutants = []
