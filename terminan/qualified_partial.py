@@ -47,7 +47,7 @@ def _source(value):
         raise ValueError("SOURCE_REVISION_REQUIRED")
     try:
         epoch = value["epoch"]
-        if type(epoch) is not str or str(uuid.UUID(epoch)) != epoch.lower():
+        if type(epoch) is not str or str(uuid.UUID(epoch)) != epoch.lower() or uuid.UUID(epoch).version != 4:
             raise ValueError("epoch")
     except (ValueError, KeyError, TypeError, AttributeError):
         raise ValueError("SOURCE_EPOCH_REQUIRED") from None
@@ -115,6 +115,8 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
                     or row.get("status") != "PARTIAL"
                     or row.get("reason") != "EXCHANGE_COMPLETENESS_UNATTESTED"
                     or row.get("representation") != "historical_aggregate"
+                    or row.get("quality_status") != "GOOD"
+                    or row.get("quality_reasons") != []
                     or row.get("source_identity_verified") is not True
                     or not _nontrading(row)
                     or _source(row.get("source")) != source_id):
@@ -130,7 +132,7 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
             if (not all(_clock(v) for v in (start, end, first, last, ingestion))
                     or start % 60000 != 0 or end != start + 59999
                     or not start <= first <= last <= end < ingestion
-                    or last > now_ms):
+                    or last > now_ms or ingestion > now_ms + 3000):
                 raise ValueError("RECORD_CLOCKS_INVALID")
             local_cover = row.get("coverage")
             if (type(local_cover) is not dict
@@ -142,6 +144,10 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
                 raise ValueError("RECORD_PAYLOAD_REQUIRED")
             # Math owns financial numeric validation. Non-admitted raw rows are
             # retained for DISPLAY only; this adapter does not compute candles.
+            from market_math import historical_aggregate_integrity
+            numeric = dict(row["candle"], levels=row["levels"])
+            if historical_aggregate_integrity(numeric) is not True:
+                raise ValueError("MATH_AGGREGATE_INTEGRITY_REQUIRED")
             starts.append(start)
         if len(set(starts)) != len(starts):
             raise ValueError("AMBIGUOUS_REVISIONS")
@@ -176,3 +182,10 @@ def validate_partial(envelope, symbol, limit, *, now_ms=None):
         }
     except (KeyError, TypeError, ValueError, OverflowError, RecursionError):
         raise ValueError("QUALIFIED_PARTIAL_UNAVAILABLE") from None
+
+
+def chart_rows(validated_receipt):
+    """Project only already verified data. No calculation or trade admission."""
+    return [{"t": r["start_ms"], "o": r["candle"]["open"], "h": r["candle"]["high"],
+             "l": r["candle"]["low"], "c": r["candle"]["close"],
+             "poc": r["candle"]["poc_price"]} for r in validated_receipt["rows"]]
