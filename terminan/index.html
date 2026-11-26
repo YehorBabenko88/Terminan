@@ -1,6 +1,6 @@
 <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminan</title><style>
 :root{font-family:Segoe UI,Arial,sans-serif;background:#0c121b;color:#d9e5ef}*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;background:#111d2a;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #304153}h1{font-size:18px;margin:0;color:#73b9ed}main{display:grid;grid-template-columns:220px minmax(350px,1fr) 280px;gap:10px;padding:10px;height:calc(100vh - 57px)}section{background:#14202e;border:1px solid #293849;border-radius:7px;padding:12px;overflow:auto}h2{font-size:13px;letter-spacing:.07em;color:#a9bac9}button,select,input,textarea{background:#1e3042;color:#dce9f4;border:1px solid #38516a;padding:7px;border-radius:4px}button{cursor:pointer}.instrument{display:block;width:100%;text-align:left;margin:4px 0}.active{background:#28506a}canvas{width:100%;height:320px;background:#101b27}.muted{color:#8a9fb2;font-size:12px}.bid{background:#24594f}.ask{background:#60303e}.dom{display:grid;grid-template-columns:1fr 1fr 1fr;font-variant-numeric:tabular-nums;font-size:12px}.dom div{padding:4px;border-bottom:1px solid #27384a}pre{white-space:pre-wrap;word-break:break-word;font-size:11px}#error{color:#e38e91}@media(max-width:950px){main{grid-template-columns:1fr;height:auto}canvas{height:250px}}
-</style><header><h1>TERMINAN <small class="muted">RESEARCH TERMINAL</small></h1><div><a href='/monitor' style='color:#80c6ed;margin-right:16px'>Мониторинг системы</a><strong>READ ONLY · NO ORDERS</strong></div></header><main><section><h2>ИНСТРУМЕНТЫ</h2><input id="search" placeholder="Поиск символа"><div id="symbols"></div><p id="source" class="muted"></p></section><section><h2 id="selected">BTCUSDT</h2><select id="tf"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select> <button id="refresh">Обновить</button><h2>СВЕЧИ</h2><label><input type="checkbox" id="showlevels" checked> Неперебитые H1 / H4 / D1</label><canvas id="chart"></canvas><div id="levels" class="muted"></div><p id="chartmsg" class="muted"></p><h2>КЛАСТЕРЫ / FOOTPRINT</h2><div id="footprint" class="muted">Нет данных</div><h2>БУМАЖНЫЙ REPLAY · OFFLINE</h2><p class="muted">Только пользовательские офлайн-данные, не LIVE. POC вычисляет установленный Math SDK. При отсутствии подтверждённого источника результат UNATTESTED.</p><textarea id="paperinput" rows="5" style="width:100%;font:11px Consolas,monospace" placeholder="JSON terminan.paper.replay.v2 (локальные тестовые события)"></textarea><p><button id="paperrun" type="button">Выполнить офлайн</button></p><pre id="paperresult" aria-live="polite">Нет воспроизведения</pre><h2>ORDER FLOW · OFFLINE RESEARCH</h2><p class="muted">Math-owned aggregation of caller-supplied trades. Source UNVERIFIED; no live authority.</p><textarea id="analyticsinput" rows="4" style="width:100%" placeholder='{"schema":"terminan.analytics.orderflow.v1","mode":"price","tick_size":"0.001","trades":[]}'></textarea><p><button id="analyticsrun" type="button">Analyze offline trades</button></p><pre id="analyticsresult">No analytics request</pre><h2>НАУЧНЫЕ РЕЗУЛЬТАТЫ</h2><pre id="research">Нет данных</pre></section><section><h2>СТАКАН / ORDER BOOK</h2><p class="muted">Ожидание реального L2 streaming adapter. Синтетические заявки не показываются.</p><div class="dom"><div class="bid">BID</div><div>PRICE</div><div class="ask">ASK</div></div><h2>ЛЕНТА СДЕЛОК</h2><p class="muted">Исторические агрегаты не являются потоком отдельных сделок.</p><h2>ЛОГИ ИНСТРУМЕНТА</h2><pre id="logs">Ожидание источника</pre><h2>ИСТОЧНИК MARKET_DATA</h2>
+</style><header><h1>TERMINAN <small class="muted">RESEARCH TERMINAL</small></h1><div><a href='/monitor' style='color:#80c6ed;margin-right:16px'>Мониторинг системы</a><strong>READ ONLY · NO ORDERS</strong></div></header><main><section><h2>ИНСТРУМЕНТЫ</h2><input id="search" placeholder="Поиск символа"><div id="symbols"></div><p id="source" class="muted"></p></section><section><h2 id="selected">BTCUSDT</h2><select id="tf"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select> <button id="refresh">Обновить</button><h2>СВЕЧИ</h2><label><input type="checkbox" id="showlevels" checked> Неперебитые H1 / H4 / D1</label><canvas id="chart"></canvas><div id="levels" class="muted"></div><p id="chartmsg" class="muted"></p><pre id="qualified-receipt" class="muted" role="status" aria-live="polite">PARTIAL-квитанция: источник не подключён</pre><h2>КЛАСТЕРЫ / FOOTPRINT</h2><div id="footprint" class="muted">Нет данных</div><h2>БУМАЖНЫЙ REPLAY · OFFLINE</h2><p class="muted">Только пользовательские офлайн-данные, не LIVE. POC вычисляет установленный Math SDK. При отсутствии подтверждённого источника результат UNATTESTED.</p><textarea id="paperinput" rows="5" style="width:100%;font:11px Consolas,monospace" placeholder="JSON terminan.paper.replay.v2 (локальные тестовые события)"></textarea><p><button id="paperrun" type="button">Выполнить офлайн</button></p><pre id="paperresult" aria-live="polite">Нет воспроизведения</pre><h2>ORDER FLOW · OFFLINE RESEARCH</h2><p class="muted">Math-owned aggregation of caller-supplied trades. Source UNVERIFIED; no live authority.</p><textarea id="analyticsinput" rows="4" style="width:100%" placeholder='{"schema":"terminan.analytics.orderflow.v1","mode":"price","tick_size":"0.001","trades":[]}'></textarea><p><button id="analyticsrun" type="button">Analyze offline trades</button></p><pre id="analyticsresult">No analytics request</pre><h2>НАУЧНЫЕ РЕЗУЛЬТАТЫ</h2><pre id="research">Нет данных</pre></section><section><h2>СТАКАН / ORDER BOOK</h2><p class="muted">Ожидание реального L2 streaming adapter. Синтетические заявки не показываются.</p><div class="dom"><div class="bid">BID</div><div>PRICE</div><div class="ask">ASK</div></div><h2>ЛЕНТА СДЕЛОК</h2><p class="muted">Исторические агрегаты не являются потоком отдельных сделок.</p><h2>ЛОГИ ИНСТРУМЕНТА</h2><pre id="logs">Ожидание источника</pre><h2>ИСТОЧНИК MARKET_DATA</h2>
 <div id="market-data-quality" class="muted" role="status" aria-atomic="true"></div>
 <p><button id="market-data-check" type="button">Проверить MarketData</button></p>
 <h2>ПОДКЛЮЧЕНИЯ</h2><pre id="status"></pre><p id="error"></p></section></main><script>
@@ -36,6 +36,37 @@ async function refresh() {
     if (generation !== refreshGeneration) return;
     draw([]);
     el('error').textContent = error.message;
+  }
+  try {
+    const receipt = await api('/api/market-data/qualified?' + selected);
+    if (generation !== refreshGeneration) return;
+    const isPartial = receipt.status === 'PARTIAL'
+      && receipt.read_only === true
+      && receipt.paper_admitted === false
+      && receipt.execution_authority === false
+      && receipt.trading_authorized === false
+      && receipt.exchange_completeness_attested === false
+      && receipt.reason === 'EXCHANGE_COMPLETENESS_UNATTESTED'
+      && Array.isArray(receipt.rows)
+      && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '');
+    if (isPartial) {
+      el('qualified-receipt').textContent =
+        'PARTIAL · только чтение · полнота биржи НЕ подтверждена · paper запрещён\\n'
+        + 'Отпечаток: ' + receipt.dataset_fingerprint
+        + ' · минут: ' + receipt.rows.length;
+      if (timeframe === '1m') {
+        draw(receipt.rows);
+        el('chartmsg').textContent = receipt.rows.length
+          + ' свечей · PARTIAL · источник внешне не аттестован · НЕ для торговли';
+      }
+    } else {
+      el('qualified-receipt').textContent =
+        'UNAVAILABLE · нет подтверждённой PARTIAL-квитанции · paper запрещён';
+    }
+  } catch {
+    if (generation !== refreshGeneration) return;
+    el('qualified-receipt').textContent =
+      'UNAVAILABLE · подтверждённая PARTIAL-квитанция недоступна';
   }
   try {
     const rows = await api('/api/market-data/footprint?' + selected);
