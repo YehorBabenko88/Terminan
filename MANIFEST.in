@@ -10,3 +10,5 @@ include docs/canonical-signal-replay.md
 include docs/strattester-execution-owner-map.json
 recursive-include tests/fixtures *.sql
 include docs/frozen-research-restore.md
+# Historical Python algorithms are test-only; never ship them in an sdist.
+prune tests/fixtures/d_round13_strattester
