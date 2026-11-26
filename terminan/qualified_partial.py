@@ -35,6 +35,12 @@ def _clock(value):
     return type(value) is int and 0 <= value <= _MAX_TIME
 
 
+def _version(value, major, minor):
+    return (type(value) is dict and set(value) == {"major", "minor"}
+            and type(value["major"]) is int and type(value["minor"]) is int
+            and value["major"] == major and value["minor"] == minor)
+
+
 def _nontrading(value):
     return (type(value) is dict
             and value.get("execution_authority") is False
@@ -42,13 +48,13 @@ def _nontrading(value):
 
 
 def _source(value):
-    if type(value) is not dict or type(value.get("identity")) is not str or not value["identity"]:
+    if type(value) is not dict or type(value.get("identity")) is not str or not 1 <= len(value["identity"]) <= 256:
         raise ValueError("SOURCE_IDENTITY_REQUIRED")
     if type(value.get("source_revision")) is not str or not _SHA40.fullmatch(value["source_revision"]):
         raise ValueError("SOURCE_REVISION_REQUIRED")
     try:
         epoch = value["epoch"]
-        if type(epoch) is not str or str(uuid.UUID(epoch)) != epoch.lower() or uuid.UUID(epoch).version != 4:
+        if type(epoch) is not str or str(uuid.UUID(epoch)) != epoch or uuid.UUID(epoch).version != 4:
             raise ValueError("epoch")
     except (ValueError, KeyError, TypeError, AttributeError):
         raise ValueError("SOURCE_EPOCH_REQUIRED") from None
@@ -97,7 +103,7 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
         raise ValueError("ENVELOPE_REQUIRED")
     try:
         if version == "v1":
-            if (envelope.get("api_version") != {"major": 1, "minor": 1}
+            if (not _version(envelope.get("api_version"), 1, 1)
                     or envelope.get("producer") != "market_data"
                     or envelope.get("read_only") is not True
                     or envelope.get("status") != "PARTIAL"
@@ -114,7 +120,7 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
         elif version == "v2":
             if (set(envelope) != _V2_KEYS
                     or envelope.get("schema") != "market_data.qualified-read-envelope.v1"
-                    or envelope.get("api_version") != {"major": 2, "minor": 0}
+                    or not _version(envelope.get("api_version"), 2, 0)
                     or envelope.get("producer") != "market_data"
                     or envelope.get("read_only") is not True
                     or envelope.get("status") != "PARTIAL"
@@ -146,6 +152,9 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
             "expected_minutes", "observed_minutes", "missing_minutes"
         }:
             raise ValueError("COVERAGE_REQUIRED")
+        if any(type(coverage[key]) is not int for key in (
+                "expected_minutes", "observed_minutes", "missing_minutes")):
+            raise ValueError("COVERAGE_LITERAL_INTEGERS_REQUIRED")
         starts = []
         source_id = _source(envelope.get("source") if version == "v1"
                             else rows[0].get("source"))
@@ -157,7 +166,7 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
             raise ValueError("SOURCE_PIN_MISMATCH")
         for row in rows:
             if (type(row) is not dict
-                    or row.get("api_version") != {"major": 1, "minor": 1}
+                    or not _version(row.get("api_version"), 1, 1)
                     or row.get("producer") != "market_data"
                     or row.get("symbol") != symbol
                     or row.get("timeframe") != "1m"
@@ -185,9 +194,14 @@ def _validate_page(envelope, symbol, limit, *, version, now_ms=None):
                 raise ValueError("RECORD_CLOCKS_INVALID")
             local_cover = row.get("coverage")
             if (type(local_cover) is not dict
-                    or local_cover != {"expected_minutes": 1, "observed_minutes": 1,
-                                      "missing_minutes": 0,
-                                      "exchange_completeness_attested": False}):
+                    or set(local_cover) != {"expected_minutes", "observed_minutes",
+                                            "missing_minutes", "exchange_completeness_attested"}
+                    or any(type(local_cover[key]) is not int for key in (
+                        "expected_minutes", "observed_minutes", "missing_minutes"))
+                    or local_cover.get("exchange_completeness_attested") is not False
+                    or local_cover["expected_minutes"] != 1
+                    or local_cover["observed_minutes"] != 1
+                    or local_cover["missing_minutes"] != 0):
                 raise ValueError("RECORD_COVERAGE_NOT_ATTESTED")
             if type(row.get("candle")) is not dict or type(row.get("levels")) is not list:
                 raise ValueError("RECORD_PAYLOAD_REQUIRED")
