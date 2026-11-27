@@ -1,14 +1,25 @@
 """Read-only Grid fleet telemetry; no local machine probing or database writes."""
 from datetime import datetime, timezone
-from .data import grid_query
+from os import environ
+
+from .data import read_source
 
 def fleet_snapshot():
-    rows=grid_query("SELECT node_id,hostname,last_seen,cpu_pct,ram_pct,disk_free,assigned_symbols FROM nodes ORDER BY node_id LIMIT 200",())
+    gateway = environ.get('TERMINAN_GRID_URL')
+    rows = []
+    if gateway:
+        snapshot = read_source(gateway, '/v1/nodes', {})
+        if not isinstance(snapshot, dict) or snapshot.get('version') != 1 or not isinstance(snapshot.get('nodes'), list):
+            raise RuntimeError('Unexpected Grid nodes DTO')
+        rows = snapshot['nodes']
     now=datetime.now(timezone.utc)
     nodes=[]
-    for node_id,hostname,last_seen,cpu,ram,disk,symbols in rows:
+    for row in rows:
+        last_seen = datetime.fromisoformat(row['last_seen']) if row['last_seen'] else None
         if last_seen is not None and last_seen.tzinfo is None:
-            last_seen=last_seen.replace(tzinfo=timezone.utc)
+            raise RuntimeError('Grid node timestamp has no timezone')
         age=max(0,(now-last_seen).total_seconds()) if last_seen else None
-        nodes.append(dict(node_id=node_id,hostname=hostname,last_seen=last_seen.isoformat() if last_seen else None,age_seconds=round(age,1) if age is not None else None,online=age is not None and age<=120,cpu_pct=float(cpu) if cpu is not None else None,ram_pct=float(ram) if ram is not None else None,disk_free_bytes=int(disk) if disk is not None else None,assigned_symbols=int(symbols or 0)))
+        nodes.append({**row, 'last_seen': last_seen.astimezone(timezone.utc).isoformat() if last_seen else None,
+                      'age_seconds': round(age, 1) if age is not None else None,
+                      'online': age is not None and age <= 120, 'assigned_symbols': row['assigned_symbols'] or 0})
     return dict(source='cluster-grid.nodes',nodes=nodes,online=sum(n['online'] for n in nodes),total=len(nodes),database_sizes=dict(state='NOT_EXPOSED_BY_SOURCE'),auxiliary_services=dict(state='NOT_EXPOSED_BY_SOURCE'))

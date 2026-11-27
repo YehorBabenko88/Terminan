@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 from terminan import data
+from terminan.server import fleet_snapshot
 
 
 class GridHTTPContractTest(unittest.TestCase):
@@ -70,3 +71,10 @@ class GridHTTPContractTest(unittest.TestCase):
         with patch.dict(os.environ, {'TERMINAN_MATH_URL': os.environ['TERMINAN_GRID_URL']}):
             with self.assertRaises(RuntimeError):
                 data.math_levels('ETHUSDT')
+
+    def test_monitor_reads_grid_nodes_without_a_database_adapter(self):
+        self.payload = {'version': 1, 'nodes': [{'node_id': 'fixture', 'last_seen': '2026-11-27T18:00:00+05:30',
+                                                'assigned_symbols': 1}]}
+        nodes = fleet_snapshot()['nodes']
+        self.assertEqual(nodes[0]['last_seen'], '2026-11-27T12:30:00+00:00')
+        self.assertEqual(self.requests, ['/v1/nodes'])

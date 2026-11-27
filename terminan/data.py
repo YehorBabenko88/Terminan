@@ -76,7 +76,8 @@ def read_source(base_url, path, params):
     max_bytes = 8 * 1024 * 1024
     connection = HTTPConnection(base.hostname, base.port, timeout=4)
     try:
-        connection.request("GET", path + "?" + urlencode(params))
+        target = path + "?" + urlencode(params) if params else path
+        connection.request("GET", target)
         response = connection.getresponse()
         if response.status != 200:
             raise RuntimeError("Read-only source unavailable")
