@@ -548,7 +548,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                     exact=True)
 
     def test_b308_actual_handler_rejects_unaligned_historical_before_reader(self):
-        """New B308 exact 5m/15m boundary fails before any source SQL read."""
+        """Full MTF candle cursor must be aligned before touching SQL reader."""
         from market_data_v2.read_api import historical_asof_snapshot
         boundary = ((int(time.time() * 1000) // 900000) - 6) * 900000
         asof = boundary + 60000
@@ -557,15 +557,15 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 history_api, "immutable_minutes",
                 side_effect=AssertionError("INVALID_CURSOR_MUST_NOT_READ")
             ) as reader:
-                with self.assertRaisesRegex(ValueError,
-                                            "HISTORICAL_EXACT_CANDLE_CURSOR_REQUIRED"):
+                with self.assertRaisesRegex(
+                        ValueError, "HISTORICAL_EXACT_CANDLE_CURSOR_REQUIRED"):
                     historical_asof_snapshot(
                         "BTCUSDT", tf, 1, boundary + offset, asof + 600000,
                         now_ms=asof + 3600000, exact=True)
                 reader.assert_not_called()
 
     def test_b308_actual_handler_rejects_future_and_nonaligned_live_cursor(self):
-        """Keep B308 exact LIVE read fail-closed ahead of any source I/O."""
+        """Check invalid explicit LIVE cursor before Grid's single SQL reader."""
         from market_data_v2.read_api import qualified_rollup_snapshot
         now = ((int(time.time() * 1000) // 900000) + 1) * 900000 + 120000
         boundary = ((now // 900000) - 1) * 900000
@@ -575,14 +575,15 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 history_api, "immutable_minutes",
                 side_effect=AssertionError("INVALID_CURSOR_MUST_NOT_READ")
             ) as reader:
-                with self.assertRaises(ValueError):
+                with self.assertRaisesRegex(
+                        ValueError, "QUALIFIED_ROLLUP_EXACT_CURSOR_REQUIRED"):
                     qualified_rollup_snapshot(
                         "BTCUSDT", "15m", 1, before_ms=cursor,
                         now_ms=now, exact=True)
                 reader.assert_not_called()
 
     def test_b308_exact_historical_valid_aligned_cursor_roundtrip(self):
-        """Actual B308 producer → managed HTTP → D historical exact chart."""
+        """Actual B308 producer -> managed HTTP -> D historical exact chart."""
         from decimal import Decimal
         boundary = ((int(time.time() * 1000) // 900000) - 6) * 900000
         asof = boundary + 60000
