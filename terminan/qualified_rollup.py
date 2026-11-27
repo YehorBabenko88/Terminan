@@ -80,9 +80,10 @@ def _exact_amount(value, *, signed=False):
     _need(not (number.is_zero() and value.startswith("-")))
     # Preserve normalized fixed ASCII: no Decimal context rounding, aliases,
     # or client-owned summation. Math checks all numeric domain constraints.
-    _need(("0" if number.is_zero() else format(number, "f")
-           .rstrip("0").rstrip(".") if "." in format(number, "f")
-           else format(number, "f")) == value)
+    canonical = "0" if number.is_zero() else format(number, "f")
+    if "." in canonical:
+        canonical = canonical.rstrip("0").rstrip(".")
+    _need(canonical == value)
     return number
 
 
