@@ -2,6 +2,7 @@
 import http.client
 import json
 import threading
+import time
 import unittest
 from http.server import ThreadingHTTPServer
 
@@ -61,6 +62,39 @@ class QualifiedTimeframeHTTPTests(unittest.TestCase):
             with self.subTest(query=query):
                 bad_status, _ = self.read(base + "?" + query)
                 self.assertEqual(bad_status, 400)
+
+
+    def test_historical_route_requires_explicit_asof_and_is_never_live(self):
+        base = "/api/market-data/qualified/historical"
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        valid = (f"symbol=BTCUSDT&timeframe=5m&bars=3"
+                 f"&before_ms={boundary}&as_of_ms={asof}")
+        status, result = self.read(base + "?" + valid)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["status"], "UNAVAILABLE")
+        self.assertEqual(result["rows"], [])
+        self.assertEqual(result["observation_mode"], "HISTORICAL_AS_OF_SOURCE_ONLY")
+        self.assertEqual(result["live_freshness"], "NOT_APPLICABLE")
+        self.assertFalse(result["paper_admitted"])
+        self.assertFalse(result["trading_authorized"])
+        self.assertFalse(result["execution_authority"])
+        bad = (
+            f"symbol=BTCUSDT&timeframe=5m&bars=3&before_ms={boundary}",
+            f"symbol=BTCUSDT&timeframe=5m&bars=3&as_of_ms={asof}",
+            valid + "&debug=1",
+            valid + "&bars=4",
+            valid.replace("bars=3", "bars=6"),
+            valid.replace("timeframe=5m", "timeframe=1m"),
+            valid.replace(f"before_ms={boundary}", "before_ms=0"),
+            valid.replace(f"before_ms={boundary}", f"before_ms={boundary+1}"),
+            valid.replace(f"as_of_ms={asof}", f"as_of_ms={boundary-60000}"),
+            valid.replace(f"as_of_ms={asof}", f"as_of_ms={asof+31*86400000}"),
+        )
+        for query in bad:
+            with self.subTest(query=query):
+                reject, _ = self.read(base + "?" + query)
+                self.assertEqual(reject, 400)
 
 
 if __name__ == "__main__":
