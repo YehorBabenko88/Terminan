@@ -82,6 +82,23 @@ class QualifiedTimeframeHTTPTests(unittest.TestCase):
                     self.assertEqual(value["error"],
                                      "BOUNDED_QUALIFIED_CHART_QUERY_REQUIRED")
 
+    def test_ui_calls_source_exact_mtf_without_numeric_volume_rounding(self):
+        """An exact 5m/15m UI must not reconstruct trades or 1m fallback."""
+        from importlib.resources import files
+        html = files("terminan").joinpath("index.html").read_text(
+            encoding="utf-8")
+        self.assertIn("'/api/market-data/qualified/timeframe?'", html)
+        self.assertIn("if (timeframe === '1m')", html)
+        self.assertIn("timeframe === '5m' || timeframe === '15m'", html)
+        self.assertIn("last.volume_decimal", html)
+        self.assertIn("last.delta_decimal", html)
+        self.assertIn("source_numeric_precision", html)
+        self.assertIn("DECIMAL", html.upper())
+        self.assertIn("НЕ raw биржевые тики", html)
+        self.assertIn("без fallback", html)
+        self.assertNotIn("Number(last.volume_decimal)", html)
+        self.assertNotIn("parseFloat(last.delta_decimal)", html)
+
     def test_historical_route_requires_explicit_asof_and_is_never_live(self):
         base = "/api/market-data/qualified/historical"
         boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
