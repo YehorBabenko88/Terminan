@@ -25,7 +25,7 @@ for key in ("ROUND3_MATH_SOURCE", "ROUND3_GRID_SOURCE"):
 
 from market_data.provenance import digest, minute_record, producer
 from market_data_v2.qualified_read_contract import ProvenanceReadError
-from market_data_v2.read_api import qualified_rollup_snapshot
+from market_data_v2.read_api import historical_asof_snapshot, qualified_rollup_snapshot
 from market_math import exact_sum, executed_volume_delta
 from terminan.qualified_rollup import (
     chart_rollup_rows, validate_qualified_rollup,
@@ -87,7 +87,7 @@ def original_aggregator():
     return namespace["qualified_timeframe_rows"], old_math
 
 
-def minute_rows(width, buy, sell):
+def minute_rows(width, buy, sell, *, ingested_at=NOW):
     source = producer("d-r35-synthetic", "a" * 40,
                       "wss://stream.bybit.com/v5/public/linear")
     first = BOUNDARY - width * 60000
@@ -107,7 +107,7 @@ def minute_rows(width, buy, sell):
                          delta=buy-sell, volume=buy+sell,
                          buy_count=1, sell_count=1)],
         )
-        record = minute_record(row, NOW, "d-r35-synthetic")
+        record = minute_record(row, ingested_at, "d-r35-synthetic")
         if record["status"] != "PARTIAL":
             raise AssertionError("INVALID_ORIGINAL_MINUTE_FIXTURE")
         result.append(record)
@@ -270,6 +270,63 @@ class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
                         validate_qualified_rollup(
                             forged, "BTCUSDT", timeframe, 1,
                             now_ms=NOW, exact=True)
+
+    def test_historical_asof_preserves_exact_ohlcv_without_live_fallback(self):
+        """Same original 68-line numbers, but distinct historical custody."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            for bars in (1, 2):
+                with self.subTest(timeframe=timeframe, bars=bars):
+                    historical_rows = minute_rows(
+                        step * bars, 0.1, 0.3,
+                        ingested_at=BOUNDARY - 100)
+                    old = self.legacy(historical_rows, timeframe, bars)
+                    historical = historical_asof_snapshot(
+                        "BTCUSDT", timeframe, bars, BOUNDARY, BOUNDARY,
+                        reader=lambda *_: copy.deepcopy(historical_rows),
+                        now_ms=NOW, exact=True)
+                    checked = validate_qualified_rollup(
+                        historical, "BTCUSDT", timeframe, bars,
+                        historical=True, before_ms=BOUNDARY,
+                        as_of_ms=BOUNDARY, now_ms=NOW, exact=True)
+                    projected = chart_rollup_rows(checked)
+                    self.assertEqual(len(old["rows"]), len(projected))
+                    for before, after in zip(old["rows"], projected):
+                        for field in ("o", "h", "l", "c", "v"):
+                            self.assertEqual(Decimal(before[field]),
+                                             Decimal(str(after[field])))
+                        self.assertEqual(before["t"], after["t"])
+                        self.assertEqual(before["closed_at_ms"],
+                                         after["closed_at_ms"])
+                    self.assertEqual(historical["status"], "PARTIAL")
+                    self.assertEqual(historical["freshness_mode"],
+                                     "HISTORICAL_AS_OF")
+                    self.assertEqual(historical["live_freshness"],
+                                     "NOT_APPLICABLE")
+                    self.assertEqual(historical["historical_source_trust"],
+                                     "NOT_INDEPENDENTLY_ATTESTED")
+                    self.assertEqual(historical["exchange_completeness"],
+                                     "NOT_ATTESTED")
+                    for flag in ("paper_admitted", "trading_authorized",
+                                 "execution_authority"):
+                        self.assertIs(historical[flag], False)
+
+            with self.subTest(timeframe=timeframe, negative="LOOKAHEAD"):
+                after_cutoff = minute_rows(step, 1.0, 0.5)
+                with self.assertRaises(ProvenanceReadError):
+                    historical_asof_snapshot(
+                        "BTCUSDT", timeframe, 1, BOUNDARY, BOUNDARY,
+                        reader=lambda *_: copy.deepcopy(after_cutoff),
+                        now_ms=NOW, exact=True)
+            with self.subTest(timeframe=timeframe, negative="LIVE_ASOF"):
+                live, _ = self.canonical(
+                    minute_rows(step, 1.0, 0.5), timeframe, 1)
+                with self.assertRaisesRegex(
+                    ValueError, "QUALIFIED_ROLLUP_UNAVAILABLE"
+                ):
+                    validate_qualified_rollup(
+                        live, "BTCUSDT", timeframe, 1,
+                        historical=True, before_ms=BOUNDARY,
+                        as_of_ms=BOUNDARY, now_ms=NOW, exact=True)
 
     def test_rehashed_negative_zero_delta_and_authority_never_fallback(self):
         rows = minute_rows(5, 1.0, 0.5)
