@@ -1,0 +1,355 @@
+"""D ROUND35: executable, fail-closed G012 differential against original D129.
+
+Original D129's 68-line function and original Math D167 are imported from
+immutable SHA-pinned, byte-verified test-only checkouts. Current B Grid,
+canonical Math and D qualified consumer are executed unmodified. Synthetic
+stored minute records only: no SQL, provider, live trades or authorization.
+This limited parity test NEVER authorizes legacy retirement.
+"""
+import ast
+import copy
+from decimal import Decimal
+from hashlib import sha1
+import importlib.util
+import os
+from pathlib import Path
+import sys
+import unittest
+from unittest.mock import patch
+
+for key in ("ROUND3_MATH_SOURCE", "ROUND3_GRID_SOURCE"):
+    source = os.environ.get(key)
+    if not source or not os.path.isabs(source):
+        raise RuntimeError("PINNED_ROUND3_SOURCE_REQUIRED")
+    sys.path.insert(0, source)
+
+from market_data.provenance import digest, minute_record, producer
+from market_data_v2.qualified_read_contract import ProvenanceReadError
+from market_data_v2.read_api import historical_asof_snapshot, qualified_rollup_snapshot
+from market_math import exact_sum, executed_volume_delta
+from terminan.qualified_rollup import (
+    chart_rollup_rows, validate_qualified_rollup,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+OLD_D = ROOT / "upstream" / "terminan-d129" / "terminan" / "qualified_partial.py"
+OLD_MATH = ROOT / "upstream" / "math-d167" / "python" / "market_math.py"
+OLD_D_BLOB = "27cd754b97a0a8c32b0ec51daac41110dca35292"
+OLD_MATH_BLOB = "aebe6f799ffe2c20c9b68daad10b96764c245246"
+NOW = (1800000120000 // 900000) * 900000 + 45000
+BOUNDARY = (NOW // 900000) * 900000
+
+
+def original_blob(path, expected):
+    raw = path.read_bytes()
+    oid = sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
+    if oid != expected:
+        # Windows checkout can materialize CRLF from immutable Git LF bytes.
+        # Recompute and REQUIRE the identical pinned Git blob after LF
+        # normalization; a different source still fails closed.
+        lf = raw.replace(b"\r\n", b"\n")
+        lf_oid = sha1(b"blob " + str(len(lf)).encode("ascii") + b"\0" + lf).hexdigest()
+        if lf == raw or lf_oid != expected:
+            raise AssertionError("ORIGINAL_G012_BLOB_MISMATCH: " + path.name)
+        return lf
+    return raw
+
+
+def original_aggregator():
+    source = original_blob(OLD_D, OLD_D_BLOB).decode("utf-8")
+    original_blob(OLD_MATH, OLD_MATH_BLOB)
+    module = ast.parse(source, filename=str(OLD_D))
+    functions = [node for node in module.body
+                 if isinstance(node, ast.FunctionDef)
+                 and node.name == "qualified_timeframe_rows"]
+    if len(functions) != 1:
+        raise AssertionError("ORIGINAL_G012_FUNCTION_MISSING")
+    constants = {}
+    for node in module.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if isinstance(target, ast.Name) and target.id in (
+                "_MTF_WINDOWS", "_MTF_MAX_SOURCE_ROWS", "_MTF_MAX_BARS"
+            ):
+                constants[target.id] = ast.literal_eval(node.value)
+    if len(constants) != 3:
+        raise AssertionError("ORIGINAL_G012_CONSTANTS_MISSING")
+    namespace = {"__builtins__": __builtins__, **constants}
+    exec(compile(ast.Module(body=functions, type_ignores=[]),
+                 str(OLD_D), "exec"), namespace)
+    spec = importlib.util.spec_from_file_location("d_original_math_d167", OLD_MATH)
+    if spec is None or spec.loader is None:
+        raise AssertionError("ORIGINAL_G012_MATH_UNAVAILABLE")
+    old_math = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(old_math)
+    if not hasattr(old_math, "aggregate_closed_minute_ohlcv"):
+        raise AssertionError("ORIGINAL_G012_MATH_KERNEL_MISSING")
+    return namespace["qualified_timeframe_rows"], old_math
+
+
+def minute_rows(width, buy, sell, *, ingested_at=NOW):
+    source = producer("d-r35-synthetic", "a" * 40,
+                      "wss://stream.bybit.com/v5/public/linear")
+    first = BOUNDARY - width * 60000
+    result = []
+    for i in range(width):
+        start = first + i * 60000
+        row = dict(
+            symbol="BTCUSDT", start_ms=start,
+            source_event_start_ms=start + 1,
+            source_event_end_ms=start + 59000,
+            source_provenance=source,
+            open=1.0, high=2.0, low=1.0, close=2.0,
+            buy_volume=buy, sell_volume=sell, delta=buy-sell,
+            trade_count=2, poc_price=2.0,
+            quality_status="GOOD", quality_reasons=[],
+            levels=[dict(price=2.0, buy_volume=buy, sell_volume=sell,
+                         delta=buy-sell, volume=buy+sell,
+                         buy_count=1, sell_count=1)],
+        )
+        record = minute_record(row, ingested_at, "d-r35-synthetic")
+        if record["status"] != "PARTIAL":
+            raise AssertionError("INVALID_ORIGINAL_MINUTE_FIXTURE")
+        result.append(record)
+    return result
+
+
+def legacy_receipt(rows):
+    width = len(rows)
+    return dict(
+        status="PARTIAL", chart_read_only=True,
+        execution_authority=False, paper_admitted=False,
+        trading_authorized=False,
+        source_authenticity="NOT_INDEPENDENTLY_ATTESTED",
+        record_integrity="VERIFIED",
+        rows=tuple(copy.deepcopy(rows)),
+        coverage=dict(expected_minutes=width, observed_minutes=width,
+                      missing_minutes=0),
+        dataset_fingerprint=digest(rows),
+        freshness_utc_ms=NOW,
+    )
+
+
+class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        original, cls.old_math = original_aggregator()
+        cls.old_aggregate = staticmethod(original)
+
+    def legacy(self, rows, timeframe, bars):
+        with patch.dict(sys.modules, {"market_math": self.old_math}):
+            return self.old_aggregate(legacy_receipt(rows), timeframe,
+                                      max_bars=bars)
+
+    def canonical(self, rows, timeframe, bars):
+        envelope = qualified_rollup_snapshot(
+            "BTCUSDT", timeframe, bars, before_ms=BOUNDARY,
+            reader=lambda *_: copy.deepcopy(rows), now_ms=NOW, exact=True)
+        validated = validate_qualified_rollup(
+            envelope, "BTCUSDT", timeframe, bars,
+            now_ms=NOW, exact=True)
+        return envelope, chart_rollup_rows(validated)
+
+    def test_original_68_line_volume_ohlcv_clock_matches_grid_math_and_d(self):
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            for bars in (1, 2):
+                for buy, sell in ((0.1, 0.3), (1.0, 0.5)):
+                    with self.subTest(timeframe=timeframe, bars=bars,
+                                      buy=buy, sell=sell):
+                        rows = minute_rows(step * bars, buy, sell)
+                        old = self.legacy(rows, timeframe, bars)
+                        envelope, new = self.canonical(rows, timeframe, bars)
+                        self.assertEqual(old["status"], "PARTIAL")
+                        self.assertEqual(envelope["status"], "PARTIAL")
+                        self.assertEqual(old["coverage"], envelope["coverage"])
+                        self.assertEqual(old["source_minutes"],
+                                         envelope["source_minutes"])
+                        self.assertEqual(len(old["rows"]), len(new))
+                        for earlier, current in zip(old["rows"], new):
+                            for old_key, new_key in (
+                                ("o", "o"), ("h", "h"),
+                                ("l", "l"), ("c", "c"), ("v", "v")
+                            ):
+                                self.assertEqual(Decimal(earlier[old_key]),
+                                                 Decimal(str(current[new_key])))
+                            self.assertEqual(earlier["t"], current["t"])
+                            self.assertEqual(earlier["closed_at_ms"],
+                                             current["closed_at_ms"])
+                            self.assertEqual(
+                                Decimal(current["delta_decimal"]),
+                                executed_volume_delta(
+                                    Decimal(current["buy_volume_decimal"]),
+                                    Decimal(current["sell_volume_decimal"])))
+                            self.assertEqual(
+                                Decimal(current["volume_decimal"]),
+                                exact_sum((
+                                    Decimal(current["buy_volume_decimal"]),
+                                    Decimal(current["sell_volume_decimal"]))))
+                        for key in ("paper_admitted", "trading_authorized",
+                                    "execution_authority"):
+                            self.assertIs(old[key], False)
+                            self.assertIs(envelope[key], False)
+                        self.assertEqual(envelope["exchange_completeness"],
+                                         "NOT_ATTESTED")
+                        self.assertEqual(envelope["source_authenticity"],
+                                         "NOT_INDEPENDENTLY_ATTESTED")
+
+    def test_missing_interior_minute_refused_by_both_original_paths(self):
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            rows = minute_rows(step, 1.0, 0.5)
+            broken = rows[:2] + rows[3:]
+            with self.subTest(timeframe=timeframe):
+                with self.assertRaises(ValueError):
+                    self.legacy(broken, timeframe, 1)
+                with self.assertRaises(ProvenanceReadError):
+                    self.canonical(broken, timeframe, 1)
+
+    def test_duplicate_shifted_and_missing_final_minute_fail_closed(self):
+        """No synthetic interpolation, duplicated minute or last-bar repair."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            pristine = minute_rows(step, 1.0, 0.5)
+            duplicate = copy.deepcopy(pristine)
+            duplicate[2] = copy.deepcopy(duplicate[1])
+            shifted = copy.deepcopy(pristine)
+            # Preserve all original fields, rehash source record after moving
+            # every clock field. The next consecutive minute now has a gap.
+            changed = shifted[2]
+            for field in ("start_ms", "end_ms", "source_event_start_ms",
+                          "source_event_end_ms", "ingestion_ms"):
+                if field in changed:
+                    changed[field] += 60000
+            changed["dataset_fingerprint"] = digest({
+                key: value for key, value in changed.items()
+                if key != "dataset_fingerprint"
+            })
+            missing_tail = pristine[:-1]
+            cases = (
+                ("DUPLICATE", duplicate),
+                ("SHIFTED", shifted),
+                ("MISSING_LAST", missing_tail),
+            )
+            for reason, records in cases:
+                with self.subTest(timeframe=timeframe, reason=reason):
+                    with self.assertRaises(ValueError):
+                        self.legacy(records, timeframe, 1)
+                    with self.assertRaises(ProvenanceReadError):
+                        self.canonical(records, timeframe, 1)
+
+    def test_both_timeframes_reject_rehashed_numeric_and_source_tamper(self):
+        """A valid new fingerprint cannot grant provenance or paper trading."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            envelope, _ = self.canonical(
+                minute_rows(step, 1.0, 0.5), timeframe, 1)
+            cases = (
+                ("NEGATIVE_ZERO_DELTA",
+                 lambda p: p["rows"][0].update(delta_decimal="-0")),
+                ("WRONG_DELTA",
+                 lambda p: p["rows"][0].update(delta_decimal="999")),
+                ("WRONG_VOLUME",
+                 lambda p: p["rows"][0].update(volume_decimal="999")),
+                ("FALSE_PAPER_GRANT",
+                 lambda p: p.update(paper_admitted=True)),
+                ("FALSE_TRADING_GRANT",
+                 lambda p: p.update(trading_authorized=True)),
+                ("FALSE_SOURCE_AUTHENTICITY",
+                 lambda p: p.update(source_authenticity="EXCHANGE_VERIFIED")),
+                ("EXTRA_FIELD",
+                 lambda p: p.update(unsupported_status="LIVE")),
+            )
+            for reason, mutate in cases:
+                with self.subTest(timeframe=timeframe, reason=reason):
+                    forged = copy.deepcopy(envelope)
+                    mutate(forged)
+                    forged["dataset_fingerprint"] = digest({
+                        key: value for key, value in forged.items()
+                        if key != "dataset_fingerprint"
+                    })
+                    with self.assertRaisesRegex(
+                        ValueError, "QUALIFIED_ROLLUP_UNAVAILABLE"
+                    ):
+                        validate_qualified_rollup(
+                            forged, "BTCUSDT", timeframe, 1,
+                            now_ms=NOW, exact=True)
+
+    def test_historical_asof_preserves_exact_ohlcv_without_live_fallback(self):
+        """Same original 68-line numbers, but distinct historical custody."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            for bars in (1, 2):
+                with self.subTest(timeframe=timeframe, bars=bars):
+                    historical_rows = minute_rows(
+                        step * bars, 0.1, 0.3,
+                        ingested_at=BOUNDARY - 100)
+                    old = self.legacy(historical_rows, timeframe, bars)
+                    historical = historical_asof_snapshot(
+                        "BTCUSDT", timeframe, bars, BOUNDARY, BOUNDARY,
+                        reader=lambda *_: copy.deepcopy(historical_rows),
+                        now_ms=NOW, exact=True)
+                    checked = validate_qualified_rollup(
+                        historical, "BTCUSDT", timeframe, bars,
+                        historical=True, before_ms=BOUNDARY,
+                        as_of_ms=BOUNDARY, now_ms=NOW, exact=True)
+                    projected = chart_rollup_rows(checked)
+                    self.assertEqual(len(old["rows"]), len(projected))
+                    for before, after in zip(old["rows"], projected):
+                        for field in ("o", "h", "l", "c", "v"):
+                            self.assertEqual(Decimal(before[field]),
+                                             Decimal(str(after[field])))
+                        self.assertEqual(before["t"], after["t"])
+                        self.assertEqual(before["closed_at_ms"],
+                                         after["closed_at_ms"])
+                    self.assertEqual(historical["status"], "PARTIAL")
+                    self.assertEqual(historical["freshness_mode"],
+                                     "HISTORICAL_AS_OF")
+                    self.assertEqual(historical["live_freshness"],
+                                     "NOT_APPLICABLE")
+                    self.assertEqual(historical["historical_source_trust"],
+                                     "NOT_INDEPENDENTLY_ATTESTED")
+                    self.assertEqual(historical["exchange_completeness"],
+                                     "NOT_ATTESTED")
+                    for flag in ("paper_admitted", "trading_authorized",
+                                 "execution_authority"):
+                        self.assertIs(historical[flag], False)
+
+            with self.subTest(timeframe=timeframe, negative="LOOKAHEAD"):
+                after_cutoff = minute_rows(step, 1.0, 0.5)
+                with self.assertRaises(ProvenanceReadError):
+                    historical_asof_snapshot(
+                        "BTCUSDT", timeframe, 1, BOUNDARY, BOUNDARY,
+                        reader=lambda *_: copy.deepcopy(after_cutoff),
+                        now_ms=NOW, exact=True)
+            with self.subTest(timeframe=timeframe, negative="LIVE_ASOF"):
+                live, _ = self.canonical(
+                    minute_rows(step, 1.0, 0.5), timeframe, 1)
+                with self.assertRaisesRegex(
+                    ValueError, "QUALIFIED_ROLLUP_UNAVAILABLE"
+                ):
+                    validate_qualified_rollup(
+                        live, "BTCUSDT", timeframe, 1,
+                        historical=True, before_ms=BOUNDARY,
+                        as_of_ms=BOUNDARY, now_ms=NOW, exact=True)
+
+    def test_rehashed_negative_zero_delta_and_authority_never_fallback(self):
+        rows = minute_rows(5, 1.0, 0.5)
+        envelope, _ = self.canonical(rows, "5m", 1)
+        for change in ("signed_zero", "false_authority", "wrong_status"):
+            forged = copy.deepcopy(envelope)
+            if change == "signed_zero":
+                forged["rows"][0]["delta_decimal"] = "-0"
+            elif change == "false_authority":
+                forged["paper_admitted"] = True
+            else:
+                forged["status"] = "QUALIFIED"
+            forged["dataset_fingerprint"] = digest({
+                key: value for key, value in forged.items()
+                if key != "dataset_fingerprint"
+            })
+            with self.subTest(change=change), self.assertRaisesRegex(
+                ValueError, "QUALIFIED_ROLLUP_UNAVAILABLE"
+            ):
+                validate_qualified_rollup(
+                    forged, "BTCUSDT", "5m", 1, now_ms=NOW,
+                    exact=True)
+
+
+if __name__ == "__main__":
+    unittest.main()
