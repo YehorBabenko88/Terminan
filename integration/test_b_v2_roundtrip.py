@@ -149,6 +149,84 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertFalse(refused["execution_authority"])
 
 
+    def test_b_exact_status_matrix_has_no_d_authority_promotion(self):
+        """Exercise actual pinned B qualifier, real managed HTTP and D consumer.
+
+        B owns GAP/STALE/UNAVAILABLE status labels, while D intentionally
+        returns only a fail-closed UNAVAILABLE chart for each non-PARTIAL
+        state. This does not require a PostgreSQL or network feed.
+        """
+        minute = 60000
+        now = int(time.time() * 1000)
+        first = record_fixture(now)
+        # A late event from an earlier minute is still source-continuous
+        # only with the immediately following minute present.
+        def shift(row, offset):
+            item = copy.deepcopy(row)
+            for key in ("start_ms", "end_ms", "source_event_start_ms",
+                        "source_event_end_ms", "ingestion_ms"):
+                item[key] += offset
+            from market_data.provenance import digest
+            item["dataset_fingerprint"] = digest({
+                k: v for k, v in item.items() if k != "dataset_fingerprint"
+            })
+            return item
+
+        cases = [
+            ("PARTIAL", [first], "PARTIAL"),
+            ("GAP", [shift(first, -2 * minute), first], "UNAVAILABLE"),
+            ("STALE", [shift(first, -5 * minute)], "UNAVAILABLE"),
+            ("UNAVAILABLE", [], "UNAVAILABLE"),
+        ]
+        for origin, rows, d_status in cases:
+            with self.subTest(origin=origin):
+                with patch.object(history_api, "immutable_minutes",
+                                  return_value=rows):
+                    # Capture the actual B DTO on the same managed HTTP
+                    # endpoint; no hand-authored status replacement.
+                    raw = data._private_market_data_client.get(
+                        "/internal/v2/candles/qualified?symbol=BTCUSDT&limit=2")
+                    self.assertEqual(raw["status"], origin)
+                    self.assertFalse(raw["execution_authority"])
+                    self.assertFalse(raw["paper_admitted"])
+                    self.assertFalse(raw["trading_authorized"])
+                    receipt = data.qualified_market_data_chart("BTCUSDT", 2)
+                self.assertEqual(receipt["status"], d_status)
+                self.assertFalse(receipt["paper_admitted"])
+                self.assertFalse(receipt["execution_authority"])
+                self.assertFalse(receipt["trading_authorized"])
+                if origin != "PARTIAL":
+                    self.assertEqual(receipt["rows"], [])
+                else:
+                    self.assertEqual(len(receipt["rows"]), 1)
+                    self.assertEqual(receipt["record_integrity"], "VERIFIED")
+
+    def test_b_qualified_page_rejects_cross_epoch_not_retrospective_cure(self):
+        """A correctly rehashed mixed-epoch page remains a GAP, not chart."""
+        from market_data.provenance import digest
+        now = int(time.time() * 1000)
+        newest = record_fixture(now)
+        older = copy.deepcopy(newest)
+        for field in ("start_ms", "end_ms", "source_event_start_ms",
+                      "source_event_end_ms", "ingestion_ms"):
+            older[field] -= 60000
+        older["source"]["epoch"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        older["dataset_fingerprint"] = digest({
+            k: v for k, v in older.items() if k != "dataset_fingerprint"
+        })
+        with patch.object(history_api, "immutable_minutes",
+                          return_value=[newest, older]):
+            raw = data._private_market_data_client.get(
+                "/internal/v2/candles/qualified?symbol=BTCUSDT&limit=2")
+            self.assertEqual(raw["status"], "GAP")
+            self.assertEqual(raw["reason"], "MISSING_MINUTES_OR_EPOCH_CHANGE")
+            self.assertFalse(raw["paper_admitted"])
+            receipt = data.qualified_market_data_chart("BTCUSDT", 2)
+        self.assertEqual(receipt["status"], "UNAVAILABLE")
+        self.assertEqual(receipt["rows"], [])
+        self.assertFalse(receipt["paper_admitted"])
+        self.assertFalse(receipt["trading_authorized"])
+
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.
 
