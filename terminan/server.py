@@ -120,10 +120,21 @@ class Handler(BaseHTTPRequestHandler):
             body = files("terminan").joinpath("monitor.html" if url.path == "/monitor" else "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
         elif url.path.startswith("/api/"):
-            q = parse_qs(url.query)
-            symbol = q.get("symbol",["BTCUSDT"])[0]
-            timeframe = q.get("timeframe",["1m"])[0]
             try:
+                # Reject oversized or fragment-containing chart queries
+                # BEFORE the generic parser allocates their decoded fields.
+                chart_bounds = {
+                    "/api/market-data/qualified/timeframe": 3,
+                    "/api/market-data/qualified/historical": 5,
+                }
+                if (url.path in chart_bounds
+                        and (len(self.path.encode("utf-8")) > 2048
+                             or "#" in self.path)):
+                    raise ValueError("BOUNDED_QUALIFIED_CHART_QUERY_REQUIRED")
+                q = parse_qs(
+                    url.query, max_num_fields=chart_bounds.get(url.path))
+                symbol = q.get("symbol", ["BTCUSDT"])[0]
+                timeframe = q.get("timeframe", ["1m"])[0]
                 if url.path == "/api/monitor": result = fleet_snapshot()
                 elif url.path == "/api/instruments": result = data.instruments()
                 elif url.path == "/api/candles": result = data.candles(symbol,timeframe)
