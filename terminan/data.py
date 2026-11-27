@@ -307,3 +307,35 @@ def qualified_market_data_chart(symbol, limit=5):
     except Exception:
         # Do not expose source tokens, exceptions or transport details in UI.
         return unavailable
+
+
+def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
+    """Bounded managed Grid 1m read, closed 5m/15m presentation only.
+
+    This distinct read path does not relax the existing five-row 1m chart
+    and never grants strategy, paper, trade or storage authority.
+    """
+    validate(symbol)
+    step = {"5m": 5, "15m": 15}.get(timeframe) if type(timeframe) is str else None
+    if step is None or type(bars) is not int or not 1 <= bars <= 5:
+        raise ValueError("QUALIFIED_TIMEFRAME_REQUEST_REQUIRED")
+    unavailable = {
+        "status": "UNAVAILABLE", "reason": "QUALIFIED_TIMEFRAME_SOURCE_UNAVAILABLE",
+        "timeframe": timeframe, "source_timeframe": "1m",
+        "read_only": True, "rows": [], "paper_admitted": False,
+        "execution_authority": False, "trading_authorized": False,
+        "exchange_completeness_attested": False,
+    }
+    client = _private_market_data_client
+    if type(client) is not MarketDataReadClient:
+        return unavailable
+    count = step * bars
+    try:
+        from .qualified_partial import validate_qualified_v2, qualified_timeframe_rows
+        envelope = client.get(
+            f"/internal/v2/candles/qualified?symbol={symbol}&limit={count}"
+        )
+        checked = validate_qualified_v2(envelope, symbol, count)
+        return qualified_timeframe_rows(checked, timeframe, max_bars=bars)
+    except Exception:
+        return unavailable
