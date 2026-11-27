@@ -210,7 +210,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         for field in ("start_ms", "end_ms", "source_event_start_ms",
                       "source_event_end_ms", "ingestion_ms"):
             older[field] -= 60000
-        older["source"]["epoch"] = "e" * 8 + "-eeee-4eee-8eee-" + "e" * 12
+        older["source"]["epoch"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
         older["dataset_fingerprint"] = digest({
             k: v for k, v in older.items() if k != "dataset_fingerprint"
         })
