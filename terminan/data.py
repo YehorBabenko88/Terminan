@@ -35,7 +35,8 @@ class MarketDataReadClient:
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
                 and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
                 and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
-                and re.fullmatch(r'/internal/v2/candles/qualified-rollup\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v2/candles/qualified-rollup\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}',path) is None
+                and re.fullmatch(r'/internal/v2/candles/historical-as-of\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -184,7 +185,10 @@ def _market_data_http_get(port, path, *, headers=None):
         qualified_mtf = re.fullmatch(
             r"/internal/v2/candles/qualified-rollup\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}",
             path) is not None and headers is not None
-        budget = (_QUALIFIED_MTF_MAX_JSON if qualified_mtf else
+        qualified_historical = re.fullmatch(
+            r"/internal/v2/candles/historical-as-of\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}",
+            path) is not None and headers is not None
+        budget = (_QUALIFIED_MTF_MAX_JSON if (qualified_mtf or qualified_historical) else
                   _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON)
         advertised = response.getheader("Content-Length")
         if advertised is not None:
@@ -364,8 +368,78 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
             "source_revision_declared": checked["source_revision"],
             "source_epoch_declared": checked["producer_epoch"],
             "source_authenticity": checked["source_authenticity"],
+            "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
             "quality_attestation": checked["quality_attestation"],
             "storage_immutability": checked["storage_immutability"],
+            "exchange_completeness_attested": False,
+            "coverage": dict(checked["coverage"]),
+            "paper_admitted": False, "execution_authority": False,
+            "trading_authorized": False,
+        }
+    except Exception:
+        return unavailable
+
+
+def qualified_market_data_historical_chart(symbol, timeframe, *, bars,
+                                           before_ms, as_of_ms):
+    """Distinct source-only historical chart; neither LIVE nor paper/trade.
+
+    The explicit historical cutoff cannot attest exchange completeness or
+    PostgreSQL point-in-time versioned custody. No fallback to live routes.
+    """
+    validate(symbol)
+    if type(timeframe) is not str or timeframe not in ("5m", "15m"):
+        raise ValueError("HISTORICAL_TIMEFRAME_REQUIRED")
+    if type(bars) is not int or not 1 <= bars <= 5:
+        raise ValueError("HISTORICAL_BARS_REQUIRED")
+    period = (5 if timeframe == "5m" else 15) * 60000
+    now_ms = int(time.time() * 1000)
+    if (type(before_ms) is not int or type(as_of_ms) is not int
+            or not 0 < before_ms <= as_of_ms <= now_ms
+            or before_ms % period or as_of_ms % 60000
+            or as_of_ms - before_ms > 30 * 86400000):
+        raise ValueError("HISTORICAL_AS_OF_BOUNDS")
+    unavailable = {
+        "status": "UNAVAILABLE", "reason": "HISTORICAL_SOURCE_UNAVAILABLE",
+        "timeframe": timeframe, "source_timeframe": "1m",
+        "observation_mode": "HISTORICAL_AS_OF_SOURCE_ONLY",
+        "live_freshness": "NOT_APPLICABLE",
+        "historical_source_trust": "NOT_INDEPENDENTLY_ATTESTED",
+        "read_only": True, "rows": [], "paper_admitted": False,
+        "execution_authority": False, "trading_authorized": False,
+        "exchange_completeness_attested": False,
+    }
+    client = _private_market_data_client
+    if type(client) is not MarketDataReadClient:
+        return unavailable
+    try:
+        from .qualified_rollup import validate_qualified_rollup, chart_rollup_rows
+        envelope = client.get(
+            f"/internal/v2/candles/historical-as-of?symbol={symbol}"
+            f"&timeframe={timeframe}&limit={bars}"
+            f"&before_ms={before_ms}&as_of_ms={as_of_ms}"
+        )
+        checked = validate_qualified_rollup(
+            envelope, symbol, timeframe, bars, historical=True,
+            before_ms=before_ms, as_of_ms=as_of_ms)
+        return {
+            "status": "PARTIAL", "reason": "HISTORICAL_AS_OF_SOURCE_ONLY",
+            "observation_mode": "HISTORICAL_AS_OF_SOURCE_ONLY",
+            "timeframe": timeframe, "source_timeframe": "1m",
+            "as_of_ms": as_of_ms, "before_ms": before_ms,
+            "source_minutes": checked["source_minutes"],
+            "read_only": True, "rows": chart_rollup_rows(checked),
+            "record_integrity": checked["record_integrity"],
+            "dataset_fingerprint": checked["dataset_fingerprint"],
+            "parent_dataset_fingerprint": checked["parent_dataset_fingerprint"],
+            "source_revision_declared": checked["source_revision"],
+            "source_epoch_declared": checked["producer_epoch"],
+            "source_authenticity": checked["source_authenticity"],
+            "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
+            "quality_attestation": checked["quality_attestation"],
+            "storage_immutability": checked["storage_immutability"],
+            "live_freshness": "NOT_APPLICABLE",
+            "historical_source_trust": "NOT_INDEPENDENTLY_ATTESTED",
             "exchange_completeness_attested": False,
             "coverage": dict(checked["coverage"]),
             "paper_admitted": False, "execution_authority": False,

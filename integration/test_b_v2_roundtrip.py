@@ -362,6 +362,139 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 validate_qualified_rollup(
                     forged, "BTCUSDT", "5m", 1, now_ms=now)
 
+
+    def test_b305_history_separate_from_live_and_stale(self):
+        """Managed B305 historical as-of works only as source-only observation."""
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        rows = self._mtf_records(boundary, boundary + 30000, 15)
+        with patch.object(history_api, "immutable_minutes",
+                          return_value=rows) as reader:
+            hist = data.qualified_market_data_historical_chart(
+                "BTCUSDT", "5m", bars=3,
+                before_ms=boundary, as_of_ms=asof)
+            live = data.qualified_market_data_timeframe_chart(
+                "BTCUSDT", "5m", bars=3)
+        self.assertEqual(hist["status"], "PARTIAL")
+        self.assertEqual(hist["reason"], "HISTORICAL_AS_OF_SOURCE_ONLY")
+        self.assertEqual(hist["observation_mode"], "HISTORICAL_AS_OF_SOURCE_ONLY")
+        self.assertEqual(hist["historical_source_trust"],
+                         "NOT_INDEPENDENTLY_ATTESTED")
+        self.assertEqual(hist["live_freshness"], "NOT_APPLICABLE")
+        self.assertEqual(hist["as_of_ms"], asof)
+        self.assertEqual(hist["before_ms"], boundary)
+        self.assertEqual(len(hist["rows"]), 3)
+        self.assertFalse(hist["paper_admitted"])
+        self.assertFalse(hist["trading_authorized"])
+        self.assertFalse(hist["execution_authority"])
+        self.assertFalse(hist["exchange_completeness_attested"])
+        self.assertEqual(live["status"], "UNAVAILABLE")
+        self.assertEqual(live["rows"], [])
+        reader.assert_any_call("BTCUSDT", 15, boundary)
+
+    def test_b305_historical_source_lookahead_gap_and_epoch_refused(self):
+        from market_data.provenance import digest
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        base = self._mtf_records(boundary, boundary + 30000, 15)
+        too_late = self._mtf_records(boundary, asof + 60000, 15)
+        mixed = copy.deepcopy(base)
+        mixed[7]["source"]["epoch"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        mixed[7]["dataset_fingerprint"] = digest({
+            key:value for key,value in mixed[7].items()
+            if key != "dataset_fingerprint"})
+        for reason, records in (
+            ("INGEST_AFTER_ASOF", too_late),
+            ("MISSING_MINUTE", base[:8] + base[9:]),
+            ("MIXED_SOURCE_EPOCH", mixed),
+            ("NO_SOURCE", []),
+        ):
+            with self.subTest(reason=reason), patch.object(
+                history_api, "immutable_minutes", return_value=records
+            ):
+                hist = data.qualified_market_data_historical_chart(
+                    "BTCUSDT", "5m", bars=3,
+                    before_ms=boundary, as_of_ms=asof)
+                self.assertEqual(hist["status"], "UNAVAILABLE")
+                self.assertEqual(hist["rows"], [])
+                self.assertFalse(hist["paper_admitted"])
+                self.assertFalse(hist["trading_authorized"])
+                self.assertFalse(hist["execution_authority"])
+
+    def test_b305_decimal_cancellation_remains_visible_in_d_chart(self):
+        """Grid's source Math delta=0.01 survives lossy binary64 volumes."""
+        from market_data.provenance import digest
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        rows = self._mtf_records(boundary, boundary + 30000, 5)
+        for i, item in enumerate(rows):
+            buy = 1e16 if i == 0 else (1.01 if i == 1 else 1.0)
+            sell = 1e16 if i == 0 else 1.0
+            delta = 0.01 if i == 1 else 0.0
+            item["candle"].update(buy_volume=buy, sell_volume=sell, delta=delta)
+            item["levels"][0].update(
+                buy_volume=buy, sell_volume=sell, delta=delta,
+                volume=buy + sell)
+            item["dataset_fingerprint"] = digest({
+                k:v for k,v in item.items()
+                if k != "dataset_fingerprint"})
+        with patch.object(history_api, "immutable_minutes", return_value=rows):
+            hist = data.qualified_market_data_historical_chart(
+                "BTCUSDT", "5m", bars=1,
+                before_ms=boundary, as_of_ms=asof)
+        self.assertEqual(hist["status"], "PARTIAL")
+        self.assertEqual(hist["rows"][0]["buy_volume"],
+                         hist["rows"][0]["sell_volume"])
+        self.assertEqual(hist["rows"][0]["delta"], 0.01)
+        # Old source-minute exact volume != new binary64-derived chart total.
+        # This is a documented parity blocker, not an attested source sum.
+        from decimal import Decimal
+        self.assertEqual(hist["rows"][0]["volume_precision"],
+                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+        self.assertEqual(hist["volume_precision"],
+                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+        self.assertEqual(Decimal(hist["rows"][0]["v"]),
+                         Decimal("20000000000000008"))
+        self.assertNotEqual(Decimal(hist["rows"][0]["v"]),
+                            Decimal("20000000000000008.01"))
+        self.assertFalse(hist["paper_admitted"])
+        self.assertFalse(hist["trading_authorized"])
+
+    def test_b305_historical_dto_tampering_rehashed_still_refused(self):
+        """Integrity hash alone cannot raise source or execution authority."""
+        from market_data.provenance import digest
+        from market_data_v2.read_api import historical_asof_snapshot
+        from terminan.qualified_rollup import validate_qualified_rollup
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        rows = self._mtf_records(boundary, boundary + 30000, 5)
+        page = historical_asof_snapshot(
+            "BTCUSDT", "5m", 1, boundary, asof,
+            reader=lambda *_:rows, now_ms=int(time.time()*1000))
+        self.assertEqual(validate_qualified_rollup(
+            page, "BTCUSDT", "5m", 1, historical=True,
+            before_ms=boundary, as_of_ms=asof)["status"], "PARTIAL")
+        changes = (
+            lambda p: p.update(source_declared_quality=["DEGRADED"]),
+            lambda p: p.update(historical_source_trust="EXCHANGE_VERIFIED"),
+            lambda p: p.update(live_freshness="FRESH"),
+            lambda p: p.update(freshness_mode="LIVE"),
+            lambda p: p.update(as_of_ms=asof + 60000),
+            lambda p: p.update(paper_admitted=True),
+            lambda p: p["rows"][0].update(delta=999999.0),
+            lambda p: p.update(extra_authority="YES"),
+        )
+        for change in changes:
+            forged = copy.deepcopy(page)
+            change(forged)
+            forged["dataset_fingerprint"] = digest({
+                k:v for k,v in forged.items()
+                if k != "dataset_fingerprint"})
+            with self.subTest(change=str(change)), self.assertRaises(ValueError):
+                validate_qualified_rollup(
+                    forged, "BTCUSDT", "5m", 1,
+                    historical=True, before_ms=boundary, as_of_ms=asof)
+
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.
 

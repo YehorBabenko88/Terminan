@@ -28,7 +28,7 @@ _TOP = frozenset({
     "coverage", "record_integrity", "source_authenticity",
     "exchange_completeness", "quality_attestation", "storage_immutability",
     "immutable", "read_only", "execution_authority", "trading_authorized",
-    "paper_admitted", "rows", "dataset_fingerprint",
+    "paper_admitted", "rows", "dataset_fingerprint", "source_declared_quality",
 })
 _ROW = frozenset({
     "start_ms", "end_ms", "open", "high", "low", "close",
@@ -37,6 +37,7 @@ _ROW = frozenset({
 })
 _MAX_TIME = 2**53-1
 _MAX_RESPONSE_BYTES = 8_388_608
+_HISTORICAL_ONLY = frozenset({"freshness_mode", "as_of_ms", "live_freshness", "historical_source_trust"})
 
 
 def _digest(value):
@@ -63,22 +64,45 @@ def _amount(value, *, positive=False):
     return number
 
 
-def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None):
+def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
+                              now_ms=None, historical=False,
+                              before_ms=None, as_of_ms=None):
     """Validate one already managed B rollup page, then detach its rows.
 
     This is an integrity/shape check, NOT source authenticity attestation.
-    Historical-as-of, future timeframes and explicit unqualified data deny.
+    Exact LIVE and HISTORICAL_AS_OF contracts are separate. A historical
+    observation cutoff never supplies exchange or historical snapshot trust.
     """
     try:
         _need(type(symbol) is str and _SYMBOL.fullmatch(symbol) is not None)
         _need(type(timeframe) is str and timeframe in _WINDOWS)
         _need(type(limit) is int and 1 <= limit <= 5)
+        _need(type(historical) is bool)
         now = int(time.time()*1000) if now_ms is None else now_ms
         _need(type(now) is int and 0 < now <= _MAX_TIME)
-        _need(type(envelope) is dict and set(envelope) == _TOP)
+        period = _WINDOWS[timeframe] * 60000
+        if historical:
+            _need(type(before_ms) is int and type(as_of_ms) is int
+                  and 0 < before_ms <= as_of_ms <= now
+                  and before_ms % period == 0 and as_of_ms % 60000 == 0
+                  and as_of_ms - before_ms <= 30 * 86400000)
+        else:
+            _need(before_ms is None and as_of_ms is None)
+        _need(type(envelope) is dict
+              and set(envelope) == (_TOP | _HISTORICAL_ONLY if historical else _TOP))
         _need(len(json.dumps(envelope, ensure_ascii=True,
                              separators=(",", ":"), allow_nan=False).encode("ascii")) <= _MAX_RESPONSE_BYTES)
-        _need(envelope["schema"] == "market_data.qualified-mtf-envelope.v1")
+        _need(envelope["schema"] ==
+              ("market_data.historical-as-of-mtf-envelope.v1" if historical
+               else "market_data.qualified-mtf-envelope.v1"))
+        _need(type(envelope["source_declared_quality"]) is list
+              and envelope["source_declared_quality"] == ["GOOD"])
+        if historical:
+            _need(envelope["freshness_mode"] == "HISTORICAL_AS_OF"
+                  and envelope["live_freshness"] == "NOT_APPLICABLE"
+                  and envelope["historical_source_trust"] == "NOT_INDEPENDENTLY_ATTESTED"
+                  and type(envelope["as_of_ms"]) is int
+                  and envelope["as_of_ms"] == as_of_ms)
         _need(type(envelope["api_version"]) is dict
               and envelope["api_version"] == {"major": 2, "minor": 0}
               and type(envelope["api_version"]["major"]) is int
@@ -87,7 +111,8 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
             ("producer", "market_data"), ("symbol", symbol),
             ("timeframe", timeframe), ("limit", limit),
             ("status", "PARTIAL"),
-            ("reason", "EXCHANGE_COMPLETENESS_UNATTESTED"),
+            ("reason", "HISTORICAL_AS_OF_SOURCE_ONLY" if historical
+             else "EXCHANGE_COMPLETENESS_UNATTESTED"),
             ("source_timeframe", "1m"),
             ("source_minutes", limit * _WINDOWS[timeframe]),
             ("record_integrity", "VERIFIED"),
@@ -118,7 +143,6 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
               and envelope["coverage"] == {"expected_minutes": expected, "observed_minutes": expected, "missing_minutes": 0})
         rows = envelope["rows"]
         _need(type(rows) is list and len(rows) == limit)
-        period = _WINDOWS[timeframe] * 60000
         previous = None
         observed_fingerprints = set()
         for row in rows:
@@ -126,7 +150,8 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
             start, end = row["start_ms"], row["end_ms"]
             _need(type(start) is int and type(end) is int
                   and 0 <= start <= _MAX_TIME and start % period == 0
-                  and end == start + period - 1 and end < now)
+                  and end == start + period - 1
+                  and end < (as_of_ms if historical else now))
             if previous is not None:
                 _need(start == previous + period)
             previous = start
@@ -142,14 +167,23 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
                               else Decimal(str(row[k])) for k in ("buy_volume","sell_volume","delta"))
             _need(type(row["delta"]) in (int,float) and delta.is_finite())
             _need(candle_ohlcv_valid(o,h,l,c,buy) and candle_ohlcv_valid(o,h,l,c,sell))
+            # B computes exact Decimal delta BEFORE rounding displayed buy/sell
+            # to binary64. 1e16 + 0.01 can round back to 1e16, while the
+            # original valid delta remains 0.01. Enforce the uncertainty of
+            # the three displayed binary64 values instead of false equality.
             canonical_delta = executed_volume_delta(buy, sell)
-            delta_binary64 = float(canonical_delta)
-            _need(math.isfinite(delta_binary64)
-                  and (canonical_delta == 0 or delta_binary64 != 0)
-                  and delta_binary64 == row["delta"])
-        # B qualified source watermark remains 120s. A complete closed 15m
-        # page can only be accepted in that live window. Do not bypass as-of.
-        _need(now - rows[-1]["end_ms"] <= 120000)
+            uncertainty = sum((
+                Decimal(str(math.ulp(float(row[key])))) / 2
+                for key in ("buy_volume", "sell_volume", "delta")
+            ), Decimal(0))
+            _need(abs(canonical_delta - delta) <= uncertainty)
+        if historical:
+            # A missing final bucket must not masquerade as the requested
+            # historical cursor. Original B SQL uses start_ms < before_ms.
+            _need(rows[-1]["end_ms"] == before_ms - 1)
+        else:
+            # Grid LIVE freshness remains 120s; never accept stale as live.
+            _need(now - rows[-1]["end_ms"] <= 120000)
         return copy.deepcopy(envelope)
     except (KeyError, TypeError, ValueError, OverflowError, ArithmeticError,
             RecursionError, UnicodeError, AttributeError):
@@ -162,8 +196,12 @@ def chart_rollup_rows(checked):
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
         "closed_at_ms": row["end_ms"] + 1,
+        # Both directional totals have already been rounded by B's binary64
+        # DTO. Math addition is exact *for these floats*, NOT original trade
+        # volume precision. No retrospective source-value reconstruction.
         "v": str(exact_sum((Decimal(str(row["buy_volume"])),
                             Decimal(str(row["sell_volume"]))))),
+        "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],
         "delta": row["delta"], "trade_count": row["trade_count"],
         "source_minute_fingerprints": tuple(row["source_minute_fingerprints"]),

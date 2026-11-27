@@ -137,6 +137,20 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/market-data/candles": result = data.market_data_candles(symbol)
                 elif url.path == "/api/market-data/footprint": result = data.footprint(symbol)
                 elif url.path == "/api/market-data/qualified": result = data.qualified_market_data_chart(symbol)
+                elif url.path == "/api/market-data/qualified/historical":
+                    bounded = parse_qs(url.query, keep_blank_values=True,
+                                       strict_parsing=True, max_num_fields=5)
+                    if (set(bounded) != {"symbol", "timeframe", "bars", "before_ms", "as_of_ms"}
+                            or any(len(v) != 1 for v in bounded.values())
+                            or re.fullmatch(r"[1-5]", bounded["bars"][0]) is None
+                            or any(re.fullmatch(r"[1-9][0-9]{0,15}", bounded[k][0]) is None
+                                   for k in ("before_ms", "as_of_ms"))):
+                        raise ValueError("INVALID_HISTORICAL_CHART_QUERY")
+                    result = data.qualified_market_data_historical_chart(
+                        bounded["symbol"][0], bounded["timeframe"][0],
+                        bars=int(bounded["bars"][0]),
+                        before_ms=int(bounded["before_ms"][0]),
+                        as_of_ms=int(bounded["as_of_ms"][0]))
                 elif url.path == "/api/market-data/qualified/timeframe":
                     bounded = parse_qs(url.query, keep_blank_values=True,
                                        strict_parsing=True, max_num_fields=3)
