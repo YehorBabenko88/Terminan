@@ -139,8 +139,7 @@ class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
             reader=lambda *_: copy.deepcopy(rows), now_ms=NOW, exact=True)
         validated = validate_qualified_rollup(
             envelope, "BTCUSDT", timeframe, bars,
-            now_ms=NOW, before_ms=BOUNDARY, as_of_ms=BOUNDARY + 60000,
-            historical=True, exact=True)
+            now_ms=NOW, exact=True)
         return envelope, chart_rollup_rows(validated)
 
     def test_original_68_line_volume_ohlcv_clock_matches_grid_math_and_d(self):
@@ -217,8 +216,7 @@ class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
             ):
                 validate_qualified_rollup(
                     forged, "BTCUSDT", "5m", 1, now_ms=NOW,
-                    before_ms=BOUNDARY, as_of_ms=BOUNDARY + 60000,
-                    historical=True, exact=True)
+                    exact=True)
 
 
 if __name__ == "__main__":
