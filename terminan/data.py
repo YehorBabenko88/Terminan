@@ -35,8 +35,8 @@ class MarketDataReadClient:
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
                 and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
                 and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
-                and re.fullmatch(r'/internal/v2/candles/qualified-rollup\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}',path) is None
-                and re.fullmatch(r'/internal/v2/candles/historical-as-of\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v2/candles/qualified-rollup(?:-exact)?\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}',path) is None
+                and re.fullmatch(r'/internal/v2/candles/historical-as-of(?:-exact)?\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -183,10 +183,10 @@ def _market_data_http_get(port, path, *, headers=None):
             r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
             path) is not None and headers is not None
         qualified_mtf = re.fullmatch(
-            r"/internal/v2/candles/qualified-rollup\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}",
+            r"/internal/v2/candles/qualified-rollup(?:-exact)?\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}",
             path) is not None and headers is not None
         qualified_historical = re.fullmatch(
-            r"/internal/v2/candles/historical-as-of\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}",
+            r"/internal/v2/candles/historical-as-of(?:-exact)?\?symbol=[A-Z0-9]{2,30}&timeframe=(?:5m|15m)&limit=[1-5]&before_ms=[1-9][0-9]{0,18}&as_of_ms=[1-9][0-9]{0,18}",
             path) is not None and headers is not None
         budget = (_QUALIFIED_MTF_MAX_JSON if (qualified_mtf or qualified_historical) else
                   _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON)
@@ -354,9 +354,9 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
     try:
         from .qualified_rollup import validate_qualified_rollup, chart_rollup_rows
         envelope = client.get(
-            f"/internal/v2/candles/qualified-rollup?symbol={symbol}&timeframe={timeframe}&limit={bars}&before_ms={before_ms}"
+            f"/internal/v2/candles/qualified-rollup-exact?symbol={symbol}&timeframe={timeframe}&limit={bars}&before_ms={before_ms}"
         )
-        checked = validate_qualified_rollup(envelope, symbol, timeframe, bars)
+        checked = validate_qualified_rollup(envelope, symbol, timeframe, bars, exact=True)
         return {
             "status": checked["status"], "reason": checked["reason"],
             "timeframe": timeframe, "source_timeframe": "1m",
@@ -368,7 +368,7 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
             "source_revision_declared": checked["source_revision"],
             "source_epoch_declared": checked["producer_epoch"],
             "source_authenticity": checked["source_authenticity"],
-            "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
+            "volume_precision": "CANONICAL_MATH_EXACT_SOURCE_VALUES",
             "quality_attestation": checked["quality_attestation"],
             "storage_immutability": checked["storage_immutability"],
             "exchange_completeness_attested": False,
@@ -415,13 +415,13 @@ def qualified_market_data_historical_chart(symbol, timeframe, *, bars,
     try:
         from .qualified_rollup import validate_qualified_rollup, chart_rollup_rows
         envelope = client.get(
-            f"/internal/v2/candles/historical-as-of?symbol={symbol}"
+            f"/internal/v2/candles/historical-as-of-exact?symbol={symbol}"
             f"&timeframe={timeframe}&limit={bars}"
             f"&before_ms={before_ms}&as_of_ms={as_of_ms}"
         )
         checked = validate_qualified_rollup(
             envelope, symbol, timeframe, bars, historical=True,
-            before_ms=before_ms, as_of_ms=as_of_ms)
+            before_ms=before_ms, as_of_ms=as_of_ms, exact=True)
         return {
             "status": "PARTIAL", "reason": "HISTORICAL_AS_OF_SOURCE_ONLY",
             "observation_mode": "HISTORICAL_AS_OF_SOURCE_ONLY",
@@ -435,7 +435,7 @@ def qualified_market_data_historical_chart(symbol, timeframe, *, bars,
             "source_revision_declared": checked["source_revision"],
             "source_epoch_declared": checked["producer_epoch"],
             "source_authenticity": checked["source_authenticity"],
-            "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
+            "volume_precision": "CANONICAL_MATH_EXACT_SOURCE_VALUES",
             "quality_attestation": checked["quality_attestation"],
             "storage_immutability": checked["storage_immutability"],
             "live_freshness": "NOT_APPLICABLE",
