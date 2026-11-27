@@ -22,8 +22,13 @@ function strictUtcMinute(value) {
 function exactMtfRows(receipt, timeframe, count) {
   const rows = Array.isArray(receipt?.rows) ? receipt.rows : [];
   const fixed = /^-?(?:0|[1-9][0-9]*)(?:[.][0-9]*[1-9])?$/;
-  return rows.length === count && rows.every(row =>
-    typeof row.v === 'string' && row.v === row.volume_decimal
+  const width = timeframe === '5m' ? 300000 : timeframe === '15m' ? 900000 : 0;
+  return width > 0 && rows.length === count && rows.every((row, i) =>
+    Number.isSafeInteger(row.t) && row.t >= 0
+    && row.t % width === 0
+    && row.closed_at_ms === row.t + width
+    && (i === 0 || row.t === rows[i - 1].t + width)
+    && typeof row.v === 'string' && row.v === row.volume_decimal
     && row.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
     && typeof row.buy_volume_decimal === 'string'
     && typeof row.sell_volume_decimal === 'string'
@@ -31,11 +36,17 @@ function exactMtfRows(receipt, timeframe, count) {
     && fixed.test(row.volume_decimal)
     && fixed.test(row.buy_volume_decimal)
     && fixed.test(row.sell_volume_decimal)
-    && fixed.test(row.delta_decimal));
+    && fixed.test(row.delta_decimal)
+    && !row.volume_decimal.startsWith('-')
+    && !row.buy_volume_decimal.startsWith('-')
+    && !row.sell_volume_decimal.startsWith('-')
+    && row.delta_decimal !== '-0');
 }
 function exactMtfReceipt(receipt, timeframe, count, reason) {
   const width = timeframe === '5m' ? 5 : timeframe === '15m' ? 15 : 0;
   return width > 0 && receipt?.status === 'PARTIAL'
+    && receipt.timeframe === timeframe
+    && receipt.source_timeframe === '1m'
     && receipt.reason === reason
     && receipt.read_only === true
     && receipt.record_integrity === 'VERIFIED'
