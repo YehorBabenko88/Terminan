@@ -86,7 +86,45 @@ def scientific_memory(source, symbol, limit):
         identifiers = (record.get("id"), record.get("input_hash"), dataset.get("id") if isinstance(dataset, dict) else None)
         if any(not isinstance(value, str) or not SHA256.fullmatch(value) for value in identifiers):
             raise RuntimeError("Unexpected scientific memory record identity")
+    if "qualification_schema" in payload or "qualifications" in payload:
+        _validate_memory_qualifications(payload, records)
     return records
+
+
+def _validate_memory_qualifications(payload, records):
+    """Validate optional deny-only sidecar without changing legacy records."""
+    entries = payload.get("qualifications")
+    if (payload.get("qualification_schema") != "math.scientific-memory.qualification.v2"
+            or not isinstance(entries, list) or len(entries) != len(records)):
+        raise RuntimeError("Unexpected scientific memory qualification envelope")
+    seen = set()
+    for record, entry in zip(records, entries):
+        identity = record["id"]
+        dataset = record["dataset"]
+        provenance = record.get("provenance")
+        if (identity in seen or dataset.get("symbol") != record["symbol"]
+                or dataset.get("sha256") != record["input_hash"]
+                or not isinstance(provenance, dict)
+                or provenance.get("execution_authority") is not False
+                or provenance.get("trading_authorized") is not False):
+            raise RuntimeError("Unexpected scientific memory qualification binding")
+        seen.add(identity)
+        expected = {
+            "id": identity,
+            "descriptive_outcome": record["status"],
+            "source_authenticity": "UNATTESTED",
+            "fit_binding": "NOT_PROVIDED",
+            "method_validation": "UNVERIFIED",
+            "empirical_reproduction": "UNKNOWN",
+            "formal_proof": "NOT_ESTABLISHED",
+            "causal_eligibility": "UNKNOWN",
+            "execution_authority": False,
+            "trading_authorized": False,
+        }
+        if (not isinstance(entry, dict) or entry != expected
+                or entry.get("execution_authority") is not False
+                or entry.get("trading_authorized") is not False):
+            raise RuntimeError("Unexpected scientific memory qualification")
 
 
 DECIMAL_TEXT = re.compile(r"-?[0-9]+(?:\.[0-9]+)?")
