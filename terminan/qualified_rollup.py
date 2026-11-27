@@ -38,6 +38,14 @@ _ROW = frozenset({
 _MAX_TIME = 2**53-1
 _MAX_RESPONSE_BYTES = 8_388_608
 _HISTORICAL_ONLY = frozenset({"freshness_mode", "as_of_ms", "live_freshness", "historical_source_trust"})
+_EXACT_TOP = frozenset({"decimal_contract", "numeric_presentation"})
+_EXACT_ROW = frozenset({
+    "buy_volume_decimal", "sell_volume_decimal", "volume_decimal",
+    "delta_decimal",
+})
+# Canonical Grid v2: fixed decimal, no exponent, leading zero, or trailing
+# fractional zeros. Decimal string length and Math domain remain bounded.
+_FIXED_DECIMAL = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?\Z")
 
 
 def _digest(value):
@@ -64,9 +72,39 @@ def _amount(value, *, positive=False):
     return number
 
 
+def _exact_amount(value, *, signed=False):
+    _need(type(value) is str and 0 < len(value) <= 4300)
+    _need(_FIXED_DECIMAL.fullmatch(value) is not None)
+    number = Decimal(value)
+    _need(number.is_finite() and (signed or number >= 0))
+    _need(not (number.is_zero() and value.startswith("-")))
+    # Preserve normalized fixed ASCII: no Decimal context rounding, aliases,
+    # or client-owned summation. Math checks all numeric domain constraints.
+    _need(("0" if number.is_zero() else format(number, "f")
+           .rstrip("0").rstrip(".") if "." in format(number, "f")
+           else format(number, "f")) == value)
+    return number
+
+
+def _presentation_matches(exact_value, shown):
+    # Source-exact Decimal is always authoritative. Only check that the
+    # OPTIONAL B binary64 presentation corresponds to it when representable.
+    try:
+        rounded = float(exact_value)
+    except OverflowError:
+        rounded = float("inf")
+    representable = math.isfinite(rounded) and (
+        exact_value == 0 or rounded != 0)
+    if representable:
+        _need(type(shown) in (int, float) and math.isfinite(float(shown))
+              and float(shown) == rounded)
+    else:
+        _need(shown is None)
+
+
 def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
                               now_ms=None, historical=False,
-                              before_ms=None, as_of_ms=None):
+                              before_ms=None, as_of_ms=None, exact=False):
     """Validate one already managed B rollup page, then detach its rows.
 
     This is an integrity/shape check, NOT source authenticity attestation.
@@ -77,7 +115,7 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
         _need(type(symbol) is str and _SYMBOL.fullmatch(symbol) is not None)
         _need(type(timeframe) is str and timeframe in _WINDOWS)
         _need(type(limit) is int and 1 <= limit <= 5)
-        _need(type(historical) is bool)
+        _need(type(historical) is bool and type(exact) is bool)
         now = int(time.time()*1000) if now_ms is None else now_ms
         _need(type(now) is int and 0 < now <= _MAX_TIME)
         period = _WINDOWS[timeframe] * 60000
@@ -88,15 +126,22 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
                   and as_of_ms - before_ms <= 30 * 86400000)
         else:
             _need(before_ms is None and as_of_ms is None)
-        _need(type(envelope) is dict
-              and set(envelope) == (_TOP | _HISTORICAL_ONLY if historical else _TOP))
+        expected_top = (_TOP - {"source_declared_quality"} | _EXACT_TOP
+                        if exact else _TOP)
+        if historical:
+            expected_top = expected_top | _HISTORICAL_ONLY
+        _need(type(envelope) is dict and set(envelope) == expected_top)
         _need(len(json.dumps(envelope, ensure_ascii=True,
                              separators=(",", ":"), allow_nan=False).encode("ascii")) <= _MAX_RESPONSE_BYTES)
-        _need(envelope["schema"] ==
-              ("market_data.historical-as-of-mtf-envelope.v1" if historical
-               else "market_data.qualified-mtf-envelope.v1"))
-        _need(type(envelope["source_declared_quality"]) is list
-              and envelope["source_declared_quality"] == ["GOOD"])
+        schema = ("market_data.historical-as-of-mtf-envelope"
+                  if historical else "market_data.qualified-mtf-envelope")
+        _need(envelope["schema"] == schema + (".v2" if exact else ".v1"))
+        if exact:
+            _need(envelope["decimal_contract"] == "CANONICAL_MATH_EXACT_SOURCE_VALUES"
+                  and envelope["numeric_presentation"] == "DECIMAL_STRING_LOSSLESS")
+        else:
+            _need(type(envelope["source_declared_quality"]) is list
+                  and envelope["source_declared_quality"] == ["GOOD"])
         if historical:
             _need(envelope["freshness_mode"] == "HISTORICAL_AS_OF"
                   and envelope["live_freshness"] == "NOT_APPLICABLE"
@@ -104,7 +149,7 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
                   and type(envelope["as_of_ms"]) is int
                   and envelope["as_of_ms"] == as_of_ms)
         _need(type(envelope["api_version"]) is dict
-              and envelope["api_version"] == {"major": 2, "minor": 0}
+              and envelope["api_version"] == {"major": 2, "minor": 1 if exact else 0}
               and type(envelope["api_version"]["major"]) is int
               and type(envelope["api_version"]["minor"]) is int)
         for field, literal in (
@@ -146,7 +191,8 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
         previous = None
         observed_fingerprints = set()
         for row in rows:
-            _need(type(row) is dict and set(row) == _ROW)
+            _need(type(row) is dict and set(row) ==
+                  (_ROW | _EXACT_ROW if exact else _ROW))
             start, end = row["start_ms"], row["end_ms"]
             _need(type(start) is int and type(end) is int
                   and 0 <= start <= _MAX_TIME and start % period == 0
@@ -163,20 +209,34 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
             observed_fingerprints.update(fps)
             _need(type(row["trade_count"]) is int and 0 <= row["trade_count"] < 2**63)
             o,h,l,c = (_amount(row[k], positive=True) for k in ("open","high","low","close"))
-            buy,sell,delta = (_amount(row[k]) if k!="delta"
-                              else Decimal(str(row[k])) for k in ("buy_volume","sell_volume","delta"))
-            _need(type(row["delta"]) in (int,float) and delta.is_finite())
-            _need(candle_ohlcv_valid(o,h,l,c,buy) and candle_ohlcv_valid(o,h,l,c,sell))
-            # B computes exact Decimal delta BEFORE rounding displayed buy/sell
-            # to binary64. 1e16 + 0.01 can round back to 1e16, while the
-            # original valid delta remains 0.01. Enforce the uncertainty of
-            # the three displayed binary64 values instead of false equality.
-            canonical_delta = executed_volume_delta(buy, sell)
-            uncertainty = sum((
-                Decimal(str(math.ulp(float(row[key])))) / 2
-                for key in ("buy_volume", "sell_volume", "delta")
-            ), Decimal(0))
-            _need(abs(canonical_delta - delta) <= uncertainty)
+            if exact:
+                buy = _exact_amount(row["buy_volume_decimal"])
+                sell = _exact_amount(row["sell_volume_decimal"])
+                volume = _exact_amount(row["volume_decimal"])
+                delta = _exact_amount(row["delta_decimal"], signed=True)
+                # Only canonical Math computes the exact total and delta.
+                _need(exact_sum((buy, sell)) == volume)
+                _need(executed_volume_delta(buy, sell) == delta)
+                _need(candle_ohlcv_valid(o,h,l,c,buy)
+                      and candle_ohlcv_valid(o,h,l,c,sell))
+                for name, amount in (("buy_volume", buy),
+                                     ("sell_volume", sell), ("delta", delta)):
+                    _presentation_matches(amount, row[name])
+            else:
+                buy,sell,delta = (_amount(row[k]) if k!="delta"
+                                  else Decimal(str(row[k])) for k in
+                                 ("buy_volume","sell_volume","delta"))
+                _need(type(row["delta"]) in (int,float) and delta.is_finite())
+                _need(candle_ohlcv_valid(o,h,l,c,buy)
+                      and candle_ohlcv_valid(o,h,l,c,sell))
+                # Original Grid v1 had only lossy binary64 presentation.
+                # ULP is a display-consistency check, not source proof.
+                canonical_delta = executed_volume_delta(buy, sell)
+                uncertainty = sum((
+                    Decimal(str(math.ulp(float(row[key])))) / 2
+                    for key in ("buy_volume", "sell_volume", "delta")
+                ), Decimal(0))
+                _need(abs(canonical_delta - delta) <= uncertainty)
         if historical:
             # A missing final bucket must not masquerade as the requested
             # historical cursor. Original B SQL uses start_ms < before_ms.
@@ -191,7 +251,8 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
 
 
 def chart_rollup_rows(checked):
-    """Only detached bounded OHLCV/delta presentation, without POC or trade data."""
+    """Detached source-exact Math rows; never permission, POC or fake OI."""
+    exact = checked.get("numeric_presentation") == "DECIMAL_STRING_LOSSLESS"
     return [{
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
@@ -199,10 +260,18 @@ def chart_rollup_rows(checked):
         # Both directional totals have already been rounded by B's binary64
         # DTO. Math addition is exact *for these floats*, NOT original trade
         # volume precision. No retrospective source-value reconstruction.
-        "v": str(exact_sum((Decimal(str(row["buy_volume"])),
-                            Decimal(str(row["sell_volume"]))))),
-        "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
+        "v": (row["volume_decimal"] if exact else
+              str(exact_sum((Decimal(str(row["buy_volume"])),
+                             Decimal(str(row["sell_volume"])))))),
+        "volume_precision": ("CANONICAL_MATH_EXACT_SOURCE_VALUES" if exact
+                             else "BINARY64_PRESENTATION_NOT_SOURCE_EXACT"),
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],
         "delta": row["delta"], "trade_count": row["trade_count"],
         "source_minute_fingerprints": tuple(row["source_minute_fingerprints"]),
+        **({
+            "buy_volume_decimal": row["buy_volume_decimal"],
+            "sell_volume_decimal": row["sell_volume_decimal"],
+            "volume_decimal": row["volume_decimal"],
+            "delta_decimal": row["delta_decimal"],
+        } if exact else {}),
     } for row in checked["rows"]]
