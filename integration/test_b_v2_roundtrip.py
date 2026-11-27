@@ -254,7 +254,8 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         return records
 
     def test_b_managed_75_minutes_to_math_5m_15m_readonly(self):
-        """Actual B HTTP DTO, Math rollup and D consumer (synthetic SQL seam)."""
+        """Actual managed B rollup route, strict D projection, Math checks."""
+        from decimal import Decimal
         boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
         now = boundary + 30000
         rows = self._mtf_records(boundary, now, 75)
@@ -275,10 +276,10 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 self.assertEqual(result["status"], "PARTIAL")
                 self.assertEqual(result["timeframe"], timeframe)
                 self.assertEqual(len(result["rows"]), 5)
-                self.assertEqual(result["rows"][0]["v"], volume)
+                self.assertEqual(Decimal(result["rows"][0]["v"]), Decimal(volume))
                 self.assertRegex(result["dataset_fingerprint"], r"^[a-f0-9]{64}$")
+                self.assertRegex(result["parent_dataset_fingerprint"], r"^[a-f0-9]{64}$")
                 self.assertEqual(result["source_revision_declared"], "a" * 40)
-                self.assertEqual(result["source_identity_declared"], "synthetic-lab-source")
                 self.assertFalse(result["paper_admitted"])
                 self.assertFalse(result["trading_authorized"])
                 self.assertFalse(result["execution_authority"])
@@ -319,6 +320,47 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 self.assertFalse(receipt["paper_admitted"])
                 self.assertFalse(receipt["execution_authority"])
                 self.assertFalse(receipt["trading_authorized"])
+
+    def test_grid_mtf_digest_and_math_negative_matrix(self):
+        """Rehashing a forged B page never converts it to a qualified chart."""
+        from market_data.provenance import digest
+        from market_data_v2.read_api import qualified_rollup_snapshot
+        from terminan.qualified_rollup import validate_qualified_rollup
+        boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
+        now = boundary + 30000
+        rows = self._mtf_records(boundary, now, 5)
+        page = qualified_rollup_snapshot(
+            "BTCUSDT", "5m", 1, reader=lambda *_: rows, now_ms=now)
+        self.assertEqual(
+            validate_qualified_rollup(page, "BTCUSDT", "5m", 1,
+                                      now_ms=now)["status"], "PARTIAL")
+        changes = (
+            lambda p: p.update(status="STALE"),
+            lambda p: p.update(paper_admitted=True),
+            lambda p: p.update(execution_authority=True),
+            lambda p: p.update(source_authenticity="EXCHANGE_VERIFIED"),
+            lambda p: p.update(source_minutes=True),
+            lambda p: p["rows"][0].update(delta=1.2345),
+            lambda p: p["rows"][0].update(high=0),
+            lambda p: p["rows"][0].update(trade_count=True),
+            lambda p: p["rows"][0].update(end_ms=p["rows"][0]["end_ms"] - 1),
+            lambda p: p["rows"][0].update(source_minute_fingerprints=[]),
+            lambda p: p["rows"][0]["source_minute_fingerprints"].__setitem__(
+                1, p["rows"][0]["source_minute_fingerprints"][0]),
+            lambda p: p["rows"][0].update(buy_volume=-1),
+            lambda p: p["coverage"].update(missing_minutes=True),
+            lambda p: p.update(debug="injected"),
+        )
+        for mutate in changes:
+            forged = copy.deepcopy(page)
+            mutate(forged)
+            forged["dataset_fingerprint"] = digest({
+                key: value for key, value in forged.items()
+                if key != "dataset_fingerprint"
+            })
+            with self.subTest(mutate=str(mutate)), self.assertRaises(ValueError):
+                validate_qualified_rollup(
+                    forged, "BTCUSDT", "5m", 1, now_ms=now)
 
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.

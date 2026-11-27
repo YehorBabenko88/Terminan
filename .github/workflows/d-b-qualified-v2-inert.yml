@@ -8,8 +8,8 @@ permissions:
   contents: read
 env:
   TERMINAN_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-  GRID_V2_SHA: 165aa614cf6f79d451eac2faa48d6084fbd03d31
-  MATH_SHA: 14d9ca92803b3ede19c7292e85c3627554d5c1d9
+  GRID_V2_SHA: 2404a7a61c7ddde0ea96b45088cf6072a9235b1e
+  MATH_SHA: 9e6acbd9e12a91189f57234828e31640983af553
   PYTHONDONTWRITEBYTECODE: '1'
 jobs:
   managed-v2-roundtrip:
