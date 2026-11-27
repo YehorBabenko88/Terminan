@@ -99,6 +99,32 @@ class QualifiedTimeframeHTTPTests(unittest.TestCase):
         self.assertNotIn("Number(last.volume_decimal)", html)
         self.assertNotIn("parseFloat(last.delta_decimal)", html)
 
+    def test_historical_ui_explicit_utc_receipt_and_no_live_fallback(self):
+        """Inspect installed UI resource, never a separate MTF reducer."""
+        from importlib.resources import files
+        html = files("terminan").joinpath("index.html").read_text(
+            encoding="utf-8")
+        for element in (
+                'id="chart-mode"', 'id="historical-controls"',
+                'id="history-before"', 'id="history-asof"',
+                'id="history-bars"', 'type="datetime-local"',
+                "strictUtcMinute(", "exactMtfReceipt(",
+                "HISTORICAL_AS_OF_SOURCE_ONLY",
+                "NOT_INDEPENDENTLY_ATTESTED",
+                "receipt.before_ms === before",
+                "receipt.as_of_ms === asof",
+                "last.volume_decimal", "last.delta_decimal",
+                "без LIVE fallback"):
+            with self.subTest(element=element):
+                self.assertIn(element, html)
+        self.assertIn("if (!historical) {", html)
+        self.assertIn("if (historical) {", html)
+        self.assertIn("currentLevels = [];", html)
+        self.assertIn("el('footprint').textContent = 'Исторический", html)
+        self.assertIn("el('research').textContent = 'Текущие", html)
+        self.assertNotIn("Number(last.volume_decimal)", html)
+        self.assertNotIn("parseFloat(last.delta_decimal)", html)
+
     def test_historical_route_requires_explicit_asof_and_is_never_live(self):
         base = "/api/market-data/qualified/historical"
         boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
