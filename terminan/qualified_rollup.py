@@ -13,7 +13,7 @@ import re
 import time
 import uuid
 
-from market_math import candle_ohlcv_valid, executed_volume_delta
+from market_math import candle_ohlcv_valid, executed_volume_delta, exact_sum
 from decimal import Decimal
 
 _WINDOWS = {"5m": 5, "15m": 15}
@@ -137,7 +137,7 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
                               else Decimal(str(row[k])) for k in ("buy_volume","sell_volume","delta"))
             _need(type(row["delta"]) in (int,float) and delta.is_finite())
             _need(candle_ohlcv_valid(o,h,l,c,buy) and candle_ohlcv_valid(o,h,l,c,sell))
-            _need(executed_volume_delta(buy,sell) == delta)
+            _need(float(executed_volume_delta(buy,sell)) == row["delta"])
         # B qualified source watermark remains 120s. A complete closed 15m
         # page can only be accepted in that live window. Do not bypass as-of.
         _need(now - rows[-1]["end_ms"] <= 120000)
@@ -152,6 +152,8 @@ def chart_rollup_rows(checked):
     return [{
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
+        "v": str(exact_sum((Decimal(str(row["buy_volume"])),
+                            Decimal(str(row["sell_volume"]))))),
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],
         "delta": row["delta"], "trade_count": row["trade_count"],
         "source_minute_fingerprints": tuple(row["source_minute_fingerprints"]),
