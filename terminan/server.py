@@ -137,6 +137,16 @@ class Handler(BaseHTTPRequestHandler):
                 elif url.path == "/api/market-data/candles": result = data.market_data_candles(symbol)
                 elif url.path == "/api/market-data/footprint": result = data.footprint(symbol)
                 elif url.path == "/api/market-data/qualified": result = data.qualified_market_data_chart(symbol)
+                elif url.path == "/api/market-data/qualified/timeframe":
+                    bounded = parse_qs(url.query, keep_blank_values=True,
+                                       strict_parsing=True, max_num_fields=3)
+                    if (set(bounded) != {"symbol", "timeframe", "bars"}
+                            or any(len(values) != 1 for values in bounded.values())
+                            or re.fullmatch(r"[1-5]", bounded["bars"][0]) is None):
+                        raise ValueError("INVALID_QUALIFIED_TIMEFRAME_QUERY")
+                    result = data.qualified_market_data_timeframe_chart(
+                        bounded["symbol"][0], bounded["timeframe"][0],
+                        bars=int(bounded["bars"][0]))
                 elif url.path == "/api/market-data/source": result = data.market_data_source_status()
                 elif url.path == "/api/status": result = {"mode":"READ_ONLY","market_data":bool(data._market_data_port()),"market_data_source":data.market_data_source_status(),"research":bool(os.environ.get("TERMINAN_RESULTS_DB"))}
                 else: return self.send_error(404)

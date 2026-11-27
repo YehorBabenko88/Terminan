@@ -3,6 +3,7 @@ import http.client
 import json
 import os
 import re
+import time
 from contextlib import contextmanager
 
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
@@ -33,7 +34,8 @@ class MarketDataReadClient:
     def get(self,path):
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
                 and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
-                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:5|10|15|20|25|30|45|60|75)&before_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -149,6 +151,7 @@ _MARKET_DATA_MAX_JSON = 16384
 # Keep a bounded transport budget for a valid 5-row footprint receipt.
 # This is not a general increase for legacy/unmanaged probe endpoints.
 _QUALIFIED_V2_MAX_JSON = 5 * 1_048_576 + 65_536
+_QUALIFIED_MTF_MAX_JSON = 8 * 1_048_576 + 65_536
 
 
 def _market_data_internal_get(port,path):
@@ -178,7 +181,11 @@ def _market_data_http_get(port, path, *, headers=None):
         qualified_v2 = re.fullmatch(
             r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
             path) is not None and headers is not None
-        budget = _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON
+        qualified_mtf = re.fullmatch(
+            r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:5|10|15|20|25|30|45|60|75)&before_ms=[1-9][0-9]{0,18}",
+            path) is not None and headers is not None
+        budget = (_QUALIFIED_MTF_MAX_JSON if qualified_mtf else
+                  _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON)
         advertised = response.getheader("Content-Length")
         if advertised is not None:
             if (re.fullmatch(r"[0-9]{1,10}", advertised) is None
@@ -330,10 +337,16 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
     if type(client) is not MarketDataReadClient:
         return unavailable
     count = step * bars
+    # No unclosed candle: Grid cursor ends at the most recent aligned close.
+    # Its strict 120-second freshness gate remains unmodified.
+    now_ms = int(time.time() * 1000)
+    before_ms = (now_ms // (step * 60000)) * (step * 60000)
+    if before_ms <= 0:
+        return unavailable
     try:
         from .qualified_partial import validate_qualified_v2, qualified_timeframe_rows
         envelope = client.get(
-            f"/internal/v2/candles/qualified?symbol={symbol}&limit={count}"
+            f"/internal/v2/candles/qualified?symbol={symbol}&limit={count}&before_ms={before_ms}"
         )
         checked = validate_qualified_v2(envelope, symbol, count)
         return qualified_timeframe_rows(checked, timeframe, max_bars=bars)

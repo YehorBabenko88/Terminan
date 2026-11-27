@@ -227,6 +227,96 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertFalse(receipt["paper_admitted"])
         self.assertFalse(receipt["trading_authorized"])
 
+
+    @staticmethod
+    def _mtf_records(boundary_ms, ingestion_ms, count):
+        """One source epoch, real minute_record producer and closed 1m cells."""
+        source = producer("synthetic-lab-source", "a" * 40,
+                          "wss://stream.bybit.com/v5/public/linear")
+        records = []
+        for index in range(count):
+            start = boundary_ms - (count - index) * 60000
+            row = dict(symbol="BTCUSDT", start_ms=start,
+                       source_event_start_ms=start + 1,
+                       source_event_end_ms=start + 59999,
+                       source_provenance=source,
+                       open=2, high=2, low=2, close=2,
+                       buy_volume=1, sell_volume=0, delta=1,
+                       trade_count=1, poc_price=2,
+                       quality_status="GOOD", quality_reasons=[],
+                       levels=[dict(price=2, buy_volume=1,
+                                    sell_volume=0, delta=1, volume=1,
+                                    buy_count=1, sell_count=0)])
+            record = minute_record(row, ingestion_ms, "synthetic-lab-source")
+            if record["status"] != "PARTIAL":
+                raise AssertionError("INVALID_CANONICAL_MINUTE_FIXTURE")
+            records.append(record)
+        return records
+
+    def test_b_managed_75_minutes_to_math_5m_15m_readonly(self):
+        """Actual B HTTP DTO, Math rollup and D consumer (synthetic SQL seam)."""
+        boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
+        now = boundary + 30000
+        rows = self._mtf_records(boundary, now, 75)
+        with (
+            patch.object(history_api, "immutable_minutes",
+                         side_effect=lambda symbol, limit, before: rows[-limit:]) as reader,
+            patch("market_data_v2.read_api.time.time", return_value=now / 1000),
+        ):
+            fifteen = data.qualified_market_data_timeframe_chart(
+                "BTCUSDT", "15m", bars=5)
+            five = data.qualified_market_data_timeframe_chart(
+                "BTCUSDT", "5m", bars=5)
+        reader.assert_any_call("BTCUSDT", 75, boundary)
+        reader.assert_any_call("BTCUSDT", 25, boundary)
+        for result, volume, timeframe in (
+                (fifteen, "15", "15m"), (five, "5", "5m")):
+            with self.subTest(timeframe=timeframe):
+                self.assertEqual(result["status"], "PARTIAL")
+                self.assertEqual(result["timeframe"], timeframe)
+                self.assertEqual(len(result["rows"]), 5)
+                self.assertEqual(result["rows"][0]["v"], volume)
+                self.assertFalse(result["paper_admitted"])
+                self.assertFalse(result["trading_authorized"])
+                self.assertFalse(result["execution_authority"])
+                self.assertFalse(result["exchange_completeness_attested"])
+                self.assertEqual(result["rows"][-1]["closed_at_ms"], boundary)
+
+    def test_b_mtf_gaps_epoch_stale_and_unaligned_are_refused(self):
+        from market_data.provenance import digest
+        boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
+        now = boundary + 30000
+        rows = self._mtf_records(boundary, now, 75)
+        cross_epoch = copy.deepcopy(rows)
+        cross_epoch[20]["source"]["epoch"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        cross_epoch[20]["dataset_fingerprint"] = digest({
+            key: value for key, value in cross_epoch[20].items()
+            if key != "dataset_fingerprint"
+        })
+        cases = (
+            ("GAP", rows[:35] + rows[36:], now),
+            ("MIXED_EPOCH", cross_epoch, now),
+            ("INCOMPLETE_60", rows[-60:], now),
+            ("STALE", rows, boundary + 180001),
+            ("UNALIGNED", self._mtf_records(boundary - 60000, now, 75), now),
+            ("EMPTY", [], now),
+        )
+        for reason, records, clock in cases:
+            with (
+                self.subTest(reason=reason),
+                patch.object(history_api, "immutable_minutes",
+                             return_value=records),
+                patch("market_data_v2.read_api.time.time",
+                      return_value=clock / 1000),
+            ):
+                receipt = data.qualified_market_data_timeframe_chart(
+                    "BTCUSDT", "15m", bars=5)
+                self.assertEqual(receipt["status"], "UNAVAILABLE")
+                self.assertEqual(receipt["rows"], [])
+                self.assertFalse(receipt["paper_admitted"])
+                self.assertFalse(receipt["execution_authority"])
+                self.assertFalse(receipt["trading_authorized"])
+
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.
 
