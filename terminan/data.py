@@ -3,6 +3,7 @@ import http.client
 import json
 import os
 import re
+import time
 from contextlib import contextmanager
 
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
@@ -33,7 +34,8 @@ class MarketDataReadClient:
     def get(self,path):
         if (path not in ('/internal/v1/health','/internal/v1/capabilities')
                 and re.fullmatch(r'/internal/v1/(?:candles|footprint)\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
-                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None):raise ValueError('READ_ROUTE_REJECTED')
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:[1-9][0-9]{0,2}|1000)',path) is None
+                and re.fullmatch(r'/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:5|10|15|20|25|30|45|60|75)&before_ms=[1-9][0-9]{0,18}',path) is None):raise ValueError('READ_ROUTE_REJECTED')
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
         result=_market_data_http_get(self.port,path,headers={'Authorization':'Bearer '+self._token})
         if self._admission.require_current() is not True:raise ValueError('CURRENT_SOURCE_REQUIRED')
@@ -149,6 +151,7 @@ _MARKET_DATA_MAX_JSON = 16384
 # Keep a bounded transport budget for a valid 5-row footprint receipt.
 # This is not a general increase for legacy/unmanaged probe endpoints.
 _QUALIFIED_V2_MAX_JSON = 5 * 1_048_576 + 65_536
+_QUALIFIED_MTF_MAX_JSON = 8 * 1_048_576 + 65_536
 
 
 def _market_data_internal_get(port,path):
@@ -178,7 +181,11 @@ def _market_data_http_get(port, path, *, headers=None):
         qualified_v2 = re.fullmatch(
             r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=[1-5]",
             path) is not None and headers is not None
-        budget = _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON
+        qualified_mtf = re.fullmatch(
+            r"/internal/v2/candles/qualified\?symbol=[A-Z0-9]{2,30}&limit=(?:5|10|15|20|25|30|45|60|75)&before_ms=[1-9][0-9]{0,18}",
+            path) is not None and headers is not None
+        budget = (_QUALIFIED_MTF_MAX_JSON if qualified_mtf else
+                  _QUALIFIED_V2_MAX_JSON if qualified_v2 else _MARKET_DATA_MAX_JSON)
         advertised = response.getheader("Content-Length")
         if advertised is not None:
             if (re.fullmatch(r"[0-9]{1,10}", advertised) is None
@@ -306,4 +313,42 @@ def qualified_market_data_chart(symbol, limit=5):
         }
     except Exception:
         # Do not expose source tokens, exceptions or transport details in UI.
+        return unavailable
+
+
+def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
+    """Bounded managed Grid 1m read, closed 5m/15m presentation only.
+
+    This distinct read path does not relax the existing five-row 1m chart
+    and never grants strategy, paper, trade or storage authority.
+    """
+    validate(symbol)
+    step = {"5m": 5, "15m": 15}.get(timeframe) if type(timeframe) is str else None
+    if step is None or type(bars) is not int or not 1 <= bars <= 5:
+        raise ValueError("QUALIFIED_TIMEFRAME_REQUEST_REQUIRED")
+    unavailable = {
+        "status": "UNAVAILABLE", "reason": "QUALIFIED_TIMEFRAME_SOURCE_UNAVAILABLE",
+        "timeframe": timeframe, "source_timeframe": "1m",
+        "read_only": True, "rows": [], "paper_admitted": False,
+        "execution_authority": False, "trading_authorized": False,
+        "exchange_completeness_attested": False,
+    }
+    client = _private_market_data_client
+    if type(client) is not MarketDataReadClient:
+        return unavailable
+    count = step * bars
+    # No unclosed candle: Grid cursor ends at the most recent aligned close.
+    # Its strict 120-second freshness gate remains unmodified.
+    now_ms = int(time.time() * 1000)
+    before_ms = (now_ms // (step * 60000)) * (step * 60000)
+    if before_ms <= 0:
+        return unavailable
+    try:
+        from .qualified_partial import validate_qualified_v2, qualified_timeframe_rows
+        envelope = client.get(
+            f"/internal/v2/candles/qualified?symbol={symbol}&limit={count}&before_ms={before_ms}"
+        )
+        checked = validate_qualified_v2(envelope, symbol, count)
+        return qualified_timeframe_rows(checked, timeframe, max_bars=bars)
+    except Exception:
         return unavailable

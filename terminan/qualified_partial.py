@@ -296,3 +296,73 @@ def chart_rows(validated_receipt):
     return [{"t": r["start_ms"], "o": r["candle"]["open"], "h": r["candle"]["high"],
              "l": r["candle"]["low"], "c": r["candle"]["close"],
              "poc": r["candle"]["poc_price"]} for r in validated_receipt["rows"]]
+
+
+_MTF_WINDOWS = {"5m": 5, "15m": 15}
+_MTF_MAX_SOURCE_ROWS = 75
+_MTF_MAX_BARS = 5
+
+
+def qualified_timeframe_rows(validated_receipt, timeframe, *, max_bars=5):
+    """Bounded full-minute aggregation for a provenance-checked display receipt.
+
+    The authenticated managed transport does not attest exchange completeness.
+    No strategy authorization, delta/POC derivation, trades or OI are invented.
+    """
+    from decimal import Decimal
+    from market_math import aggregate_closed_minute_ohlcv
+
+    step = _MTF_WINDOWS.get(timeframe) if type(timeframe) is str else None
+    if step is None or type(max_bars) is not int or not 1 <= max_bars <= _MTF_MAX_BARS:
+        raise ValueError("MTF_REQUEST_UNSUPPORTED")
+    if (type(validated_receipt) is not dict
+            or validated_receipt.get("status") != "PARTIAL"
+            or validated_receipt.get("chart_read_only") is not True
+            or validated_receipt.get("execution_authority") is not False
+            or validated_receipt.get("paper_admitted") is not False
+            or validated_receipt.get("trading_authorized") is not False
+            or validated_receipt.get("source_authenticity") != "NOT_INDEPENDENTLY_ATTESTED"
+            or validated_receipt.get("record_integrity") != "VERIFIED"):
+        raise ValueError("MTF_UNQUALIFIED_RECEIPT")
+    rows = validated_receipt.get("rows")
+    if (type(rows) is not tuple
+            or len(rows) != step * max_bars
+            or len(rows) > _MTF_MAX_SOURCE_ROWS
+            or len(rows) % step):
+        raise ValueError("MTF_INCOMPLETE_SOURCE_WINDOW")
+    window_ms = step * 60000
+    starts = [row["start_ms"] for row in rows]
+    if (starts[0] % window_ms
+            or any(starts[i] != starts[0] + i * 60000 for i in range(len(rows)))):
+        raise ValueError("MTF_UNALIGNED_OR_GAPPED_MINUTES")
+    result = []
+    for at in range(0, len(rows), step):
+        group = rows[at:at + step]
+        prices = [(Decimal(str(row["candle"]["open"])),
+                   Decimal(str(row["candle"]["high"])),
+                   Decimal(str(row["candle"]["low"])),
+                   Decimal(str(row["candle"]["close"])),
+                   Decimal(str(row["candle"]["buy_volume"])),
+                   Decimal(str(row["candle"]["sell_volume"])))
+                  for row in group]
+        opened, high, low, closed, volume = aggregate_closed_minute_ohlcv(prices)
+        result.append({
+            "t": starts[at], "o": str(opened), "h": str(high),
+            "l": str(low), "c": str(closed), "v": str(volume),
+            "closed_at_ms": starts[at] + window_ms,
+        })
+    return {
+        "status": "PARTIAL", "reason": "EXCHANGE_COMPLETENESS_UNATTESTED",
+        "timeframe": timeframe, "source_timeframe": "1m",
+        "source_minutes": len(rows), "coverage": dict(validated_receipt["coverage"]),
+        "dataset_fingerprint": validated_receipt["dataset_fingerprint"],
+        "freshness_utc_ms": validated_receipt["freshness_utc_ms"],
+        "source_identity_declared": rows[0]["source"]["identity"],
+        "source_revision_declared": rows[0]["source"]["source_revision"],
+        "source_epoch_declared": rows[0]["source"]["epoch"],
+        "record_integrity": "VERIFIED",
+        "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+        "exchange_completeness_attested": False, "read_only": True,
+        "paper_admitted": False, "execution_authority": False,
+        "trading_authorized": False, "rows": result,
+    }
