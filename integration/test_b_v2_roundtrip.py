@@ -157,7 +157,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         state. This does not require a PostgreSQL or network feed.
         """
         minute = 60000
-        now = (int(time.time() * 1000) // minute) * minute + 10000
+        now = int(time.time() * 1000)
         first = record_fixture(now)
         # A late event from an earlier minute is still source-continuous
         # only with the immediately following minute present.
