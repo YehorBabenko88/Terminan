@@ -114,3 +114,44 @@ class MemoryBindingTest(unittest.TestCase):
     def test_record_authority(self):
         self.record["provenance"]["execution_authority"] = True
         self.refuse()
+
+    def legacy(self):
+        del self.payload["qualification_schema"], self.payload["qualifications"]
+
+    def test_legacy_explicit_false_preserved(self):
+        self.legacy()
+        before = copy.deepcopy(self.record)
+        self.assertEqual(self.read(), [before])
+        self.assertEqual(self.record, before)
+
+    def test_legacy_positive_or_nonliteral_provenance_refused(self):
+        self.legacy()
+        for flag in ("execution_authority", "trading_authorized"):
+            for value in (True, 0, 1, None, "false", [], {}):
+                with self.subTest(flag=flag, value=value):
+                    self.record["provenance"][flag] = value
+                    self.refuse()
+            self.record["provenance"][flag] = False
+
+    def test_legacy_malformed_provenance_refused(self):
+        self.legacy()
+        for value in (None, [], "unknown", False):
+            with self.subTest(value=value):
+                self.record["provenance"] = value
+                self.refuse()
+
+    def test_top_level_authority_refused_with_or_without_sidecar(self):
+        for legacy in (False, True):
+            if legacy:
+                self.legacy()
+            for flag in ("execution_authority", "trading_authorized"):
+                for value in (True, 0, None):
+                    with self.subTest(legacy=legacy, flag=flag, value=value):
+                        self.record[flag] = value
+                        self.refuse()
+                del self.record[flag]
+
+    def test_legacy_partial_provenance_stays_descriptive(self):
+        self.legacy()
+        self.record["provenance"] = {"collector": "Grid"}
+        self.assertEqual(self.read(), [self.record])

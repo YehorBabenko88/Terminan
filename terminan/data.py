@@ -86,6 +86,17 @@ def scientific_memory(source, symbol, limit):
         identifiers = (record.get("id"), record.get("input_hash"), dataset.get("id") if isinstance(dataset, dict) else None)
         if any(not isinstance(value, str) or not SHA256.fullmatch(value) for value in identifiers):
             raise RuntimeError("Unexpected scientific memory record identity")
+        # Legacy records may omit provenance, but cannot assert authority.
+        # Literal False is the only accepted explicit authority value.
+        scopes = [record]
+        if "provenance" in record:
+            if not isinstance(record["provenance"], dict):
+                raise RuntimeError("Unexpected scientific memory provenance")
+            scopes.append(record["provenance"])
+        for scope in scopes:
+            for flag in ("execution_authority", "trading_authorized"):
+                if flag in scope and scope[flag] is not False:
+                    raise RuntimeError("Untrusted scientific memory authority")
     if "qualification_schema" in payload or "qualifications" in payload:
         _validate_memory_qualifications(payload, records)
     return records
