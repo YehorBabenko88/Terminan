@@ -547,6 +547,66 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                     historical=True, before_ms=boundary, as_of_ms=asof,
                     exact=True)
 
+    def test_b308_actual_handler_rejects_unaligned_historical_before_reader(self):
+        """Full MTF candle cursor must be aligned before touching SQL reader."""
+        from market_data_v2.read_api import historical_asof_snapshot
+        boundary = ((int(time.time() * 1000) // 900000) - 6) * 900000
+        asof = boundary + 60000
+        for tf, offset in (("5m", 60000), ("15m", 300000)):
+            with self.subTest(tf=tf), patch.object(
+                history_api, "immutable_minutes",
+                side_effect=AssertionError("INVALID_CURSOR_MUST_NOT_READ")
+            ) as reader:
+                with self.assertRaisesRegex(
+                        ValueError, "HISTORICAL_EXACT_CANDLE_CURSOR_REQUIRED"):
+                    historical_asof_snapshot(
+                        "BTCUSDT", tf, 1, boundary + offset, asof + 600000,
+                        now_ms=asof + 3600000, exact=True)
+                reader.assert_not_called()
+
+    def test_b308_actual_handler_rejects_future_and_nonaligned_live_cursor(self):
+        """Check invalid explicit LIVE cursor before Grid's single SQL reader."""
+        from market_data_v2.read_api import qualified_rollup_snapshot
+        now = ((int(time.time() * 1000) // 900000) + 1) * 900000 + 120000
+        boundary = ((now // 900000) - 1) * 900000
+        invalid = (boundary + 60000, now + 60000, "01", False, 0)
+        for cursor in invalid:
+            with self.subTest(cursor=cursor), patch.object(
+                history_api, "immutable_minutes",
+                side_effect=AssertionError("INVALID_CURSOR_MUST_NOT_READ")
+            ) as reader:
+                with self.assertRaisesRegex(
+                        ValueError, "QUALIFIED_ROLLUP_EXACT_CURSOR_REQUIRED"):
+                    qualified_rollup_snapshot(
+                        "BTCUSDT", "15m", 1, before_ms=cursor,
+                        now_ms=now, exact=True)
+                reader.assert_not_called()
+
+    def test_b308_exact_historical_valid_aligned_cursor_roundtrip(self):
+        """Actual B308 producer -> managed HTTP -> D historical exact chart."""
+        from decimal import Decimal
+        boundary = ((int(time.time() * 1000) // 900000) - 6) * 900000
+        asof = boundary + 60000
+        for tf, count in (("5m", 5), ("15m", 15)):
+            rows = self._mtf_records(boundary, boundary + 30000, count)
+            with self.subTest(tf=tf), patch.object(
+                history_api, "immutable_minutes", return_value=rows
+            ) as reader:
+                actual = data.qualified_market_data_historical_chart(
+                    "BTCUSDT", tf, bars=1,
+                    before_ms=boundary, as_of_ms=asof)
+            reader.assert_called_once_with("BTCUSDT", count, boundary)
+            self.assertEqual(actual["status"], "PARTIAL")
+            self.assertEqual(actual["reason"],
+                             "HISTORICAL_AS_OF_SOURCE_ONLY")
+            self.assertEqual(actual["observation_mode"],
+                             "HISTORICAL_AS_OF_SOURCE_ONLY")
+            self.assertEqual(actual["rows"][-1]["closed_at_ms"], boundary)
+            self.assertEqual(Decimal(actual["rows"][0]["v"]), Decimal(count))
+            self.assertFalse(actual["paper_admitted"])
+            self.assertFalse(actual["trading_authorized"])
+            self.assertFalse(actual["execution_authority"])
+
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.
 
