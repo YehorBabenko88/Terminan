@@ -222,8 +222,13 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
                 # Only canonical Math computes the exact total and delta.
                 _need(exact_sum((buy, sell)) == volume)
                 _need(executed_volume_delta(buy, sell) == delta)
-                _need(candle_ohlcv_valid(o,h,l,c,buy)
-                      and candle_ohlcv_valid(o,h,l,c,sell))
+                # Canonical Math's OHLCV predicate limits a *single* candle
+                # volume to 128 coefficient digits. A valid Math sum of up
+                # to 15 stored 1m candles may need 129 digits. Check prices
+                # using Math and check exact signed/nonnegative totals with
+                # exact_sum/executed_volume_delta above, not the single-minute
+                # amount cap on an already aggregated source.
+                _need(candle_ohlcv_valid(o,h,l,c,Decimal(0)))
                 for name, amount in (("buy_volume", buy),
                                      ("sell_volume", sell), ("delta", delta)):
                     _presentation_matches(amount, row[name])
