@@ -99,8 +99,8 @@ def _presentation_matches(exact_value, shown):
     representable = math.isfinite(rounded) and (
         exact_value == 0 or rounded != 0)
     if representable:
-        _need(type(shown) in (int, float) and math.isfinite(float(shown))
-              and float(shown) == rounded)
+        _need(type(shown) is float and math.isfinite(shown)
+              and shown == rounded)
     else:
         _need(shown is None)
 
