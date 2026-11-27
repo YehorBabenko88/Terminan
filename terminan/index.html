@@ -63,11 +63,13 @@ async function refresh() {
   currentLevels = [];
   el('levels').textContent = '';
   draw([]);
-  const levels = await api('/api/levels?' + selected).catch(() => []);
+  const levels = historical ? [] : await api('/api/levels?' + selected).catch(() => []);
   if (generation !== refreshGeneration) return;
   currentLevels = levels;
   el('levels').textContent = levels.length ? levels.length + ' активных уровней' : 'Нет доступных уровней';
-  try {
+  if (historical) {
+    el('logs').textContent = 'Логи текущего источника не являются историческими as-of данными';
+  } else try {
     const logs = await api('/api/logs?' + selected);
     if (generation !== refreshGeneration) return;
     el('logs').textContent = logs.state === 'SOURCE_ADAPTER_NOT_CONNECTED' ?
@@ -218,7 +220,9 @@ async function refresh() {
     el('qualified-receipt').textContent =
       'UNAVAILABLE · этот timeframe ещё не прошёл source qualification';
   }
-  try {
+  if (historical) {
+    el('footprint').textContent = 'Исторический as-of footprint не квалифицирован: LIVE данные не подмешиваются';
+  } else try {
     const rows = await api('/api/market-data/footprint?' + selected);
     if (generation !== refreshGeneration) return;
     el('footprint').textContent = rows.length ? rows.slice(0, 25).map(
@@ -229,7 +233,9 @@ async function refresh() {
     if (generation !== refreshGeneration) return;
     el('footprint').textContent = 'MarketData недоступен';
   }
-  try {
+  if (historical) {
+    el('research').textContent = 'Текущие результаты research не являются as-of историческими';
+  } else try {
     const rows = await api('/api/research?' + selected);
     if (generation !== refreshGeneration) return;
     el('research').textContent = rows.length ? JSON.stringify(rows, null, 2) : 'Нет результатов';
