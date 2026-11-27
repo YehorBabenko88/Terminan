@@ -417,6 +417,17 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertEqual(hist["rows"][0]["buy_volume"],
                          hist["rows"][0]["sell_volume"])
         self.assertEqual(hist["rows"][0]["delta"], 0.01)
+        # Old source-minute exact volume != new binary64-derived chart total.
+        # This is a documented parity blocker, not an attested source sum.
+        from decimal import Decimal
+        self.assertEqual(hist["rows"][0]["volume_precision"],
+                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+        self.assertEqual(hist["volume_precision"],
+                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+        self.assertEqual(Decimal(hist["rows"][0]["v"]),
+                         Decimal("20000000000000008"))
+        self.assertNotEqual(Decimal(hist["rows"][0]["v"]),
+                            Decimal("20000000000000008.01"))
         self.assertFalse(hist["paper_admitted"])
         self.assertFalse(hist["trading_authorized"])
 
