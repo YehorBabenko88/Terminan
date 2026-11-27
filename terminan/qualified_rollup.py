@@ -196,8 +196,12 @@ def chart_rollup_rows(checked):
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
         "closed_at_ms": row["end_ms"] + 1,
+        # Both directional totals have already been rounded by B's binary64
+        # DTO. Math addition is exact *for these floats*, NOT original trade
+        # volume precision. No retrospective source-value reconstruction.
         "v": str(exact_sum((Decimal(str(row["buy_volume"])),
                             Decimal(str(row["sell_volume"]))))),
+        "volume_precision": "BINARY64_PRESENTATION_NOT_SOURCE_EXACT",
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],
         "delta": row["delta"], "trade_count": row["trade_count"],
         "source_minute_fingerprints": tuple(row["source_minute_fingerprints"]),
