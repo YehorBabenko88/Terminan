@@ -332,6 +332,10 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
         "timeframe": timeframe, "source_timeframe": "1m",
         "read_only": True, "rows": [], "paper_admitted": False,
         "execution_authority": False, "trading_authorized": False,
+        "record_integrity": "NOT_ESTABLISHED",
+        "quality_attestation": "NOT_INDEPENDENTLY_ATTESTED",
+        "source_authenticity": "NOT_INDEPENDENTLY_ATTESTED",
+        "storage_immutability": "NOT_ATTESTED",
         "exchange_completeness_attested": False,
     }
     client = _private_market_data_client
@@ -354,6 +358,8 @@ def qualified_market_data_timeframe_chart(symbol, timeframe, *, bars=5):
             "source_revision_declared": checked["source_revision"],
             "source_epoch_declared": checked["producer_epoch"],
             "source_authenticity": checked["source_authenticity"],
+            "quality_attestation": checked["quality_attestation"],
+            "storage_immutability": checked["storage_immutability"],
             "exchange_completeness_attested": False,
             "coverage": dict(checked["coverage"]),
             "paper_admitted": False, "execution_authority": False,

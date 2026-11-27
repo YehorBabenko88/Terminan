@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import re
 import time
 import uuid
@@ -119,6 +120,7 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
         _need(type(rows) is list and len(rows) == limit)
         period = _WINDOWS[timeframe] * 60000
         previous = None
+        observed_fingerprints = set()
         for row in rows:
             _need(type(row) is dict and set(row) == _ROW)
             start, end = row["start_ms"], row["end_ms"]
@@ -131,13 +133,20 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *, now_ms=None
             fps = row["source_minute_fingerprints"]
             _need(type(fps) is list and len(fps) == _WINDOWS[timeframe]
                   and all(type(value) is str and _SHA.fullmatch(value) is not None for value in fps))
+            _need(all(value not in observed_fingerprints for value in fps)
+                  and len(set(fps)) == len(fps))
+            observed_fingerprints.update(fps)
             _need(type(row["trade_count"]) is int and 0 <= row["trade_count"] < 2**63)
             o,h,l,c = (_amount(row[k], positive=True) for k in ("open","high","low","close"))
             buy,sell,delta = (_amount(row[k]) if k!="delta"
                               else Decimal(str(row[k])) for k in ("buy_volume","sell_volume","delta"))
             _need(type(row["delta"]) in (int,float) and delta.is_finite())
             _need(candle_ohlcv_valid(o,h,l,c,buy) and candle_ohlcv_valid(o,h,l,c,sell))
-            _need(float(executed_volume_delta(buy,sell)) == row["delta"])
+            canonical_delta = executed_volume_delta(buy, sell)
+            delta_binary64 = float(canonical_delta)
+            _need(math.isfinite(delta_binary64)
+                  and (canonical_delta == 0 or delta_binary64 != 0)
+                  and delta_binary64 == row["delta"])
         # B qualified source watermark remains 120s. A complete closed 15m
         # page can only be accepted in that live window. Do not bypass as-of.
         _need(now - rows[-1]["end_ms"] <= 120000)

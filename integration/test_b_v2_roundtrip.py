@@ -347,6 +347,9 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
             lambda p: p["rows"][0].update(trade_count=True),
             lambda p: p["rows"][0].update(end_ms=p["rows"][0]["end_ms"] - 1),
             lambda p: p["rows"][0].update(source_minute_fingerprints=[]),
+            lambda p: p["rows"][0]["source_minute_fingerprints"].__setitem__(
+                1, p["rows"][0]["source_minute_fingerprints"][0]),
+            lambda p: p["rows"][0].update(buy_volume=-1),
             lambda p: p["coverage"].update(missing_minutes=True),
             lambda p: p.update(debug="injected"),
         )
