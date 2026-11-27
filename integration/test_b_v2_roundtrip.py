@@ -464,6 +464,42 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertFalse(hist["paper_admitted"])
         self.assertFalse(hist["trading_authorized"])
 
+    def test_grid_exact_129_digit_valid_15m_math_sum_is_retained(self):
+        """Single-minute 128-digit bounds must not cap 15-minute exact sums."""
+        from decimal import Decimal
+        from market_data.provenance import digest
+        from market_data_v2.read_api import qualified_rollup_snapshot
+        from terminan.qualified_rollup import (
+            chart_rollup_rows, validate_qualified_rollup,
+        )
+        boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
+        now = boundary + 30000
+        records = self._mtf_records(boundary, now, 15)
+        amount = 10 ** 127
+        for item in records:
+            item["candle"].update(
+                buy_volume=amount, sell_volume=0,
+                delta=amount)
+            item["levels"][0].update(
+                buy_volume=amount, sell_volume=0,
+                volume=amount, delta=amount)
+            item["dataset_fingerprint"] = digest({
+                key:value for key,value in item.items()
+                if key != "dataset_fingerprint"})
+        page = qualified_rollup_snapshot(
+            "BTCUSDT", "15m", 1,
+            reader=lambda *_:records, now_ms=now, exact=True)
+        checked = validate_qualified_rollup(
+            page, "BTCUSDT", "15m", 1, now_ms=now, exact=True)
+        display = chart_rollup_rows(checked)
+        self.assertEqual(Decimal(display[0]["v"]), Decimal(15 * amount))
+        self.assertEqual(display[0]["volume_decimal"],
+                         str(15 * amount))
+        self.assertEqual(display[0]["volume_precision"],
+                         "EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
+        self.assertFalse(checked["paper_admitted"])
+        self.assertFalse(checked["trading_authorized"])
+
     def test_b305_historical_dto_tampering_rehashed_still_refused(self):
         """Integrity hash alone cannot raise source or execution authority."""
         from market_data.provenance import digest
