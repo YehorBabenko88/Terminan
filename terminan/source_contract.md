@@ -26,3 +26,8 @@ All event times are UTC Unix milliseconds. Candles are keyed by open time and ti
 ## Security and reliability
 
 Read-only credentials, allowlisted private hosts, no trading keys in Terminan, request timeouts, bounded concurrency, cache headers and explicit stale watermarks. Source workers should publish through their own bounded queues and never block ingestion for a slow viewer. Sequence gaps force resync from snapshot. Tests must cover duplicate events, late/out-of-order messages, restart, delisting, gaps, stale data, absent L2, partial fills, fee accounting, run version drift, source outages, timezones and dataset consistency.
+# Round 2 candidate source adapters
+
+Configure `TERMINAN_GRID_URL` with an explicit loopback HTTP origin to read instruments and one-minute snapshots from Grid. The candidate reads `GET /v1/instruments`, `GET /v2/candles` and `GET /v2/footprint`. `/api/grid/snapshot/candles` retains the full candle envelope, and `/api/grid/footprint` passes through the provenance and completeness envelope. The chart endpoint reads the candle rows. Higher intervals have no data in this Grid gateway and are never replaced with one-minute candles.
+
+`TERMINAN_MATH_URL` optionally selects a loopback service exposing `GET /v1/levels?symbol=…` and an envelope with `schema: "math.market.levels.result.v1"`, matching `symbol`, and a `levels` array. `price` is an exact decimal string. Without an admitted provider the level request returns unavailable. Terminan does not recalculate levels, POC or footprint. The Math service provider and live source cutover require independent acceptance.

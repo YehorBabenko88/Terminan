@@ -3,7 +3,9 @@ import json
 import os
 import re
 import sqlite3
+from http.client import HTTPConnection
 from pathlib import Path
+from urllib.parse import urlencode, urlsplit
 
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
 TIMEFRAMES = {"1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"}
@@ -20,6 +22,8 @@ def sqlite_ro(env):
 
 def candles(symbol, timeframe="1m", limit=300):
     validate(symbol, timeframe)
+    if os.environ.get("TERMINAN_GRID_URL"):
+        return grid_candles(symbol, limit) if timeframe == "1m" else []
     limit = max(1, min(int(limit), 1000))
     con = sqlite_ro("TERMINAN_STRATTESTER_DB")
     if con is None:
@@ -31,6 +35,14 @@ def candles(symbol, timeframe="1m", limit=300):
         con.close()
 
 def instruments():
+    gateway = os.environ.get("TERMINAN_GRID_URL")
+    if gateway:
+        payload = read_source(gateway, "/v1/instruments", {})
+        if (not isinstance(payload, dict) or payload.get("version") != 1
+                or not isinstance(payload.get("symbols"), list) or len(payload["symbols"]) > 2000
+                or any(not isinstance(symbol, str) or not SYMBOL.fullmatch(symbol) for symbol in payload["symbols"])):
+            raise RuntimeError("Unexpected Grid instrument DTO")
+        return payload["symbols"]
     con = sqlite_ro("TERMINAN_STRATTESTER_DB")
     if con is None:
         return []
@@ -50,22 +62,79 @@ def research(symbol, limit=50):
     finally:
         con.close()
 
-def grid_query(sql, params):
-    dsn = os.environ.get("TERMINAN_GRID_DSN")
-    if not dsn:
-        return []
-    import psycopg
-    with psycopg.connect(dsn, connect_timeout=3, options="-c default_transaction_read_only=on -c statement_timeout=3000") as con:
-        with con.cursor() as cur:
-            cur.execute(sql, params)
-            return cur.fetchall()
+
+DECIMAL_TEXT = re.compile(r"-?[0-9]+(?:\.[0-9]+)?")
+CANDLE_DECIMALS = ("o", "h", "l", "c", "buy", "sell", "delta", "poc")
+FOOTPRINT_DECIMALS = ("price", "buy", "sell", "delta", "volume")
+
+
+def read_source(base_url, path, params):
+    base = urlsplit(base_url)
+    if (base.scheme != "http" or base.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or base.username is not None or base.path not in {"", "/"} or base.query or base.fragment):
+        raise RuntimeError("Expected a loopback HTTP source")
+    max_bytes = 8 * 1024 * 1024
+    connection = HTTPConnection(base.hostname, base.port, timeout=4)
+    try:
+        connection.request("GET", path + "?" + urlencode(params))
+        response = connection.getresponse()
+        if response.status != 200:
+            raise RuntimeError("Read-only source unavailable")
+        body = response.read(max_bytes + 1)
+        if len(body) > max_bytes:
+            raise RuntimeError("Source response too large")
+        try:
+            return json.loads(body)
+        except (UnicodeError, json.JSONDecodeError) as error:
+            raise RuntimeError("Invalid source JSON") from error
+    finally:
+        connection.close()
+
+
+def grid_snapshot(route, symbol, limit, decimal_fields):
+    validate(symbol)
+    limit = max(1, min(int(limit), 1000))
+    gateway = os.environ.get("TERMINAN_GRID_URL")
+    if not gateway:
+        raise RuntimeError("Grid gateway is not configured")
+    payload = read_source(gateway, f"/v2/{route}", {"symbol": symbol, "limit": limit})
+    if (not isinstance(payload, dict) or type(payload.get("version")) is not int
+            or payload["version"] != 2 or payload.get("symbol") != symbol
+            or payload.get("timeframe") != "1m"):
+        raise RuntimeError("Unexpected Grid DTO")
+    rows = payload.get("rows")
+    if not isinstance(rows, list) or len(rows) > limit:
+        raise RuntimeError("Unexpected Grid rows")
+    for row in rows:
+        if (not isinstance(row, dict) or type(row.get("t")) is not int or abs(row["t"]) > 2**53 - 1
+                or (route == "candles" and ("trades" not in row or (row["trades"] is not None and type(row["trades"]) is not int)))
+                or any(field not in row or (row[field] is not None and
+                       (not isinstance(row[field], str) or not DECIMAL_TEXT.fullmatch(row[field])))
+                       for field in decimal_fields)):
+            raise RuntimeError("Unexpected Grid row")
+    return payload
+
 
 def grid_candles(symbol, limit=300):
-    validate(symbol)
-    rows = grid_query("SELECT extract(epoch from ts)*1000,open,high,low,close,buy_volume,sell_volume,delta,trade_count,poc_price FROM candles_1m WHERE symbol=%s ORDER BY ts DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","o","h","l","c","buy","sell","delta","trades","poc"), map(float,r))) for r in reversed(rows)]
+    return grid_snapshot("candles", symbol, limit, CANDLE_DECIMALS)["rows"]
+
 
 def footprint(symbol, limit=500):
+    return grid_snapshot("footprint", symbol, limit, FOOTPRINT_DECIMALS)
+
+
+def math_levels(symbol):
     validate(symbol)
-    rows = grid_query("SELECT extract(epoch from ts)*1000,price,buy_volume,sell_volume,delta,volume FROM footprint_1m WHERE symbol=%s ORDER BY ts DESC,price DESC LIMIT %s", (symbol,max(1,min(int(limit),1000))))
-    return [dict(zip(("t","price","buy","sell","delta","volume"),map(float,r))) for r in rows]
+    source = os.environ.get("TERMINAN_MATH_URL")
+    if not source:
+        raise RuntimeError("Math levels provider is not configured")
+    payload = read_source(source, "/v1/levels", {"symbol": symbol})
+    if (not isinstance(payload, dict) or payload.get("schema") != "math.market.levels.result.v1"
+            or payload.get("symbol") != symbol or not isinstance(payload.get("levels"), list)):
+        raise RuntimeError("Unexpected Math levels DTO")
+    for row in payload["levels"]:
+        if (not isinstance(row, dict) or row.get("timeframe") not in {"1h", "4h", "1d"}
+                or row.get("side") not in {"low", "high"} or not isinstance(row.get("price"), str)
+                or not DECIMAL_TEXT.fullmatch(row["price"])):
+            raise RuntimeError("Unexpected Math level")
+    return payload["levels"]

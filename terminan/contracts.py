@@ -33,22 +33,3 @@ class TradeEvent:
 def align_trades(trades, start_ms, end_ms):
     """Clip display to viewport; preserve original entry and exit timestamps."""
     return [t for t in trades if t.entry_ms <= end_ms and (t.exit_ms is None or t.exit_ms >= start_ms)]
-
-
-def aggregate_footprint(rows):
-    """One POC per minute, tie-break to lowest price for deterministic display."""
-    minutes = {}
-    for r in rows:
-        t, price, volume = int(r['t']), float(r['price']), float(r['volume'])
-        if volume < 0: raise ValueError('negative volume')
-        bucket = minutes.setdefault(t, {'t':t, 'levels':[], 'poc':None, 'poc_volume':-1.0})
-        bucket['levels'].append(r)
-        if volume > bucket['poc_volume'] or (volume == bucket['poc_volume'] and (bucket['poc'] is None or price < bucket['poc'])):
-            bucket['poc'], bucket['poc_volume'] = price, volume
-    return [minutes[t] for t in sorted(minutes)]
-
-
-def poc_close_events(minutes, candles):
-    """Diagnostic POC-close observations, NOT trading signals or backtest fills."""
-    closes = {int(c['t']): float(c['c']) for c in candles}
-    return [{'t':m['t'],'poc':m['poc'],'close':closes[m['t']], 'relation':'above' if closes[m['t']] > m['poc'] else 'below' if closes[m['t']] < m['poc'] else 'at'} for m in minutes if m['t'] in closes]
