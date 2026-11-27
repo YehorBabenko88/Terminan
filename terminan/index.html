@@ -1,14 +1,62 @@
 <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminan</title><style>
 :root{font-family:Segoe UI,Arial,sans-serif;background:#0c121b;color:#d9e5ef}*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;background:#111d2a;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #304153}h1{font-size:18px;margin:0;color:#73b9ed}main{display:grid;grid-template-columns:220px minmax(350px,1fr) 280px;gap:10px;padding:10px;height:calc(100vh - 57px)}section{background:#14202e;border:1px solid #293849;border-radius:7px;padding:12px;overflow:auto}h2{font-size:13px;letter-spacing:.07em;color:#a9bac9}button,select,input,textarea{background:#1e3042;color:#dce9f4;border:1px solid #38516a;padding:7px;border-radius:4px}button{cursor:pointer}.instrument{display:block;width:100%;text-align:left;margin:4px 0}.active{background:#28506a}canvas{width:100%;height:320px;background:#101b27}.muted{color:#8a9fb2;font-size:12px}.bid{background:#24594f}.ask{background:#60303e}.dom{display:grid;grid-template-columns:1fr 1fr 1fr;font-variant-numeric:tabular-nums;font-size:12px}.dom div{padding:4px;border-bottom:1px solid #27384a}pre{white-space:pre-wrap;word-break:break-word;font-size:11px}#error{color:#e38e91}@media(max-width:950px){main{grid-template-columns:1fr;height:auto}canvas{height:250px}}
-</style><header><h1>TERMINAN <small class="muted">RESEARCH TERMINAL</small></h1><div><a href='/monitor' style='color:#80c6ed;margin-right:16px'>Мониторинг системы</a><strong>READ ONLY · NO ORDERS</strong></div></header><main><section><h2>ИНСТРУМЕНТЫ</h2><input id="search" placeholder="Поиск символа"><div id="symbols"></div><p id="source" class="muted"></p></section><section><h2 id="selected">BTCUSDT</h2><select id="tf"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select> <button id="refresh">Обновить</button><h2>СВЕЧИ</h2><label><input type="checkbox" id="showlevels" checked> Неперебитые H1 / H4 / D1</label><canvas id="chart"></canvas><div id="levels" class="muted"></div><p id="chartmsg" class="muted"></p><pre id="qualified-receipt" class="muted" role="status" aria-live="polite">PARTIAL-квитанция: источник не подключён</pre><h2>КЛАСТЕРЫ / FOOTPRINT</h2><div id="footprint" class="muted">Нет данных</div><h2>БУМАЖНЫЙ REPLAY · OFFLINE</h2><p class="muted">Только пользовательские офлайн-данные, не LIVE. POC вычисляет установленный Math SDK. При отсутствии подтверждённого источника результат UNATTESTED.</p><textarea id="paperinput" rows="5" style="width:100%;font:11px Consolas,monospace" placeholder="JSON terminan.paper.replay.v2 (локальные тестовые события)"></textarea><p><button id="paperrun" type="button">Выполнить офлайн</button></p><pre id="paperresult" aria-live="polite">Нет воспроизведения</pre><h2>ORDER FLOW · OFFLINE RESEARCH</h2><p class="muted">Math-owned aggregation of caller-supplied trades. Source UNVERIFIED; no live authority.</p><textarea id="analyticsinput" rows="4" style="width:100%" placeholder='{"schema":"terminan.analytics.orderflow.v1","mode":"price","tick_size":"0.001","trades":[]}'></textarea><p><button id="analyticsrun" type="button">Analyze offline trades</button></p><pre id="analyticsresult">No analytics request</pre><h2>НАУЧНЫЕ РЕЗУЛЬТАТЫ</h2><pre id="research">Нет данных</pre></section><section><h2>СТАКАН / ORDER BOOK</h2><p class="muted">Ожидание реального L2 streaming adapter. Синтетические заявки не показываются.</p><div class="dom"><div class="bid">BID</div><div>PRICE</div><div class="ask">ASK</div></div><h2>ЛЕНТА СДЕЛОК</h2><p class="muted">Исторические агрегаты не являются потоком отдельных сделок.</p><h2>ЛОГИ ИНСТРУМЕНТА</h2><pre id="logs">Ожидание источника</pre><h2>ИСТОЧНИК MARKET_DATA</h2>
+</style><header><h1>TERMINAN <small class="muted">RESEARCH TERMINAL</small></h1><div><a href='/monitor' style='color:#80c6ed;margin-right:16px'>Мониторинг системы</a><strong>READ ONLY · NO ORDERS</strong></div></header><main><section><h2>ИНСТРУМЕНТЫ</h2><input id="search" placeholder="Поиск символа"><div id="symbols"></div><p id="source" class="muted"></p></section><section><h2 id="selected">BTCUSDT</h2><select id="tf"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select> <select id="chart-mode" aria-label="Режим данных"><option value="live">LIVE · source-only</option><option value="historical">HISTORICAL · as-of</option></select> <button id="refresh">Обновить</button><div id="historical-controls" hidden><p class="muted">Историческая выборка: укажите два времени в UTC. Полнота биржевой истории и подлинность источника НЕ аттестованы.</p><label>До границы свечи (UTC) <input id="history-before" type="datetime-local" step="60" aria-label="Историческая граница UTC"></label> <label>Известно на момент (UTC) <input id="history-asof" type="datetime-local" step="60" aria-label="Исторический as-of UTC"></label> <label>Свечей <select id="history-bars"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select></label><p id="history-hint" class="muted">Только 5m/15m. Все времена явные, без автоматической подстановки текущего времени и без LIVE fallback.</p></div><h2>СВЕЧИ</h2><label><input type="checkbox" id="showlevels" checked> Неперебитые H1 / H4 / D1</label><canvas id="chart"></canvas><div id="levels" class="muted"></div><p id="chartmsg" class="muted"></p><pre id="qualified-receipt" class="muted" role="status" aria-live="polite">PARTIAL-квитанция: источник не подключён</pre><h2>КЛАСТЕРЫ / FOOTPRINT</h2><div id="footprint" class="muted">Нет данных</div><h2>БУМАЖНЫЙ REPLAY · OFFLINE</h2><p class="muted">Только пользовательские офлайн-данные, не LIVE. POC вычисляет установленный Math SDK. При отсутствии подтверждённого источника результат UNATTESTED.</p><textarea id="paperinput" rows="5" style="width:100%;font:11px Consolas,monospace" placeholder="JSON terminan.paper.replay.v2 (локальные тестовые события)"></textarea><p><button id="paperrun" type="button">Выполнить офлайн</button></p><pre id="paperresult" aria-live="polite">Нет воспроизведения</pre><h2>ORDER FLOW · OFFLINE RESEARCH</h2><p class="muted">Math-owned aggregation of caller-supplied trades. Source UNVERIFIED; no live authority.</p><textarea id="analyticsinput" rows="4" style="width:100%" placeholder='{"schema":"terminan.analytics.orderflow.v1","mode":"price","tick_size":"0.001","trades":[]}'></textarea><p><button id="analyticsrun" type="button">Analyze offline trades</button></p><pre id="analyticsresult">No analytics request</pre><h2>НАУЧНЫЕ РЕЗУЛЬТАТЫ</h2><pre id="research">Нет данных</pre></section><section><h2>СТАКАН / ORDER BOOK</h2><p class="muted">Ожидание реального L2 streaming adapter. Синтетические заявки не показываются.</p><div class="dom"><div class="bid">BID</div><div>PRICE</div><div class="ask">ASK</div></div><h2>ЛЕНТА СДЕЛОК</h2><p class="muted">Исторические агрегаты не являются потоком отдельных сделок.</p><h2>ЛОГИ ИНСТРУМЕНТА</h2><pre id="logs">Ожидание источника</pre><h2>ИСТОЧНИК MARKET_DATA</h2>
 <div id="market-data-quality" class="muted" role="status" aria-atomic="true"></div>
 <p><button id="market-data-check" type="button">Проверить MarketData</button></p>
 <h2>ПОДКЛЮЧЕНИЯ</h2><pre id="status"></pre><p id="error"></p></section></main><script>
 let symbol='BTCUSDT', all=[], currentLevels=[];const el=id=>document.getElementById(id);const DATA_STATUS='SOURCE_UNQUALIFIED';async function api(path,source){const r=await fetch(path);const v=await r.json();if(!r.ok)throw Error(v.error||'Unavailable');if(source&&(!Array.isArray(v)||r.headers.get('X-Terminan-Data-Status')!==source))throw Error('Происхождение данных не указано');return v}function draw(rows){const c=el('chart'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!rows.length){el('chartmsg').textContent='Нет свечей в подключённой базе';return}el('chartmsg').textContent=rows.length+' свечей · '+DATA_STATUS+' · история Market Data, происхождение не подтверждено';const hi=Math.max(...rows.map(r=>Number(r.h))),lo=Math.min(...rows.map(r=>Number(r.l)));const y=p=>10+(hi-p)/Math.max(hi-lo,1e-9)*(h-20),dx=w/rows.length;currentLevels.forEach(l=>{if(!el('showlevels').checked||l.price<lo||l.price>hi)return;x.strokeStyle=l.side==='high'?'#f0b66e':'#75a9f5';x.setLineDash([5,4]);x.beginPath();x.moveTo(0,y(l.price));x.lineTo(w,y(l.price));x.stroke();x.setLineDash([]);x.fillStyle=x.strokeStyle;x.fillText(l.timeframe+' '+l.side+' '+l.price,5,Math.max(12,y(l.price)-3))});rows.forEach((r,i)=>{let up=Number(r.c)>=Number(r.o);x.strokeStyle=x.fillStyle=up?'#43bea2':'#e0717b';const px=(i+.5)*dx;x.beginPath();x.moveTo(px,y(Number(r.h)));x.lineTo(px,y(Number(r.l)));x.stroke();x.fillRect(px-dx*.28,Math.min(y(Number(r.o)),y(Number(r.c))),Math.max(1,dx*.56),Math.max(1,Math.abs(y(Number(r.o))-y(Number(r.c)))))})}function list(){el('symbols').replaceChildren();const filter=el('search').value.toUpperCase();all.filter(s=>s.includes(filter)).slice(0,150).forEach(s=>{let b=document.createElement('button');b.className='instrument'+(s===symbol?' active':'');b.textContent=s;b.onclick=()=>{symbol=s;list();refresh()};el('symbols').append(b)})}let refreshGeneration = 0;
+function historicalControls() {
+  const historical = el('chart-mode').value === 'historical';
+  el('historical-controls').hidden = !historical;
+}
+function strictUtcMinute(value) {
+  // datetime-local carries NO timezone. Interpret explicitly labelled UTC,
+  // never browser locale. A missing or non-minute timestamp is denied.
+  if (typeof value !== 'string'
+      || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$/.test(value)) return null;
+  const millis = Date.parse(value + ':00Z');
+  if (!Number.isSafeInteger(millis) || millis <= 0 || millis % 60000 !== 0
+      || new Date(millis).toISOString().slice(0,16) !== value) return null;
+  return millis;
+}
+function exactMtfRows(receipt, timeframe, count) {
+  const rows = Array.isArray(receipt?.rows) ? receipt.rows : [];
+  const fixed = /^-?(?:0|[1-9][0-9]*)(?:[.][0-9]*[1-9])?$/;
+  return rows.length === count && rows.every(row =>
+    typeof row.v === 'string' && row.v === row.volume_decimal
+    && row.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+    && typeof row.buy_volume_decimal === 'string'
+    && typeof row.sell_volume_decimal === 'string'
+    && typeof row.delta_decimal === 'string'
+    && fixed.test(row.volume_decimal)
+    && fixed.test(row.buy_volume_decimal)
+    && fixed.test(row.sell_volume_decimal)
+    && fixed.test(row.delta_decimal));
+}
+function exactMtfReceipt(receipt, timeframe, count, reason) {
+  const width = timeframe === '5m' ? 5 : timeframe === '15m' ? 15 : 0;
+  return width > 0 && receipt?.status === 'PARTIAL'
+    && receipt.reason === reason
+    && receipt.read_only === true
+    && receipt.record_integrity === 'VERIFIED'
+    && receipt.source_authenticity === 'NOT_INDEPENDENTLY_ATTESTED'
+    && receipt.quality_attestation === 'NOT_INDEPENDENTLY_ATTESTED'
+    && receipt.storage_immutability === 'NOT_ATTESTED'
+    && receipt.source_numeric_precision === 'STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+    && receipt.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+    && receipt.exchange_completeness_attested === false
+    && receipt.paper_admitted === false
+    && receipt.trading_authorized === false
+    && receipt.execution_authority === false
+    && receipt.source_minutes === count * width
+    && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '')
+    && exactMtfRows(receipt,timeframe,count);
+}
 async function refresh() {
   const generation = ++refreshGeneration;
   const requestedSymbol = symbol;
   const timeframe = el('tf').value;
+  const historical = el('chart-mode').value === 'historical';
   const selected = 'symbol=' + encodeURIComponent(requestedSymbol);
   el('selected').textContent = requestedSymbol;
   el('error').textContent = '';
@@ -28,16 +76,72 @@ async function refresh() {
     if (generation !== refreshGeneration) return;
     el('logs').textContent = 'Логи недоступны';
   }
-  try {
-    const rows = await api('/api/candles?' + selected + '&timeframe=' + encodeURIComponent(timeframe), DATA_STATUS);
-    if (generation !== refreshGeneration) return;
-    draw(rows);
-  } catch (error) {
-    if (generation !== refreshGeneration) return;
-    draw([]);
-    el('error').textContent = error.message;
+  if (!historical) {
+    try {
+      const rows = await api('/api/candles?' + selected + '&timeframe=' + encodeURIComponent(timeframe), DATA_STATUS);
+      if (generation !== refreshGeneration) return;
+      draw(rows);
+    } catch (error) {
+      if (generation !== refreshGeneration) return;
+      draw([]);
+      el('error').textContent = error.message;
+    }
   }
-  if (timeframe === '1m') {
+  if (historical) {
+    // Historical is an explicit, independently validated as-of observation.
+    // Never route to LIVE, generic candles or a fabricated 1m fallback.
+    const before = strictUtcMinute(el('history-before').value);
+    const asof = strictUtcMinute(el('history-asof').value);
+    const bars = Number(el('history-bars').value);
+    const width = timeframe === '5m' ? 5 : timeframe === '15m' ? 15 : 0;
+    const within = width > 0 && Number.isInteger(bars) && bars >= 1 && bars <= 5
+      && before !== null && asof !== null
+      && before % (width * 60000) === 0
+      && before <= asof && asof <= Date.now()
+      && asof - before <= 30 * 86400000;
+    if (!within) {
+      el('qualified-receipt').textContent =
+        'UNAVAILABLE · задайте 5m/15m, две явные даты UTC, 1–5 свечей, as-of не ранее границы и не далее 30 дней';
+      el('chartmsg').textContent = 'Исторические данные не запрошены · без LIVE fallback';
+    } else {
+      try {
+        const receipt = await api('/api/market-data/qualified/historical?'
+          + selected + '&timeframe=' + encodeURIComponent(timeframe)
+          + '&bars=' + bars + '&before_ms=' + before + '&as_of_ms=' + asof);
+        if (generation !== refreshGeneration) return;
+        const qualified = exactMtfReceipt(
+          receipt,timeframe,bars,'HISTORICAL_AS_OF_SOURCE_ONLY')
+          && receipt.observation_mode === 'HISTORICAL_AS_OF_SOURCE_ONLY'
+          && receipt.historical_source_trust === 'NOT_INDEPENDENTLY_ATTESTED'
+          && receipt.live_freshness === 'NOT_APPLICABLE'
+          && receipt.before_ms === before && receipt.as_of_ms === asof
+          && receipt.rows[bars - 1].closed_at_ms === before;
+        if (qualified) {
+          draw(receipt.rows);
+          const last = receipt.rows[bars - 1];
+          el('chartmsg').textContent = bars + ' свечей ' + timeframe
+            + ' · HISTORICAL AS-OF / SOURCE ONLY · НЕ для торговли';
+          el('qualified-receipt').textContent =
+            'HISTORICAL AS-OF · PARTIAL · хронология UTC подтверждена только по сохранённым 1m JSON\\n'
+            + 'before_ms=' + before + ' · as_of_ms=' + asof
+            + '\\nОбъём: ' + last.volume_decimal
+            + ' · Buy: ' + last.buy_volume_decimal
+            + ' · Sell: ' + last.sell_volume_decimal
+            + ' · Delta: ' + last.delta_decimal
+            + '\\nNOT LIVE · источник/историческая полнота/хранилище не аттестованы · paper/trading запрещены';
+        } else {
+          draw([]);
+          el('qualified-receipt').textContent =
+            'UNAVAILABLE · историческая as-of квитанция отвергнута · без LIVE fallback';
+        }
+      } catch {
+        if (generation !== refreshGeneration) return;
+        draw([]);
+        el('qualified-receipt').textContent =
+          'UNAVAILABLE · исторический источник/валидация недоступны · без LIVE fallback';
+      }
+    }
+  } else if (timeframe === '1m') {
     try {
       const receipt = await api('/api/market-data/qualified?' + selected);
       if (generation !== refreshGeneration) return;
@@ -81,33 +185,8 @@ async function refresh() {
         + '&timeframe=' + encodeURIComponent(timeframe) + '&bars=5');
       if (generation !== refreshGeneration) return;
       const rows = Array.isArray(receipt.rows) ? receipt.rows : [];
-      const fixed = /^-?(?:0|[1-9][0-9]*)(?:[.][0-9]*[1-9])?$/;
-      const validRows = rows.length === 5 && rows.every(row =>
-        typeof row.v === 'string' && row.v === row.volume_decimal
-        && row.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
-        && typeof row.buy_volume_decimal === 'string'
-        && typeof row.sell_volume_decimal === 'string'
-        && typeof row.delta_decimal === 'string'
-        && fixed.test(row.volume_decimal)
-        && fixed.test(row.buy_volume_decimal)
-        && fixed.test(row.sell_volume_decimal)
-        && fixed.test(row.delta_decimal));
-      const qualified = receipt.status === 'PARTIAL'
-        && receipt.reason === 'EXCHANGE_COMPLETENESS_UNATTESTED'
-        && receipt.read_only === true
-        && receipt.record_integrity === 'VERIFIED'
-        && receipt.source_authenticity === 'NOT_INDEPENDENTLY_ATTESTED'
-        && receipt.quality_attestation === 'NOT_INDEPENDENTLY_ATTESTED'
-        && receipt.storage_immutability === 'NOT_ATTESTED'
-        && receipt.source_numeric_precision === 'STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
-        && receipt.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
-        && receipt.exchange_completeness_attested === false
-        && receipt.paper_admitted === false
-        && receipt.trading_authorized === false
-        && receipt.execution_authority === false
-        && receipt.source_minutes === (timeframe === '5m' ? 25 : 75)
-        && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '')
-        && validRows;
+      const qualified = exactMtfReceipt(
+        receipt,timeframe,5,'EXCHANGE_COMPLETENESS_UNATTESTED');
       if (qualified) {
         draw(rows);
         const last = rows[rows.length - 1];
@@ -159,7 +238,7 @@ async function refresh() {
     el('research').textContent = 'Research DB недоступна';
   }
 }
-el('paperrun').onclick=async()=>{const out=el('paperresult');out.textContent='Проверка офлайн-запроса...';try{const raw=el('paperinput').value;if(!raw||raw.length>262144)throw Error('Неверный размер запроса');const request=JSON.parse(raw);if(request.schema!=='terminan.paper.replay.v2')throw Error('Требуется terminan.paper.replay.v2');const response=await fetch('/api/paper/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw Error(result.error||'Офлайн-симуляция недоступна');out.textContent='OFFLINE / UNATTESTED · без торговых ордеров\\n'+JSON.stringify(result,null,2)}catch(err){out.textContent='OFFLINE недоступен: '+err.message}};el('search').oninput=list;el('refresh').onclick=refresh;el('tf').onchange=refresh;el('showlevels').onchange=refresh;(async()=>{try{el('status').textContent=JSON.stringify(await api('/api/status'),null,2);all=await api('/api/instruments',DATA_STATUS);el('source').textContent=all.length?DATA_STATUS+' · список Market Data':'';if(!all.length)all=['BTCUSDT'];symbol=all[0];list();await refresh()}catch(e){el('error').textContent=e.message}})();
+el('paperrun').onclick=async()=>{const out=el('paperresult');out.textContent='Проверка офлайн-запроса...';try{const raw=el('paperinput').value;if(!raw||raw.length>262144)throw Error('Неверный размер запроса');const request=JSON.parse(raw);if(request.schema!=='terminan.paper.replay.v2')throw Error('Требуется terminan.paper.replay.v2');const response=await fetch('/api/paper/replay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)});const result=await response.json();if(!response.ok)throw Error(result.error||'Офлайн-симуляция недоступна');out.textContent='OFFLINE / UNATTESTED · без торговых ордеров\\n'+JSON.stringify(result,null,2)}catch(err){out.textContent='OFFLINE недоступен: '+err.message}};el('search').oninput=list;el('refresh').onclick=refresh;el('tf').onchange=refresh;el('chart-mode').onchange=()=>{historicalControls();refresh()};el('history-before').onchange=refresh;el('history-asof').onchange=refresh;el('history-bars').onchange=refresh;historicalControls();el('showlevels').onchange=refresh;(async()=>{try{el('status').textContent=JSON.stringify(await api('/api/status'),null,2);all=await api('/api/instruments',DATA_STATUS);el('source').textContent=all.length?DATA_STATUS+' · список Market Data':'';if(!all.length)all=['BTCUSDT'];symbol=all[0];list();await refresh()}catch(e){el('error').textContent=e.message}})();
 </script>
 <script>
 (() => {
