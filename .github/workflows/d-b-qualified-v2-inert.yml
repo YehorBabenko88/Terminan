@@ -10,6 +10,8 @@ env:
   TERMINAN_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   GRID_V2_SHA: e5864a933dc407b2ccc10a91cb2520e21ebfc447
   MATH_SHA: 9e6acbd9e12a91189f57234828e31640983af553
+  OLD_D129_SHA: 6e4a39c185d51eeab37f004964655da3b8dd938b
+  OLD_MATH_D167_SHA: 14d9ca92803b3ede19c7292e85c3627554d5c1d9
   PYTHONDONTWRITEBYTECODE: '1'
 jobs:
   managed-v2-roundtrip:
@@ -39,6 +41,20 @@ jobs:
           ref: ${{ env.MATH_SHA }}
           path: upstream/math
           persist-credentials: false
+      - name: Checkout original historical D129 source (test-only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/Terminan
+          ref: ${{ env.OLD_D129_SHA }}
+          path: upstream/terminan-d129
+          persist-credentials: false
+      - name: Checkout original historical Math D167 source (test-only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: YehorBabenko88/math
+          ref: ${{ env.OLD_MATH_D167_SHA }}
+          path: upstream/math-d167
+          persist-credentials: false
       - name: Pin every checked out source to exact SHA
         shell: bash
         run: |
@@ -46,6 +62,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$TERMINAN_TEST_SHA"
           test "$(git -C upstream/grid rev-parse HEAD)" = "$GRID_V2_SHA"
           test "$(git -C upstream/math rev-parse HEAD)" = "$MATH_SHA"
+          test "$(git -C upstream/terminan-d129 rev-parse HEAD)" = "$OLD_D129_SHA"
+          test "$(git -C upstream/math-d167 rev-parse HEAD)" = "$OLD_MATH_D167_SHA"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ matrix.python }}
@@ -54,3 +72,8 @@ jobs:
           ROUND3_GRID_SOURCE: ${{ github.workspace }}/upstream/grid
           ROUND3_MATH_SOURCE: ${{ github.workspace }}/upstream/math/python
         run: python -B -m unittest discover -s integration -p test_b_v2_roundtrip.py -v
+      - name: Original D129 68-line to Grid Math D differential (inert)
+        env:
+          ROUND3_GRID_SOURCE: ${{ github.workspace }}/upstream/grid
+          ROUND3_MATH_SOURCE: ${{ github.workspace }}/upstream/math/python
+        run: python -B -m unittest discover -s integration -p test_d_round35_g012_differential.py -v
