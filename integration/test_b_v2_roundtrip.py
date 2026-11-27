@@ -330,10 +330,11 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         now = boundary + 30000
         rows = self._mtf_records(boundary, now, 5)
         page = qualified_rollup_snapshot(
-            "BTCUSDT", "5m", 1, reader=lambda *_: rows, now_ms=now)
+            "BTCUSDT", "5m", 1, reader=lambda *_: rows, now_ms=now,
+            exact=True)
         self.assertEqual(
             validate_qualified_rollup(page, "BTCUSDT", "5m", 1,
-                                      now_ms=now)["status"], "PARTIAL")
+                                      now_ms=now, exact=True)["status"], "PARTIAL")
         changes = (
             lambda p: p.update(status="STALE"),
             lambda p: p.update(paper_admitted=True),
@@ -360,7 +361,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
             })
             with self.subTest(mutate=str(mutate)), self.assertRaises(ValueError):
                 validate_qualified_rollup(
-                    forged, "BTCUSDT", "5m", 1, now_ms=now)
+                    forged, "BTCUSDT", "5m", 1, now_ms=now, exact=True)
 
 
     def test_b305_history_separate_from_live_and_stale(self):
@@ -446,19 +447,58 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertEqual(hist["rows"][0]["buy_volume"],
                          hist["rows"][0]["sell_volume"])
         self.assertEqual(hist["rows"][0]["delta"], 0.01)
-        # Old source-minute exact volume != new binary64-derived chart total.
-        # This is a documented parity blocker, not an attested source sum.
+        # Canonical Math restores precise aggregate over the stored source
+        # minute JSON numbers. It does NOT claim original raw exchange ticks.
         from decimal import Decimal
         self.assertEqual(hist["rows"][0]["volume_precision"],
-                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+                         "EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
         self.assertEqual(hist["volume_precision"],
-                         "BINARY64_PRESENTATION_NOT_SOURCE_EXACT")
+                         "EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
         self.assertEqual(Decimal(hist["rows"][0]["v"]),
-                         Decimal("20000000000000008"))
-        self.assertNotEqual(Decimal(hist["rows"][0]["v"]),
-                            Decimal("20000000000000008.01"))
+                         Decimal("20000000000000008.01"))
+        self.assertEqual(hist["rows"][0]["delta_decimal"], "0.01")
+        self.assertEqual(hist["rows"][0]["volume_decimal"],
+                         "20000000000000008.01")
+        self.assertEqual(hist["source_numeric_precision"],
+                         "STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
         self.assertFalse(hist["paper_admitted"])
         self.assertFalse(hist["trading_authorized"])
+
+    def test_grid_exact_129_digit_valid_15m_math_sum_is_retained(self):
+        """Single-minute 128-digit bounds must not cap 15-minute exact sums."""
+        from decimal import Decimal
+        from market_data.provenance import digest
+        from market_data_v2.read_api import qualified_rollup_snapshot
+        from terminan.qualified_rollup import (
+            chart_rollup_rows, validate_qualified_rollup,
+        )
+        boundary = ((int(time.time() * 1000) // 900000) + 1) * 900000
+        now = boundary + 30000
+        records = self._mtf_records(boundary, now, 15)
+        amount = 10 ** 127
+        for item in records:
+            item["candle"].update(
+                buy_volume=amount, sell_volume=0,
+                delta=amount)
+            item["levels"][0].update(
+                buy_volume=amount, sell_volume=0,
+                volume=amount, delta=amount)
+            item["dataset_fingerprint"] = digest({
+                key:value for key,value in item.items()
+                if key != "dataset_fingerprint"})
+        page = qualified_rollup_snapshot(
+            "BTCUSDT", "15m", 1,
+            reader=lambda *_:records, now_ms=now, exact=True)
+        checked = validate_qualified_rollup(
+            page, "BTCUSDT", "15m", 1, now_ms=now, exact=True)
+        display = chart_rollup_rows(checked)
+        self.assertEqual(Decimal(display[0]["v"]), Decimal(15 * amount))
+        self.assertEqual(display[0]["volume_decimal"],
+                         str(15 * amount))
+        self.assertEqual(display[0]["volume_precision"],
+                         "EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
+        self.assertFalse(checked["paper_admitted"])
+        self.assertFalse(checked["trading_authorized"])
 
     def test_b305_historical_dto_tampering_rehashed_still_refused(self):
         """Integrity hash alone cannot raise source or execution authority."""
@@ -470,12 +510,23 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         rows = self._mtf_records(boundary, boundary + 30000, 5)
         page = historical_asof_snapshot(
             "BTCUSDT", "5m", 1, boundary, asof,
-            reader=lambda *_:rows, now_ms=int(time.time()*1000))
+            reader=lambda *_:rows, now_ms=int(time.time()*1000),
+            exact=True)
         self.assertEqual(validate_qualified_rollup(
             page, "BTCUSDT", "5m", 1, historical=True,
-            before_ms=boundary, as_of_ms=asof)["status"], "PARTIAL")
+            before_ms=boundary, as_of_ms=asof,
+            exact=True)["status"], "PARTIAL")
         changes = (
             lambda p: p.update(source_declared_quality=["DEGRADED"]),
+            lambda p: p.update(decimal_contract="SOURCE_VERIFIED"),
+            lambda p: p.update(source_numeric_precision="RAW_EXCHANGE_TICKS"),
+            lambda p: p["rows"][0].update(volume_decimal="99999"),
+            lambda p: p["rows"][0].update(delta_decimal="1E+3"),
+            lambda p: p["rows"][0].update(buy_volume_decimal="-0"),
+            lambda p: p["rows"][0].update(sell_volume_decimal="01"),
+            lambda p: p["rows"][0].update(volume_decimal="1.00"),
+            lambda p: p["rows"][0].update(delta_decimal="NaN"),
+            lambda p: p["rows"][0].update(volume_decimal="9"*4301),
             lambda p: p.update(historical_source_trust="EXCHANGE_VERIFIED"),
             lambda p: p.update(live_freshness="FRESH"),
             lambda p: p.update(freshness_mode="LIVE"),
@@ -493,7 +544,8 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
             with self.subTest(change=str(change)), self.assertRaises(ValueError):
                 validate_qualified_rollup(
                     forged, "BTCUSDT", "5m", 1,
-                    historical=True, before_ms=boundary, as_of_ms=asof)
+                    historical=True, before_ms=boundary, as_of_ms=asof,
+                    exact=True)
 
     def test_old_capability_cannot_read_after_grid_restart_or_get_v1_fallback(self):
         """Real loopback Grid Handler restart, not an in-memory HTTP mock.

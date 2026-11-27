@@ -4,6 +4,7 @@ import json
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 
 from terminan import data
@@ -63,6 +64,40 @@ class QualifiedTimeframeHTTPTests(unittest.TestCase):
                 bad_status, _ = self.read(base + "?" + query)
                 self.assertEqual(bad_status, 400)
 
+
+    def test_chart_query_budget_precedes_generic_url_decoding(self):
+        """An overlong chart query must be rejected before parse_qs runs."""
+        paths = (
+            "/api/market-data/qualified/historical",
+            "/api/market-data/qualified/timeframe",
+        )
+        for path in paths:
+            for suffix in ("&extra=" + "A" * 2100, "#" + "B" * 2100):
+                with self.subTest(path=path, suffix=suffix[:18]):
+                    with patch("terminan.server.parse_qs",
+                               side_effect=AssertionError("decoded too early")):
+                        status, value = self.read(
+                            path + "?symbol=BTCUSDT" + suffix)
+                    self.assertEqual(status, 400)
+                    self.assertEqual(value["error"],
+                                     "BOUNDED_QUALIFIED_CHART_QUERY_REQUIRED")
+
+    def test_ui_calls_source_exact_mtf_without_numeric_volume_rounding(self):
+        """An exact 5m/15m UI must not reconstruct trades or 1m fallback."""
+        from importlib.resources import files
+        html = files("terminan").joinpath("index.html").read_text(
+            encoding="utf-8")
+        self.assertIn("'/api/market-data/qualified/timeframe?'", html)
+        self.assertIn("if (timeframe === '1m')", html)
+        self.assertIn("timeframe === '5m' || timeframe === '15m'", html)
+        self.assertIn("last.volume_decimal", html)
+        self.assertIn("last.delta_decimal", html)
+        self.assertIn("source_numeric_precision", html)
+        self.assertIn("DECIMAL", html.upper())
+        self.assertIn("НЕ raw биржевые тики", html)
+        self.assertIn("без fallback", html)
+        self.assertNotIn("Number(last.volume_decimal)", html)
+        self.assertNotIn("parseFloat(last.delta_decimal)", html)
 
     def test_historical_route_requires_explicit_asof_and_is_never_live(self):
         base = "/api/market-data/qualified/historical"

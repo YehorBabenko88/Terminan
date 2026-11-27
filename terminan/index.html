@@ -37,40 +37,107 @@ async function refresh() {
     draw([]);
     el('error').textContent = error.message;
   }
-  try {
-    const receipt = await api('/api/market-data/qualified?' + selected);
-    if (generation !== refreshGeneration) return;
-    const isPartial = receipt.status === 'PARTIAL'
-      && receipt.record_integrity === 'VERIFIED'
-      && receipt.source_authenticity === 'NOT_INDEPENDENTLY_ATTESTED'
-      && receipt.quality_attestation === 'NOT_INDEPENDENTLY_ATTESTED'
-      && receipt.storage_immutability === 'NOT_ATTESTED'
-      && receipt.read_only === true
-      && receipt.paper_admitted === false
-      && receipt.execution_authority === false
-      && receipt.trading_authorized === false
-      && receipt.exchange_completeness_attested === false
-      && receipt.reason === 'EXCHANGE_COMPLETENESS_UNATTESTED'
-      && Array.isArray(receipt.rows)
-      && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '');
-    if (isPartial) {
-      el('qualified-receipt').textContent =
-        'PARTIAL · контроль целостности пройден · источник/хранилище НЕ аттестованы · paper запрещён\\n'
-        + 'Отпечаток: ' + receipt.dataset_fingerprint
-        + ' · минут: ' + receipt.rows.length;
-      if (timeframe === '1m') {
-        draw(receipt.rows);
-        el('chartmsg').textContent = receipt.rows.length
-          + ' свечей · PARTIAL · качество/полнота/хранилище не аттестованы · НЕ для торговли';
+  if (timeframe === '1m') {
+    try {
+      const receipt = await api('/api/market-data/qualified?' + selected);
+      if (generation !== refreshGeneration) return;
+      const isPartial = receipt.status === 'PARTIAL'
+        && receipt.record_integrity === 'VERIFIED'
+        && receipt.source_authenticity === 'NOT_INDEPENDENTLY_ATTESTED'
+        && receipt.quality_attestation === 'NOT_INDEPENDENTLY_ATTESTED'
+        && receipt.storage_immutability === 'NOT_ATTESTED'
+        && receipt.read_only === true
+        && receipt.paper_admitted === false
+        && receipt.execution_authority === false
+        && receipt.trading_authorized === false
+        && receipt.exchange_completeness_attested === false
+        && receipt.reason === 'EXCHANGE_COMPLETENESS_UNATTESTED'
+        && Array.isArray(receipt.rows)
+        && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '');
+      if (isPartial) {
+        el('qualified-receipt').textContent =
+          'PARTIAL · контроль целостности пройден · источник/хранилище НЕ аттестованы · paper запрещён\\n'
+          + 'Отпечаток: ' + receipt.dataset_fingerprint
+          + ' · минут: ' + receipt.rows.length;
+        if (timeframe === '1m') {
+          draw(receipt.rows);
+          el('chartmsg').textContent = receipt.rows.length
+            + ' свечей · PARTIAL · качество/полнота/хранилище не аттестованы · НЕ для торговли';
+        }
+      } else {
+        el('qualified-receipt').textContent =
+          'UNAVAILABLE · нет подтверждённой PARTIAL-квитанции · paper запрещён';
       }
-    } else {
+    } catch {
+      if (generation !== refreshGeneration) return;
       el('qualified-receipt').textContent =
-        'UNAVAILABLE · нет подтверждённой PARTIAL-квитанции · paper запрещён';
+        'UNAVAILABLE · подтверждённая PARTIAL-квитанция недоступна';
     }
-  } catch {
-    if (generation !== refreshGeneration) return;
+
+  } else if (timeframe === '5m' || timeframe === '15m') {
+    try {
+      // Grid is the only MTF reducer. Do not synthesize or fall back to 1m.
+      const receipt = await api('/api/market-data/qualified/timeframe?' + selected
+        + '&timeframe=' + encodeURIComponent(timeframe) + '&bars=5');
+      if (generation !== refreshGeneration) return;
+      const rows = Array.isArray(receipt.rows) ? receipt.rows : [];
+      const fixed = /^-?(?:0|[1-9][0-9]*)(?:[.][0-9]*[1-9])?$/;
+      const validRows = rows.length === 5 && rows.every(row =>
+        typeof row.v === 'string' && row.v === row.volume_decimal
+        && row.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+        && typeof row.buy_volume_decimal === 'string'
+        && typeof row.sell_volume_decimal === 'string'
+        && typeof row.delta_decimal === 'string'
+        && fixed.test(row.volume_decimal)
+        && fixed.test(row.buy_volume_decimal)
+        && fixed.test(row.sell_volume_decimal)
+        && fixed.test(row.delta_decimal));
+      const qualified = receipt.status === 'PARTIAL'
+        && receipt.reason === 'EXCHANGE_COMPLETENESS_UNATTESTED'
+        && receipt.read_only === true
+        && receipt.record_integrity === 'VERIFIED'
+        && receipt.source_authenticity === 'NOT_INDEPENDENTLY_ATTESTED'
+        && receipt.quality_attestation === 'NOT_INDEPENDENTLY_ATTESTED'
+        && receipt.storage_immutability === 'NOT_ATTESTED'
+        && receipt.source_numeric_precision === 'STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+        && receipt.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
+        && receipt.exchange_completeness_attested === false
+        && receipt.paper_admitted === false
+        && receipt.trading_authorized === false
+        && receipt.execution_authority === false
+        && receipt.source_minutes === (timeframe === '5m' ? 25 : 75)
+        && /^[a-f0-9]{64}$/.test(receipt.dataset_fingerprint || '')
+        && validRows;
+      if (qualified) {
+        draw(rows);
+        const last = rows[rows.length - 1];
+        el('chartmsg').textContent = rows.length + ' свечей ' + timeframe
+          + ' · PARTIAL · source-only / NOT ATTESTED · НЕ для торговли';
+        // Exact Decimal strings from canonical Math; DO NOT use Number(),
+        // parseFloat(), toFixed(), or binary64 for volume and delta display.
+        el('qualified-receipt').textContent =
+          'PARTIAL · Math по сохранённым 1m JSON · НЕ raw биржевые тики\n'
+          + 'Объём: ' + last.volume_decimal
+          + ' · Buy: ' + last.buy_volume_decimal
+          + ' · Sell: ' + last.sell_volume_decimal
+          + ' · Delta: ' + last.delta_decimal
+          + '\nИсточник/полнота/хранилище не аттестованы · paper/trading запрещены';
+      } else {
+        draw([]);
+        el('qualified-receipt').textContent =
+          'UNAVAILABLE · точная MTF-квитанция отсутствует · без fallback/торговли';
+      }
+    } catch {
+      if (generation !== refreshGeneration) return;
+      draw([]);
+      el('qualified-receipt').textContent =
+        'UNAVAILABLE · Grid MTF источник/проверка недоступны · без fallback';
+    }
+  } else {
+    // Do not substitute 1m or fabricate 3m/1h/4h/1d derived candles.
+    draw([]);
     el('qualified-receipt').textContent =
-      'UNAVAILABLE · подтверждённая PARTIAL-квитанция недоступна';
+      'UNAVAILABLE · этот timeframe ещё не прошёл source qualification';
   }
   try {
     const rows = await api('/api/market-data/footprint?' + selected);
