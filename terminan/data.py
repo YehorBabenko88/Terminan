@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 SYMBOL = re.compile(r"^[A-Z0-9]{2,30}$")
+SHA256 = re.compile(r"[0-9a-f]{64}")
 TIMEFRAMES = {"1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"}
 
 def validate(symbol, timeframe="1m"):
@@ -53,6 +54,9 @@ def instruments():
 
 def research(symbol, limit=50):
     validate(symbol)
+    source = os.environ.get("TERMINAN_MEMORY_URL")
+    if source:
+        return scientific_memory(source, symbol, max(1, min(int(limit), 100)))
     con = sqlite_ro("TERMINAN_RESULTS_DB")
     if con is None:
         return []
@@ -61,6 +65,28 @@ def research(symbol, limit=50):
         return [dict(run_id=r[0], strategy=r[1], version=r[2], created_at=r[3], metrics=json.loads(r[4])) for r in rows]
     finally:
         con.close()
+
+
+def scientific_memory(source, symbol, limit):
+    try:
+        payload = read_source(source, "/v1/scientific-memory", {"symbol": symbol, "limit": limit})
+    except ValueError as exc:
+        raise RuntimeError("Invalid scientific memory source configuration") from exc
+    if (not isinstance(payload, dict) or payload.get("schema") != "math.scientific-memory.list.v1"
+            or payload.get("symbol") != symbol):
+        raise RuntimeError("Unexpected scientific memory response")
+    records = payload.get("records")
+    if not isinstance(records, list) or len(records) > limit:
+        raise RuntimeError("Unexpected scientific memory record count")
+    for record in records:
+        if (not isinstance(record, dict) or record.get("schema") != "math.scientific-memory.record.v1"
+                or record.get("symbol") != symbol or record.get("status") not in ("reproduced", "contradicted")):
+            raise RuntimeError("Unexpected scientific memory record")
+        dataset = record.get("dataset")
+        identifiers = (record.get("id"), record.get("input_hash"), dataset.get("id") if isinstance(dataset, dict) else None)
+        if any(not isinstance(value, str) or not SHA256.fullmatch(value) for value in identifiers):
+            raise RuntimeError("Unexpected scientific memory record identity")
+    return records
 
 
 DECIMAL_TEXT = re.compile(r"-?[0-9]+(?:\.[0-9]+)?")

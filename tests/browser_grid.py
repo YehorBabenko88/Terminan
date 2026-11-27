@@ -18,6 +18,8 @@ VOLUME = "0.000000000000000000123400"
 HTML = Path(__file__).resolve().parents[1] / "terminan" / "index.html"
 STALE_REQUEST = threading.Event()
 RELEASE_STALE = threading.Event()
+STALE_RESEARCH_REQUEST = threading.Event()
+RELEASE_STALE_RESEARCH = threading.Event()
 STALE_TIMEFRAME_REQUEST = threading.Event()
 RELEASE_STALE_TIMEFRAME = threading.Event()
 REQUESTS = []
@@ -44,7 +46,18 @@ class Fixtures(BaseHTTPRequestHandler):
         elif url.path == "/api/logs":
             value = {"events": [symbol]}
         elif url.path == "/api/research":
-            value = [symbol]
+            if symbol == "BTCUSDT":
+                STALE_RESEARCH_REQUEST.set()
+                RELEASE_STALE_RESEARCH.wait(8)
+            value = [{
+                "schema": "math.scientific-memory.record.v1",
+                "symbol": symbol,
+                "id": ("b" if symbol == "BTCUSDT" else "e") * 64,
+                "dataset": {"id": "d" * 64},
+                "status": "reproduced",
+                "input_hash": "a" * 64,
+                "metrics": {"price": last_price, "result": None},
+            }]
         elif url.path == "/api/candles":
             if symbol == "BTCUSDT":
                 STALE_REQUEST.set()
@@ -117,10 +130,17 @@ def run():
             try:
                 page.goto(f"http://127.0.0.1:{server.server_port}/")
                 assert STALE_REQUEST.wait(5), "old BTC candle request did not reach the fixture"
+                assert STALE_RESEARCH_REQUEST.wait(5), "old BTC research request did not reach the fixture"
                 page.get_by_role("button", name="ETHUSDT", exact=True).click()
-                expect(page.locator("#research")).to_contain_text("ETHUSDT")
+                research = page.locator("#research")
+                expect(research).to_contain_text("ETHUSDT")
+                expect(research).to_contain_text("e" * 64)
+                expect(research).to_contain_text(PRICE)
                 RELEASE_STALE.set()
+                RELEASE_STALE_RESEARCH.set()
                 page.wait_for_load_state("networkidle")
+                expect(research).to_contain_text("ETHUSDT")
+                expect(research).not_to_contain_text("BTCUSDT")
                 expect(page.locator("#selected")).to_contain_text("ETHUSDT")
                 expect(page.locator("#chartmsg")).to_contain_text("1 свечей")
                 expect(page.locator("#chartmsg")).to_contain_text("INCOMPLETE")
@@ -161,9 +181,10 @@ def run():
                 assert not page_errors, page_errors
             finally:
                 RELEASE_STALE.set()
+                RELEASE_STALE_RESEARCH.set()
                 RELEASE_STALE_TIMEFRAME.set()
                 server.shutdown()
-    print("PASS: Chromium stale refresh, precise labels, nullable rows, coverage, empty and unavailable feeds")
+    print("PASS: Chromium stale candle and research refresh, precise labels, nullable rows, coverage, empty and unavailable feeds")
 
 
 if __name__ == "__main__":
