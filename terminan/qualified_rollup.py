@@ -161,6 +161,7 @@ def chart_rollup_rows(checked):
     return [{
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
+        "closed_at_ms": row["end_ms"] + 1,
         "v": str(exact_sum((Decimal(str(row["buy_volume"])),
                             Decimal(str(row["sell_volume"]))))),
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],

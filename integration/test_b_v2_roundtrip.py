@@ -268,8 +268,8 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 "BTCUSDT", "15m", bars=5)
             five = data.qualified_market_data_timeframe_chart(
                 "BTCUSDT", "5m", bars=5)
-        reader.assert_any_call("BTCUSDT", 75, 2**63 - 1)
-        reader.assert_any_call("BTCUSDT", 25, 2**63 - 1)
+        reader.assert_any_call("BTCUSDT", 75, boundary)
+        reader.assert_any_call("BTCUSDT", 25, boundary)
         for result, volume, timeframe in (
                 (fifteen, "15", "15m"), (five, "5", "5m")):
             with self.subTest(timeframe=timeframe):
@@ -284,9 +284,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                 self.assertFalse(result["trading_authorized"])
                 self.assertFalse(result["execution_authority"])
                 self.assertFalse(result["exchange_completeness_attested"])
-                self.assertEqual(result["rows"][-1]["t"] + (
-                    900000 if timeframe == "15m" else 300000) - 1,
-                    boundary - 1)
+                self.assertEqual(result["rows"][-1]["closed_at_ms"], boundary)
 
     def test_b_mtf_gaps_epoch_stale_and_unaligned_are_refused(self):
         from market_data.provenance import digest
