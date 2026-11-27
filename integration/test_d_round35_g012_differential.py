@@ -204,6 +204,73 @@ class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
                 with self.assertRaises(ProvenanceReadError):
                     self.canonical(broken, timeframe, 1)
 
+    def test_duplicate_shifted_and_missing_final_minute_fail_closed(self):
+        """No synthetic interpolation, duplicated minute or last-bar repair."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            pristine = minute_rows(step, 1.0, 0.5)
+            duplicate = copy.deepcopy(pristine)
+            duplicate[2] = copy.deepcopy(duplicate[1])
+            shifted = copy.deepcopy(pristine)
+            # Preserve all original fields, rehash source record after moving
+            # every clock field. The next consecutive minute now has a gap.
+            changed = shifted[2]
+            for field in ("start_ms", "end_ms", "source_event_start_ms",
+                          "source_event_end_ms", "ingestion_ms"):
+                if field in changed:
+                    changed[field] += 60000
+            changed["dataset_fingerprint"] = digest({
+                key: value for key, value in changed.items()
+                if key != "dataset_fingerprint"
+            })
+            missing_tail = pristine[:-1]
+            cases = (
+                ("DUPLICATE", duplicate),
+                ("SHIFTED", shifted),
+                ("MISSING_LAST", missing_tail),
+            )
+            for reason, records in cases:
+                with self.subTest(timeframe=timeframe, reason=reason):
+                    with self.assertRaises(ValueError):
+                        self.legacy(records, timeframe, 1)
+                    with self.assertRaises(ProvenanceReadError):
+                        self.canonical(records, timeframe, 1)
+
+    def test_both_timeframes_reject_rehashed_numeric_and_source_tamper(self):
+        """A valid new fingerprint cannot grant provenance or paper trading."""
+        for timeframe, step in (("5m", 5), ("15m", 15)):
+            envelope, _ = self.canonical(
+                minute_rows(step, 1.0, 0.5), timeframe, 1)
+            cases = (
+                ("NEGATIVE_ZERO_DELTA",
+                 lambda p: p["rows"][0].update(delta_decimal="-0")),
+                ("WRONG_DELTA",
+                 lambda p: p["rows"][0].update(delta_decimal="999")),
+                ("WRONG_VOLUME",
+                 lambda p: p["rows"][0].update(volume_decimal="999")),
+                ("FALSE_PAPER_GRANT",
+                 lambda p: p.update(paper_admitted=True)),
+                ("FALSE_TRADING_GRANT",
+                 lambda p: p.update(trading_authorized=True)),
+                ("FALSE_SOURCE_AUTHENTICITY",
+                 lambda p: p.update(source_authenticity="EXCHANGE_VERIFIED")),
+                ("EXTRA_FIELD",
+                 lambda p: p.update(unsupported_status="LIVE")),
+            )
+            for reason, mutate in cases:
+                with self.subTest(timeframe=timeframe, reason=reason):
+                    forged = copy.deepcopy(envelope)
+                    mutate(forged)
+                    forged["dataset_fingerprint"] = digest({
+                        key: value for key, value in forged.items()
+                        if key != "dataset_fingerprint"
+                    })
+                    with self.assertRaisesRegex(
+                        ValueError, "QUALIFIED_ROLLUP_UNAVAILABLE"
+                    ):
+                        validate_qualified_rollup(
+                            forged, "BTCUSDT", timeframe, 1,
+                            now_ms=NOW, exact=True)
+
     def test_rehashed_negative_zero_delta_and_authority_never_fallback(self):
         rows = minute_rows(5, 1.0, 0.5)
         envelope, _ = self.canonical(rows, "5m", 1)
