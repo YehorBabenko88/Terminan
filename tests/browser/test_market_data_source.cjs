@@ -83,14 +83,22 @@ test('the MarketData panel clears stale state and never promotes unqualified dat
     await page.locator('#refresh').click();
     await oldest;
     await page.locator('#tf').selectOption('5m');
-    const currentChart = page.locator('#chartmsg').filter({ hasText: '2 свечей' });
+    // Exact Grid 5m is NOT a generic /api/candles chart. The old UI
+    // incorrectly displayed two unqualified fabricated 5m candles; after
+    // source qualification it must fail closed when the MTF receipt is absent.
+    const currentChart = page.locator('#qualified-receipt').filter({
+      hasText: 'UNAVAILABLE · точная MTF-квитанция отсутствует',
+    });
     await currentChart.waitFor({ timeout: 4000 });
+    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /2 свечей/);
     const staleResponse = page.waitForResponse(oldCandle, { timeout: 4000 });
     resumeCandle();
     pauseCandle = null;
     await staleResponse;
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     assert.equal(await currentChart.count(), 1);
+    assert.doesNotMatch(await page.locator('#chartmsg').innerText(), /2 свечей/);
+    assert.equal(marketDataCandleRequests, 0);
     const button = page.getByRole('button', { name: 'Проверить MarketData' });
     reply = { ...unavailable, connection: 'CONNECTED_UNQUALIFIED', database: 'READ_ONLY' };
     await button.focus();
