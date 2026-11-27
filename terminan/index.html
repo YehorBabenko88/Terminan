@@ -81,7 +81,7 @@ async function refresh() {
         + '&timeframe=' + encodeURIComponent(timeframe) + '&bars=5');
       if (generation !== refreshGeneration) return;
       const rows = Array.isArray(receipt.rows) ? receipt.rows : [];
-      const fixed = /^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?$/;
+      const fixed = /^-?(?:0|[1-9][0-9]*)(?:[.][0-9]*[1-9])?$/;
       const validRows = rows.length === 5 && rows.every(row =>
         typeof row.v === 'string' && row.v === row.volume_decimal
         && row.volume_precision === 'EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW'
@@ -116,12 +116,12 @@ async function refresh() {
         // Exact Decimal strings from canonical Math; DO NOT use Number(),
         // parseFloat(), toFixed(), or binary64 for volume and delta display.
         el('qualified-receipt').textContent =
-          'PARTIAL · Math по сохранённым 1m JSON · НЕ raw биржевые тики\\n'
+          'PARTIAL · Math по сохранённым 1m JSON · НЕ raw биржевые тики\n'
           + 'Объём: ' + last.volume_decimal
           + ' · Buy: ' + last.buy_volume_decimal
           + ' · Sell: ' + last.sell_volume_decimal
           + ' · Delta: ' + last.delta_decimal
-          + '\\nИсточник/полнота/хранилище не аттестованы · paper/trading запрещены';
+          + '\nИсточник/полнота/хранилище не аттестованы · paper/trading запрещены';
       } else {
         draw([]);
         el('qualified-receipt').textContent =
