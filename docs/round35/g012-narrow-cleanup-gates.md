@@ -29,14 +29,34 @@ and D consumer `terminan/qualified_rollup.py` blob
 
 ## Exact prospective narrow cleanup target
 
-Only after independent H/G review of **all** required invariants, identify
-the exact legacy implementation symbol `qualified_timeframe_rows` in
-`terminan/qualified_partial.py` and its reachable consumers. Do not remove
-the entire module or `qualified_partial.py`: it also contains the separately
-used managed v2 qualification logic. Do not delete the historical D129 source,
-Math D167 source or test-only pinned read fixtures. A future deletion PR must
-show symbol-level call graph and the absence of a runtime caller, with an
-explicit positive canonical Grid/Math replacement per consumer.
+**Current candidate source finding (verified at 9e6c5379):** the symbol
+`qualified_timeframe_rows` is ALREADY ABSENT from the current
+`terminan/qualified_partial.py` (blob
+`f743205fd4deedaca55dff8d7bd822300e209f52`).
+It exists in the preserved *historical D129* blob
+`27cd754b97a0a8c32b0ec51daac41110dca35292` used by the
+test-only differential. Therefore there is **no current D136 production
+implementation of that symbol left to delete**; producing a deletion patch
+for it would be fictitious. No entire-module removal is authorized.
+Current `terminan/data.py` blob
+`7c656355a68c27c3ad24ef55c15f80fece4c701c`
+still calls `validate_qualified_v2`/`chart_rows` from
+`qualified_partial.py` for managed 1m, and calls
+`validate_qualified_rollup`/`chart_rollup_rows` from
+`qualified_rollup.py` for 5m/15m LIVE and HISTORICAL.
+The current rollup consumer blob is
+`77c6855c52030d5d9b0e839e0c9245b947db41b5`.
+Thus both current modules have live, distinct consumer responsibilities,
+not a proved duplicate pair.
+
+The next meaningful narrow cleanup search must occur in any *other still
+deployed* owner/runtime copy of the historical G012 aggregator, with an
+exact immutable source blob, actual caller graph, and proof of canonical
+cutover. Preserve D129 and D167 archived test-only blobs and all their
+receipts. Do not remove the whole qualified_partial module, its 1m
+adapters, or either 5m/15m LIVE/HISTORICAL adapter. Any future cleanup PR
+must demonstrate a concrete still-present production symbol, its callers,
+a source-exact replacement and H/G/J/F independent acceptance.
 
 This prospective removal **does not** authorize removing any richer datasets:
 raw trades, tick archives, source 1m, footprint/delta/POC, OI, funding,
