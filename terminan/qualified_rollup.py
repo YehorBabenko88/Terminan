@@ -38,7 +38,9 @@ _ROW = frozenset({
 _MAX_TIME = 2**53-1
 _MAX_RESPONSE_BYTES = 8_388_608
 _HISTORICAL_ONLY = frozenset({"freshness_mode", "as_of_ms", "live_freshness", "historical_source_trust"})
-_EXACT_TOP = frozenset({"decimal_contract", "numeric_presentation"})
+_EXACT_TOP = frozenset({
+    "decimal_contract", "numeric_presentation", "source_numeric_precision",
+})
 _EXACT_ROW = frozenset({
     "buy_volume_decimal", "sell_volume_decimal", "volume_decimal",
     "delta_decimal",
@@ -138,8 +140,10 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
                   if historical else "market_data.qualified-mtf-envelope")
         _need(envelope["schema"] == schema + (".v2" if exact else ".v1"))
         if exact:
-            _need(envelope["decimal_contract"] == "CANONICAL_MATH_EXACT_SOURCE_VALUES"
-                  and envelope["numeric_presentation"] == "DECIMAL_STRING_LOSSLESS")
+            _need(envelope["decimal_contract"] == "CANONICAL_MATH_EXACT_STORED_1M"
+                  and envelope["numeric_presentation"] == "DECIMAL_STRING_EXACT_STORED_INPUTS"
+                  and envelope["source_numeric_precision"] ==
+                  "STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW")
         else:
             _need(type(envelope["source_declared_quality"]) is list
                   and envelope["source_declared_quality"] == ["GOOD"])
@@ -253,7 +257,7 @@ def validate_qualified_rollup(envelope, symbol, timeframe, limit, *,
 
 def chart_rollup_rows(checked):
     """Detached source-exact Math rows; never permission, POC or fake OI."""
-    exact = checked.get("numeric_presentation") == "DECIMAL_STRING_LOSSLESS"
+    exact = checked.get("numeric_presentation") == "DECIMAL_STRING_EXACT_STORED_INPUTS"
     return [{
         "t": row["start_ms"], "o": row["open"], "h": row["high"],
         "l": row["low"], "c": row["close"],
@@ -264,7 +268,7 @@ def chart_rollup_rows(checked):
         "v": (row["volume_decimal"] if exact else
               str(exact_sum((Decimal(str(row["buy_volume"])),
                              Decimal(str(row["sell_volume"])))))),
-        "volume_precision": ("CANONICAL_MATH_EXACT_SOURCE_VALUES" if exact
+        "volume_precision": ("EXACT_STORED_1M_JSON_NUMBERS_NOT_PROVIDER_RAW" if exact
                              else "BINARY64_PRESENTATION_NOT_SOURCE_EXACT"),
         "buy_volume": row["buy_volume"], "sell_volume": row["sell_volume"],
         "delta": row["delta"], "trade_count": row["trade_count"],
