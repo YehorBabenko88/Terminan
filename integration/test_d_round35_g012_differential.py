@@ -44,7 +44,14 @@ def original_blob(path, expected):
     raw = path.read_bytes()
     oid = sha1(b"blob " + str(len(raw)).encode("ascii") + b"\0" + raw).hexdigest()
     if oid != expected:
-        raise AssertionError("ORIGINAL_G012_BLOB_MISMATCH: " + path.name)
+        # Windows checkout can materialize CRLF from immutable Git LF bytes.
+        # Recompute and REQUIRE the identical pinned Git blob after LF
+        # normalization; a different source still fails closed.
+        lf = raw.replace(b"\r\n", b"\n")
+        lf_oid = sha1(b"blob " + str(len(lf)).encode("ascii") + b"\0" + lf).hexdigest()
+        if lf == raw or lf_oid != expected:
+            raise AssertionError("ORIGINAL_G012_BLOB_MISMATCH: " + path.name)
+        return lf
     return raw
 
 
@@ -126,7 +133,8 @@ def legacy_receipt(rows):
 class OriginalD129AgainstCanonicalGridAndD(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.old_aggregate, cls.old_math = original_aggregator()
+        original, cls.old_math = original_aggregator()
+        cls.old_aggregate = staticmethod(original)
 
     def legacy(self, rows, timeframe, bars):
         with patch.dict(sys.modules, {"market_math": self.old_math}):
