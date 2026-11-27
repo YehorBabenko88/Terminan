@@ -310,7 +310,7 @@ def qualified_timeframe_rows(validated_receipt, timeframe, *, max_bars=5):
     No strategy authorization, delta/POC derivation, trades or OI are invented.
     """
     from decimal import Decimal
-    from market_math import candle_ohlcv_valid
+    from market_math import aggregate_closed_minute_ohlcv
 
     step = _MTF_WINDOWS.get(timeframe) if type(timeframe) is str else None
     if step is None or type(max_bars) is not int or not 1 <= max_bars <= _MTF_MAX_BARS:
@@ -326,7 +326,7 @@ def qualified_timeframe_rows(validated_receipt, timeframe, *, max_bars=5):
         raise ValueError("MTF_UNQUALIFIED_RECEIPT")
     rows = validated_receipt.get("rows")
     if (type(rows) is not tuple
-            or not step <= len(rows) <= step * max_bars
+            or len(rows) != step * max_bars
             or len(rows) > _MTF_MAX_SOURCE_ROWS
             or len(rows) % step):
         raise ValueError("MTF_INCOMPLETE_SOURCE_WINDOW")
@@ -345,12 +345,7 @@ def qualified_timeframe_rows(validated_receipt, timeframe, *, max_bars=5):
                    Decimal(str(row["candle"]["buy_volume"])),
                    Decimal(str(row["candle"]["sell_volume"])))
                   for row in group]
-        opened, closed = prices[0][0], prices[-1][3]
-        high = max(price[1] for price in prices)
-        low = min(price[2] for price in prices)
-        volume = sum((price[4] + price[5] for price in prices), Decimal(0))
-        if not candle_ohlcv_valid(opened, high, low, closed, volume):
-            raise ValueError("MTF_MATH_DOMAIN_INVALID")
+        opened, high, low, closed, volume = aggregate_closed_minute_ohlcv(prices)
         result.append({
             "t": starts[at], "o": str(opened), "h": str(high),
             "l": str(low), "c": str(closed), "v": str(volume),
