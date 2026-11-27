@@ -66,12 +66,17 @@ provenance, or unavailable states.
 
 ## Blocking acceptance gates
 
-1. **Same-input numerical and temporal parity:** old 68-line original versus
-   Grid/Math/Terminan canonical 5m and 15m, 1..5 windows,
-   Decimal exact stored source presentation, buy/sell/volume/delta,
-   OHLC, open/close clocks, trade-count presentation, closed bars,
-   contiguous minutes, deterministic fingerprints. Fail-closed for
-   missing, duplicated, shifted, cross-epoch, stale and malformed source.
+1. **Same-input numerical and temporal parity:** compare old original
+   D129's actual limited output **OHLCV + start/closed clocks only**
+   against Grid/Math/Terminan canonical 5m and 15m, bounded 1..5 windows.
+   D129's original 68-line `qualified_timeframe_rows` does NOT output
+   delta, directional buy/sell, trade count, turnover, OI, footprint or
+   provider-raw trades: asserting old-vs-new equality for absent fields
+   is invalid. Separately require canonical Math exact stored-1m
+   buy/sell/volume/delta consistency, source minute fingerprints,
+   timestamps and original source retention. Current new historical-as-of
+   test is a *candidate*, not yet original CI executed. Missing, duplicate,
+   shifted, cross-epoch, stale and malformed source must fail closed.
 2. **History preservation:** independently test original G's
    SQLite closed/reopened, read-only eight-dataset preservation and
    current Grid historical as-of cutoff; no lookahead, old/new
@@ -91,4 +96,10 @@ provenance, or unavailable states.
    no removed unique fields, no main merge until MASTER authorization.
    Report PASS/FAIL/ERROR/SKIP/NOT_RUN separately with exact job IDs.
 
+\n**Disposition of current Terminan D136:** the D129-only aggregate function
+is already absent in the deployed-source candidate; no deletion diff is
+available or warranted in this repository. The cleanup deliverable for D is
+the source-exact no-deletion finding and independent data-lineage gate.
+Other owners must identify and prove an actual still-present duplicate
+before asking MASTER for a symbol-only deletion.\n
 **At this stage no candidate is approved for deletion.**
