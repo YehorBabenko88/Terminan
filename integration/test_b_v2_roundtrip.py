@@ -392,6 +392,35 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
         self.assertEqual(live["rows"], [])
         reader.assert_any_call("BTCUSDT", 15, boundary)
 
+    def test_b305_historical_source_lookahead_gap_and_epoch_refused(self):
+        from market_data.provenance import digest
+        boundary = ((int(time.time() * 1000) // 900000) - 4) * 900000
+        asof = boundary + 60000
+        base = self._mtf_records(boundary, boundary + 30000, 15)
+        too_late = self._mtf_records(boundary, asof + 60000, 15)
+        mixed = copy.deepcopy(base)
+        mixed[7]["source"]["epoch"] = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        mixed[7]["dataset_fingerprint"] = digest({
+            key:value for key,value in mixed[7].items()
+            if key != "dataset_fingerprint"})
+        for reason, records in (
+            ("INGEST_AFTER_ASOF", too_late),
+            ("MISSING_MINUTE", base[:8] + base[9:]),
+            ("MIXED_SOURCE_EPOCH", mixed),
+            ("NO_SOURCE", []),
+        ):
+            with self.subTest(reason=reason), patch.object(
+                history_api, "immutable_minutes", return_value=records
+            ):
+                hist = data.qualified_market_data_historical_chart(
+                    "BTCUSDT", "5m", bars=3,
+                    before_ms=boundary, as_of_ms=asof)
+                self.assertEqual(hist["status"], "UNAVAILABLE")
+                self.assertEqual(hist["rows"], [])
+                self.assertFalse(hist["paper_admitted"])
+                self.assertFalse(hist["trading_authorized"])
+                self.assertFalse(hist["execution_authority"])
+
     def test_b305_decimal_cancellation_remains_visible_in_d_chart(self):
         """Grid's source Math delta=0.01 survives lossy binary64 volumes."""
         from market_data.provenance import digest
