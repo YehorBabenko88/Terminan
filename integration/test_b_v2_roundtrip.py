@@ -561,7 +561,7 @@ class Bv2ToTerminanReadTests(unittest.TestCase):
                                             "HISTORICAL_EXACT_CANDLE_CURSOR_REQUIRED"):
                     historical_asof_snapshot(
                         "BTCUSDT", tf, 1, boundary + offset, asof + 600000,
-                        exact=True)
+                        now_ms=asof + 3600000, exact=True)
                 reader.assert_not_called()
 
     def test_b308_actual_handler_rejects_future_and_nonaligned_live_cursor(self):
